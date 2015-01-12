@@ -22,6 +22,9 @@ class TestSms(unittest.TestCase):
             'notifications.sms.route': 'test_route',
             'notifications.sms.on': True,
         }
+        Sms._EVENTS = {
+            'SMS_SENT': eventlog.Event(0x00001, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
+        }
 
     @patch.object(eventlog, 'log')
     @patch.object(requests, 'get')
