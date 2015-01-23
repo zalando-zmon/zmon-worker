@@ -12,6 +12,7 @@ import threading
 from rpc_client import get_rpc_client
 from contextlib import contextmanager
 import settings
+import eventloghttp
 
 from redis_context_manager import RedisConnHandler
 from tasks import load_config_from_file, configure_tasks
@@ -80,6 +81,9 @@ def flow_simple_queue_processor(queue='', **execution_context):
     logger.info('Connecting simple_queue_consumer to queue=%s, execution_context=%s', queue, execution_context)
 
     RedisConnHandler.configure(**dict(config))
+
+    eventloghttp.set_target_host(config.get('eventlog.host','localhost'), config.get('eventlog.port', 8081))
+    eventloghttp.enable_http(config.get('eventlog.http', True))
 
     reactor = FlowControlReactor.get_instance()
 

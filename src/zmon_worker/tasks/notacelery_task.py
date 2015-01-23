@@ -14,7 +14,7 @@ from stashacc import StashAccessor
 from zmon_worker.common.utils import async_memory_cache, with_retries
 from zmon_worker.errors import *
 
-import eventlog
+import eventloghttp as eventlog
 import functools
 import itertools
 import json
