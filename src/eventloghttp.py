@@ -2,6 +2,7 @@ import eventlog
 import json
 import requests
 import datetime
+from eventlog import Event
 
 _target_host = 'localhost'
 _target_port = 8081
