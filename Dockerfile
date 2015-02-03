@@ -1,10 +1,6 @@
-FROM orchardup/python:2.7
-
-RUN apt-get update && apt-get -y install python-dev libev4 libev-dev python-psycopg2 libpq-dev python-dev libldap2-dev libsasl2-dev libssl-dev freetds-dev
+FROM zalando/python:15.01.03
 
 #making this a cachable point as compile takes forever without -j
-RUN pip install numpy
-RUN apt-get install -y python-ldap
 
 RUN mkdir -p /app
 WORKDIR /app
