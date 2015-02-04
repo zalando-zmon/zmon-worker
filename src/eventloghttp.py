@@ -27,9 +27,14 @@ def log(e_id, **kwargs):
     if not _enable_http:
         return
 
-    event = {'typeId': e_id, 'attributes': kwargs, 'time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")}
+    now = datetime.datetime.now()
+
+    headers = {'content-type': 'application/json'}
+
+    event = {'typeId': e_id, 'attributes': kwargs, 'time': now.strftime("%Y-%m-%dT%H:%M:%S.")+now.strftime("%f")[:3]}
+
     try:
-        requests.put('http://{}:{}/'.format(_target_host, _target_port), data=[json.dumps(event)])
+        res = requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers)
     except Exception as e:
         pass
 
