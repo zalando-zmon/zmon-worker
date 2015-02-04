@@ -3,7 +3,7 @@
 
 import requests
 from notification import BaseNotification
-import eventlog
+import eventloghttp as eventlog
 import logging
 
 logger = logging.getLogger(__name__)
