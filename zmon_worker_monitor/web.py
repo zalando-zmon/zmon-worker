@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import cherrypy
 
+import argparse
 import settings
 import logging
 
@@ -23,17 +23,24 @@ import rpc_server
 DEFAULT_NUM_PROC = 16
 
 
-if __name__ == '__main__':
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config-file", help="path to config file")
+    return parser.parse_args()
 
+
+def main():
     # add src dir to sys.path
-    src_dir = os.path.abspath(os.path.dirname(__file__))
-    if src_dir not in sys.path:
-        sys.path.append(src_dir)
+    # src_dir = os.path.abspath(os.path.dirname(__file__))
+    # if src_dir not in sys.path:
+    #     sys.path.append(src_dir)
+
+    args = parse_args()
 
     main_proc = rpc_server.MainProcess()
 
     # load cherrypy configuration
-    cherrypy.config.update('/app/web.conf')
+    cherrypy.config.update(args.config_file or '/app/web.conf')
 
     for key in cherrypy.config.keys():
         env_key = key.upper().replace('.', '_')
@@ -55,3 +62,7 @@ if __name__ == '__main__':
         main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"})
 
     main_proc.start_rpc_server()
+
+
+if __name__ == '__main__':
+    main()

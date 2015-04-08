@@ -6,9 +6,17 @@ RUN mkdir -p /app
 WORKDIR /app
 
 ADD requirements.txt /app/requirements.txt
+ADD test_requirements.txt /app/test_requirements.txt
 RUN pip install -r /app/requirements.txt
 
-ADD src /app/src
+ADD README.rst /app/README.rst
+ADD setup.py /app/setup.py
+ADD zmon_worker_monitor /app/zmon_worker_monitor
+ADD zmon_worker_monitor/data /app/data
 ADD web.conf /app/web.conf
 
-CMD ["python", "/app/src/web.py"]
+RUN cd /app && python setup.py install
+
+RUN mkdir -p /app/logs
+
+CMD ["python", "/app/zmon_worker_monitor/web.py", "-c", "/app/web.conf"]

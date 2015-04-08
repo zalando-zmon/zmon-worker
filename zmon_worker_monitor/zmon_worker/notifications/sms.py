@@ -3,7 +3,7 @@
 
 import requests
 from notification import BaseNotification
-import eventloghttp as eventlog
+import zmon_worker_monitor.eventloghttp as eventlog
 import logging
 
 logger = logging.getLogger(__name__)

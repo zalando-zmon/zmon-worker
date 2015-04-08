@@ -10,7 +10,7 @@ except:
 import logging
 import time
 
-from zmon_worker.errors import CheckError
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from ldap.dn import explode_dn
 
 STATISTICS_OPERATIONS_TO_MONITOR = frozenset([

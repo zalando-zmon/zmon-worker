@@ -3,7 +3,7 @@
 
 import sys
 import re
-from zmon_worker.errors import DbError
+from zmon_worker_monitor.zmon_worker.errors import DbError
 
 DEFAULT_PORT = 3306
 MAX_RESULTS = 100

@@ -3,7 +3,7 @@
 
 import sys
 import logging
-from zmon_worker.errors import DbError
+from zmon_worker_monitor.zmon_worker.errors import DbError
 
 logger = logging.getLogger(__name__)
 

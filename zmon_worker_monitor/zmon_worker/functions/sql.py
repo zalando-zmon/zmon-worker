@@ -5,7 +5,7 @@ import psycopg2
 import re
 import sys
 
-from zmon_worker.errors import CheckError, InsufficientPermissionsError, DbError
+from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, DbError
 from psycopg2.extras import NamedTupleCursor
 
 DEFAULT_PORT = 5432

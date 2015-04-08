@@ -6,7 +6,7 @@
 import requests
 from distance_to_history import DistanceWrapper
 
-from settings import get_external_config
+from zmon_worker_monitor.settings import get_external_config
 
 
 def get_request_json(check_id, entities, time_from, time_to, aggregator='avg', sampling_size_in_seconds=300):

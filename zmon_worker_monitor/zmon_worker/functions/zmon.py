@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from zmon_worker.errors import CheckError
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from functools import partial
 from suds.client import Client
 from time_ import parse_timedelta
 from timeperiod import in_period, InvalidFormat
-from zmon_worker.common.utils import async_memory_cache
+from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache
 
 import sys
 import json

@@ -8,7 +8,7 @@ import re
 import shlex
 import subprocess32
 from functools import partial, wraps
-from zmon_worker.errors import CheckError, NagiosError
+from zmon_worker_monitor.zmon_worker.errors import CheckError, NagiosError
 
 # only return 95% of diskspace because of http://unix.stackexchange.com/questions/7950/reserved-space-for-root-on-a-filesystem-why
 USABLE_DISKSPACE_FACTOR = 0.95

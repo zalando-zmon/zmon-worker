@@ -6,7 +6,7 @@ import sys
 import urllib
 import urlparse
 
-from zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError
 from requests.adapters import HTTPAdapter
 
 

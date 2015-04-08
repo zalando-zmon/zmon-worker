@@ -7,20 +7,20 @@ import __future__
 
 from collections import Callable, Counter
 import socket
-from zmon_worker.functions import TimeWrapper
+from zmon_worker_monitor.zmon_worker.functions import TimeWrapper
 from graphitesend import GraphiteClient
-from zmon_worker.encoder import JsonDataEncoder
+from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
-from zmon_worker.common.utils import async_memory_cache, with_retries
-from zmon_worker.errors import *
+from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
+from zmon_worker_monitor.zmon_worker.errors import *
 
-import eventloghttp as eventlog
+import zmon_worker_monitor.eventloghttp as eventlog
 import functools
 import itertools
 import json
 import logging
 import random
-from redis_context_manager import RedisConnHandler
+from zmon_worker_monitor.redis_context_manager import RedisConnHandler
 import time
 import re
 import requests
@@ -28,23 +28,23 @@ import sys
 import setproctitle
 from datetime import timedelta, datetime
 
-from zmon_worker.functions import HistoryWrapper, HttpWrapper, NagiosWrapper, RedisWrapper, SnmpWrapper, JmxWrapper, TcpWrapper, \
+from zmon_worker_monitor.zmon_worker.functions import HistoryWrapper, HttpWrapper, NagiosWrapper, RedisWrapper, SnmpWrapper, JmxWrapper, TcpWrapper, \
     ping, SqlWrapper, CounterWrapper, EventLogWrapper, LdapWrapper, ExaplusWrapper, ZomcatWrapper, \
     ExceptionsWrapper, JobsWrapper, SqlOracleWrapper, JoblocksWrapper, ZmonWrapper, MySqlWrapper, \
     WhoisWrapper, MsSqlWrapper
 
 from bisect import bisect_left
-from zmon_worker.functions.time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
 
-from zmon_worker.notifications.mail import Mail
-from zmon_worker.notifications.sms import Sms
-from zmon_worker.notifications.notification import BaseNotification
+from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
+from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
+from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
 
 from operator import itemgetter
 from timeperiod import in_period, InvalidFormat
 
 import functional
-from zmon_worker.common import mathfun
+from zmon_worker_monitor.zmon_worker.common import mathfun
 
 logger = logging.getLogger(__name__)
 

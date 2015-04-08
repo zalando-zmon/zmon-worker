@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from zmon_worker.errors import JmxQueryError
+from zmon_worker_monitor.zmon_worker.errors import JmxQueryError
 
 import json
 import requests

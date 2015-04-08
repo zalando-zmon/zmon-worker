@@ -3,7 +3,7 @@
 
 import sys
 import os
-from zmon_worker.errors import DbError
+from zmon_worker_monitor.zmon_worker.errors import DbError
 
 # default port Oracle Net Listener port
 DEFAULT_PORT = 1521
