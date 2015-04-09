@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from collections import Callable
-from zmon_worker.tasks.notacelery_task import Try
+from zmon_worker_monitor.zmon_worker.tasks.notacelery_task import Try
 
 import unittest
 

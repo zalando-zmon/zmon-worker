@@ -3,7 +3,7 @@
 
 import unittest
 
-from zmon_worker.notifications.notification import BaseNotification
+from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
 
 
 class TestBaseNotification(unittest.TestCase):

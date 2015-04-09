@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from zmon_worker.notifications.sms import Sms
+from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 from mock import patch, Mock, PropertyMock
 
 import datetime
