@@ -1,0 +1,17 @@
+[Core]
+Name = bad_color2
+Module = bad_color2
+
+[Documentation]
+Author = John Doe
+Version = 0.1
+Website = https://github.com/zalando/zmon-scheduler
+Description = Example plugin that does nothing good except been useful for documentation and testing.
+
+
+[Configuration]
+
+fashion_sites = www.big_fashion_site.de
+                www.other_fashion_site.de
+
+extra_key1 = whatever

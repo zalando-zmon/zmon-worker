@@ -14,6 +14,7 @@ from contextlib import contextmanager
 import settings
 import eventloghttp
 
+import plugin_manager
 from redis_context_manager import RedisConnHandler
 from tasks import load_config_from_file, configure_tasks
 from tasks import check_and_notify, trial_run, cleanup
@@ -22,6 +23,16 @@ logger = logging.getLogger(__name__)
 
 
 TASK_POP_TIMEOUT = 5
+
+
+__config = None
+
+
+def get_config():
+    global __config
+    if __config is None:
+        __config = settings.get_external_config() or load_config_from_file()
+    return __config
 
 
 def flow_simple_queue_processor(queue='', **execution_context):
@@ -75,7 +86,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
     known_tasks = {'check_and_notify': check_and_notify, 'trial_run': trial_run, 'cleanup': cleanup}
 
     #get configuration and configure tasks
-    config = settings.get_external_config() or load_config_from_file()
+    config = get_config()
     configure_tasks(config)
 
     logger.info('Connecting simple_queue_consumer to queue=%s, execution_context=%s', queue, execution_context)
@@ -276,6 +287,12 @@ def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:defa
 
     logger.info("Starting worker with pid=%s, flow type: %s, queue: %s, execution_context: %s", os.getpid(), flow,
                 queue, execution_context)
+
+    # init the plugin manager
+    plugin_manager.init_plugin_manager()
+
+    # load external plugins (should be run only once)
+    plugin_manager.collect_plugins(global_config=get_config(), load_builtins=True, load_env=True)
 
     # start Flow Reactor here
     FlowControlReactor.get_instance().start()

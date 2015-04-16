@@ -1,0 +1,5 @@
+some_impossible_dependency>=1.0
+other_impossible_dependency>=1.1
+
+# comments are ok though
+yet_another_dependency>=3.14

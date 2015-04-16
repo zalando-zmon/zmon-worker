@@ -15,22 +15,21 @@ import sys
 from yapsy.PluginManager import PluginManagerSingleton
 import pkg_resources
 
-#from zmon_worker.adapters.ientity_plugin import IEntityPlugin  # FIXME: Write our new plugin bases
-from adapters.ibase_plugin import IBasePlugin as IEntityPlugin  # FIXME: Delete this
+from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin
 
 logger = logging.getLogger(__name__)
 
 
 # Some constants to define global behaviour
 
-PLUGIN_INFO_EXT = 'scheduler_plugin'
+PLUGIN_INFO_EXT = 'worker_plugin'
 
-PLUGIN_BUILTINS = ('zmon_scheduler.builtins.plugins',)
+PLUGIN_BUILTINS = ('zmon_worker_monitor.builtins.plugins',)
 
 PLUGIN_ENV_VAR = 'ZMON_PLUGINS'
 
 PLUGIN_CATEGORIES_FILTER = {
-    'Entity': IEntityPlugin,
+    'Function': IFunctionFactoryPlugin,
 }
 
 GLOBAL_CONFIG_PREFIX = 'plugin.{plugin_name}.configuration.'
@@ -328,7 +327,7 @@ def _check_dependencies(path):
 
     req_path = path + os.sep + 'requirements.txt'
     if not os.path.isfile(req_path):
-        logging.debug('%s has no requirements.txt file' % path)
+        logger.debug('%s has no requirements.txt file' % path)
         return None
 
     missing_pkg = []

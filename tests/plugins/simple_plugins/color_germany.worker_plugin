@@ -1,0 +1,21 @@
+[Core]
+Name = color_germany
+Module = color_germany
+
+[Documentation]
+Author = John Doe
+Version = 0.1
+Website = https://github.com/zalando/zmon-scheduler
+Description = Example plugin that does nothing good except been useful for documentation and testing.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+;; Note that these values may are overridden by zmon's global config. For example, the fashion_sites defined below
+;; would be overridden by a global config entry: plugin.color_germany.configuration.fashion_sites = 'another value'
+
+fashion_sites = www.big_fashion_site.de
+                www.other_fashion_site.de
+
+extra_key1 = whatever

@@ -46,6 +46,9 @@ from timeperiod import in_period, InvalidFormat
 import functional
 from zmon_worker_monitor.zmon_worker.common import mathfun
 
+from zmon_worker_monitor import plugin_manager
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -875,6 +878,10 @@ class NotaZmonTask(object):
     _cassandra_time_series_enabled = False
     _cassandra_seed_nodes = []
 
+    _plugin_category = 'Function'
+    _plugins = []
+    _function_factories = {}
+
     @classmethod
     def configure(cls, config):
         try:
@@ -924,6 +931,12 @@ class NotaZmonTask(object):
         cls._cassandra_enabled = config.get('cassandra.enabled')
         cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
         cls._cassandra_seed_nodes = config.get('cassandra.seeds')
+
+        cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
+
+        # store function factories from plugins in a dict by name
+        for p in plugin_manager.get_plugins_of_category(cls._plugin_category):
+            cls._function_factories[p.name] = p.plugin_object
 
     def __init__(self):
         self.task_context = None
@@ -1330,67 +1343,93 @@ class NotaZmonTask(object):
         '''Build context for check command with all necessary functions'''
 
         entity = req['entity']
-        entity_url = _get_entity_url(entity)
-        host = entity.get('host')
-        port = entity.get('port')
-        instance = entity.get('instance')
-        external_ip = entity.get('external_ip')
-        load_balancer_status = entity.get('load_balancer_status')
-        data_center_code = entity.get('data_center_code')
-        ora_sid = entity.get('sid')
-        database = entity.get('database')
-        jmx_port = _get_jmx_port(entity)
-        shards = _get_shards(entity)
+
+        factory_ctx = {
+            'entity': entity,
+            'entity_url': _get_entity_url(entity),
+            'host': entity.get('host'),
+            'port': entity.get('port'),
+            'instance': entity.get('instance'),
+            'external_ip': entity.get('external_ip'),
+            'load_balancer_status': entity.get('load_balancer_status'),
+            'data_center_code': entity.get('data_center_code'),
+            'ora_sid': entity.get('sid'),
+            'database': entity.get('database'),
+            'jmx_port': _get_jmx_port(entity),
+            'shards': _get_shards(entity),
+            'soft_time_limit': req['interval'],
+        }
+
+        # entity = req['entity']
+        # entity_url = _get_entity_url(entity)
+        # host = entity.get('host')
+        # port = entity.get('port')
+        # instance = entity.get('instance')
+        # external_ip = entity.get('external_ip')
+        # load_balancer_status = entity.get('load_balancer_status')
+        # data_center_code = entity.get('data_center_code')
+        # ora_sid = entity.get('sid')
+        # database = entity.get('database')
+        # jmx_port = _get_jmx_port(entity)
+        # shards = _get_shards(entity)
+        # soft_time_limit = req['interval']
+
+
         ctx = build_default_context()
-        soft_time_limit = req['interval']
-        counter = propartial(CounterWrapper, key_prefix='{}:{}:'.format(req['check_id'], entity['id']),
+
+
+        counter = propartial(CounterWrapper, key_prefix='{}:{}:'.format(req['check_id'], entity['id']),  # Fixme: solve dependencies and delete
                           redis_host=self.get_redis_host(), redis_port=self.get_redis_port())
-        jmx = propartial(JmxWrapper, host=host, port=jmx_port)
-        http = propartial(HttpWrapper, base_url=entity_url)
+        jmx = propartial(JmxWrapper, host=factory_ctx['host'], port=factory_ctx['jmx_port'])
+
+
+        # http = propartial(HttpWrapper, base_url=factory_ctx['entity_url'])  # Fixme: dependencies!!!
+
+        http = self._function_factories['http'].create(factory_ctx)
 
         ctx.update({
             'entity': entity,
             'http': http,
-            'redis': propartial(RedisWrapper, host=host, counter=counter),
-            'nagios': propartial(NagiosWrapper, host, logger=self.logger, exasol_user=NotaZmonTask._exarpc_user,
-                              exasol_password=NotaZmonTask._exarpc_pass, lounge_mysql_user=NotaZmonTask._loungemysql_user,
-                              lounge_mysql_password=NotaZmonTask._loungemysql_pass,
-                              hetcrawler_proxy_user=NotaZmonTask._hetcrawler_proxy_user,
-                              hetcrawler_proxy_pass=NotaZmonTask._hetcrawler_proxy_pass,
-                             ),
-            'snmp': propartial(SnmpWrapper, host=host),
+            'redis': propartial(RedisWrapper, host=factory_ctx['host'], counter=counter),
+            'nagios': propartial(NagiosWrapper, factory_ctx['host'], logger=self.logger, exasol_user=NotaZmonTask._exarpc_user,
+                                 exasol_password=NotaZmonTask._exarpc_pass, lounge_mysql_user=NotaZmonTask._loungemysql_user,
+                                 lounge_mysql_password=NotaZmonTask._loungemysql_pass,
+                                 hetcrawler_proxy_user=NotaZmonTask._hetcrawler_proxy_user,
+                                 hetcrawler_proxy_pass=NotaZmonTask._hetcrawler_proxy_pass,
+                                 ),
+            'snmp': propartial(SnmpWrapper, host=factory_ctx['host']),
             'jmx': jmx,
-            'zomcat': propartial(ZomcatWrapper, host=host, instance=entity.get('instance'), http=http, jmx=jmx,
+            'zomcat': propartial(ZomcatWrapper, host=factory_ctx['host'], instance=factory_ctx['instance'], http=http, jmx=jmx,
                               counter=counter),
-            'tcp': propartial(TcpWrapper, host=host),
-            'ping': propartial(ping, host=host),
+            'tcp': propartial(TcpWrapper, host=factory_ctx['host']),
+            'ping': propartial(ping, host=factory_ctx['host']),
             'sql': propartial(
                 SqlWrapper,
-                shards=shards,
+                shards=factory_ctx['shards'],
                 user=NotaZmonTask._pg_user,
                 password=NotaZmonTask._pg_pass,
-                timeout=soft_time_limit * 1000,
+                timeout=factory_ctx['soft_time_limit'] * 1000,
                 check_id=req['check_id'],
                 created_by=req.get('created_by'),
                 __protected=['created_by', 'check_id'],
             ),
-            'orasql': propartial(SqlOracleWrapper, host, port, ora_sid, user=NotaZmonTask._ora_user, password=NotaZmonTask._ora_pass),
-            'mysql': propartial(MySqlWrapper, shards=shards, user=NotaZmonTask._my_user, password=NotaZmonTask._my_pass,
-                             timeout=soft_time_limit * 1000),
-            'mssql': propartial(MsSqlWrapper, host, port, database, user=NotaZmonTask._mssql_user, password=NotaZmonTask._mssql_pass,
-                                timeout=soft_time_limit),
+            'orasql': propartial(SqlOracleWrapper, factory_ctx['host'], factory_ctx['port'], factory_ctx['ora_sid'], user=NotaZmonTask._ora_user, password=NotaZmonTask._ora_pass),
+            'mysql': propartial(MySqlWrapper, shards=factory_ctx['shards'], user=NotaZmonTask._my_user, password=NotaZmonTask._my_pass,
+                             timeout=factory_ctx['soft_time_limit'] * 1000),
+            'mssql': propartial(MsSqlWrapper, factory_ctx['host'], factory_ctx['port'], factory_ctx['database'], user=NotaZmonTask._mssql_user, password=NotaZmonTask._mssql_pass,
+                                timeout=factory_ctx['soft_time_limit']),
             'counter': counter,
             'eventlog': EventLogWrapper,
-            'ldap': propartial(LdapWrapper, user=NotaZmonTask._ldapuser, password=NotaZmonTask._ldappass, host=host, counter=counter),
+            'ldap': propartial(LdapWrapper, user=NotaZmonTask._ldapuser, password=NotaZmonTask._ldappass, host=factory_ctx['host'], counter=counter),
             'exacrm': propartial(ExaplusWrapper, cluster=NotaZmonTask._exacrm_cluster, password=NotaZmonTask._exacrm_pass,
                               user=NotaZmonTask._exacrm_user),
-            'exceptions': propartial(ExceptionsWrapper, host=host, instance=entity.get('instance'), project=(entity['name'
+            'exceptions': propartial(ExceptionsWrapper, host=factory_ctx['host'], instance=factory_ctx['instance'], project=(entity['name'
                                   ] if entity['type'] == 'project' else None)),
             'jobs': propartial(JobsWrapper, project=entity.get('name')),
             'job_locks': propartial(JoblocksWrapper, cmdb_url=NotaZmonTask._cmdb_url, project=entity.get('name')),
             'history': propartial(HistoryWrapper, logger=logger, check_id=req['check_id'], entities=normalize_kairos_id(entity['id'])),
             'zmon': propartial(ZmonWrapper, NotaZmonTask._zmon_url, self.get_redis_host(), self.get_redis_port()),
-            'whois': propartial(WhoisWrapper, host=host),
+            'whois': propartial(WhoisWrapper, host=factory_ctx['host']),
         })
 
         return ctx

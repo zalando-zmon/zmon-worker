@@ -19,4 +19,4 @@ RUN cd /app && python setup.py install
 
 RUN mkdir -p /app/logs
 
-CMD ["python", "/app/zmon_worker_monitor/web.py", "-c", "/app/web.conf"]
+CMD ["zmon-worker", "-c", "/app/web.conf"]

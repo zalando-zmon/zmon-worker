@@ -1,0 +1,20 @@
+[Core]
+Name = temperature_fridge
+Module = temperature_fridge
+
+[Documentation]
+Author = John Doe
+Version = 0.1
+Website = https://github.com/zalando/zmon-scheduler
+Description = Example plugin that does nothing good except been useful for documentation and testing.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+;; Note that these values may are overridden by zmon's global config. For example, the fridge_ip defined below
+;; would be overridden by a global config entry: plugin.temperature_fridge.configuration.fridge_ip = 'another value'
+
+fridge_ip = 192.168.1.36
+center = -5
+sigma = 0.2
