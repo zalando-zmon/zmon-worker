@@ -34,7 +34,7 @@ class HttpFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(HttpWrapper, base_url=factory_ctx['entity_url'])
+        return propartial(HttpWrapper, base_url=factory_ctx.get('entity_url'))
 
 
 def absolute_http_url(url):

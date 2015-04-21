@@ -1,0 +1,25 @@
+[Core]
+Name = history
+Module = history
+
+[Documentation]
+Author = John Doe
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides an http request check function.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+
+;; key = valueX
+
+;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.configuration.{key} = valueY
+
+
+kairosdb_host = cassandra01
+
+kairosdb_port = 37629
+
+kairosdb_history_enabled = False
