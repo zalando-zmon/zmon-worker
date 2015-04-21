@@ -181,6 +181,9 @@ class TestPluginManager(unittest.TestCase):
             # This test is non-deterministic, but probability of failure is super small, so in practice it is ok
             self.assertTrue(abs(-5.0 - tavg) < 0.2 * 10, 'the avg temperature is close to -5')
 
+            # test subpackage dependencies can be resolved
+            self.assertEqual(temp_fridge.engine.power_unit, 'Watts')
+
     @patch.dict(os.environ, {'ZMON_PLUGINS': simple_plugin_dir_abs_path()})
     def test_global_config(self):
         """

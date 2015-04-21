@@ -162,9 +162,10 @@ def collect_plugins(load_builtins=True, load_env=True, additional_dirs=None, glo
 
         path_list = paths_env + _filter_additional_dirs(additional_dirs)
 
-        for entry in path_list:
-            if entry not in sys.path:
-                sys.path.append(entry)  # so the plugins can relatively import their submodules
+        # not necessary and may cause module name clashes... remove?
+        # for entry in path_list:
+        #    if entry not in sys.path:
+        #        sys.path.append(entry)  # so the plugins can relatively import their submodules
 
         # check plugin dependencies declared in {plugin_dir}/requirements.txt are installed
         for path in path_list:

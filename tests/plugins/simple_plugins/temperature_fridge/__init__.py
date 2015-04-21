@@ -12,6 +12,8 @@ from tests.plugins.itemperature_base_plugin import ITemperaturePlugin
 from random import gauss
 import logging
 
+# we can distribute our logic in submodules
+from some_subpkg.dependency01 import Engine
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,8 @@ class TempFridgePlugin(ITemperaturePlugin):
         super(TempFridgePlugin, self).__init__()
         self.device = 'fridge'
         self.fridge_ip = None
+        # show we can distribute our logic in submodules
+        self.engine = Engine()
 
     def configure(self, conf):
         """
