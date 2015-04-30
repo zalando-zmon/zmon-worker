@@ -22,6 +22,7 @@ pythonwhois==2.4.3
 #pymssql==2.1.1
 python-ldap==2.4.19
 Yapsy>=1.10.423
+python-snappy
 
 #zalando-cmdb-client==0.9.1
 #zalando-zompy==0.2.17

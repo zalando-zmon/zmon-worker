@@ -13,6 +13,7 @@ from rpc_client import get_rpc_client
 from contextlib import contextmanager
 import settings
 import eventloghttp
+import snappy
 
 import plugin_manager
 from redis_context_manager import RedisConnHandler
@@ -116,13 +117,19 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
                 queue, msg = encoded_task
 
+                if not msg[:1] == '{':
+                    msg = snappy.decompress(msg)
+
                 msg_obj = json.loads(msg)
 
-                msg_body_enc = msg_obj['body']
+                msg_body = None
 
-                msg_body = json.loads(base64.b64decode(msg_body_enc))
-
-                logger.debug('$$$$$$$$$$$$$$$ Got msg_body: %s', msg_body)
+                if msg_obj["body_encoding"] == "nested":
+                    msg_body = msg_obj["body"]
+                elif msg_obj["body_encoding"] == "base64":
+                    msg_body = json.loads(base64.b64decode(msg_obj['body']))
+                elif msg_obj["body_encoding"] == "snappy":
+                    msg_body = json.loads(snappy.decompress(msg_obj['body']))
 
                 taskname = msg_body['task']
                 func_args = msg_body['args']
