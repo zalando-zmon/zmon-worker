@@ -130,7 +130,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
                 elif body_encoding == "base64":
                     msg_body = json.loads(base64.b64decode(msg_obj['body']))
                 elif body_encoding == "snappy":
-                    msg_body = json.loads(snappy.decompress(msg_obj['body']))
+                    msg_body = json.loads(snappy.decompress(base64.b64decode(msg_obj['body'])))
 
                 taskname = msg_body['task']
                 func_args = msg_body['args']
