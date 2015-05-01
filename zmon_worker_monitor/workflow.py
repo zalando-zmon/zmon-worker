@@ -124,11 +124,12 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
                 msg_body = None
 
-                if msg_obj["body_encoding"] == "nested":
+                body_encoding = msg_obj.get("properties", {}).get("body_encoding")
+                if body_encoding == "nested":
                     msg_body = msg_obj["body"]
-                elif msg_obj["body_encoding"] == "base64":
+                elif body_encoding == "base64":
                     msg_body = json.loads(base64.b64decode(msg_obj['body']))
-                elif msg_obj["body_encoding"] == "snappy":
+                elif body_encoding == "snappy":
                     msg_body = json.loads(snappy.decompress(msg_obj['body']))
 
                 taskname = msg_body['task']
