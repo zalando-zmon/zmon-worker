@@ -15,9 +15,10 @@ ADD README.rst /app/README.rst
 ADD setup.py /app/setup.py
 ADD zmon_worker_monitor /app/zmon_worker_monitor
 ADD web.conf /app/web.conf
+ADD app.py /app/app.py
 
 RUN cd /app && python setup.py install
 
 RUN mkdir -p /app/logs
 
-CMD ["zmon-worker", "-c", "/app/web.conf"]
+CMD ["python","app.py"]

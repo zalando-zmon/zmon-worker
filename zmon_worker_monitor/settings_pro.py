@@ -10,21 +10,16 @@ import os
 
 get_log_path = lambda: os.path.join(os.environ['APP_HOME'], 'logs') if 'APP_HOME' in os.environ else './'
 
-
-
 app_home = os.path.abspath(os.environ['APP_HOME'] if 'APP_HOME' in os.environ else './')
 
 data_dir = os.path.abspath(os.path.join(app_home, 'zmon_worker_data'))
 
 #_LOG_DIR = os.path.abspath(os.path.join(app_home, 'logs'))
 
-
 # application data folder needs to be created by the application itself
 for d in (data_dir, get_log_path()):
     if not os.path.isdir(d):
         os.mkdir(d)
-
-
 
 #Log configuration for the workers
 
@@ -50,7 +45,7 @@ LOGGING = {
             'formatter': 'custom'
         },
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'custom'
         },
@@ -66,7 +61,7 @@ LOGGING = {
 
     'loggers': {
         '': {
-            'handlers': ['rot_file', 'console'],
+            'handlers': ['console'],
             'propagate': True,
             'level': 'DEBUG',
         },
@@ -95,7 +90,6 @@ RPC_SERVER_CONF = dict(
                 'format': '%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s'
             },
         },
-
         'handlers': {
             'file': {
                 'level': 'DEBUG',
@@ -104,7 +98,7 @@ RPC_SERVER_CONF = dict(
                 'formatter': 'custom'
             },
             'console': {
-                'level': 'DEBUG',
+                'level': 'INFO',
                 'class': 'logging.StreamHandler',
                 'formatter': 'custom'
             },
@@ -116,15 +110,13 @@ RPC_SERVER_CONF = dict(
                 'backupCount': 10,
                 'formatter': 'custom'
             },
-            },
-
+        },
         'loggers': {
             '': {
-                'handlers': ['rot_file', 'console'],
+                'handlers': ['console'],
                 'propagate': True,
                 'level': 'DEBUG',
-                },
-            }
+            },
+        }
     }
 )
-
