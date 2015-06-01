@@ -155,7 +155,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
                 # discard tasks that are expired if expire metadata comes with the message
                 cur_time = datetime.utcnow() if task_context['task_properties']['utc'] else datetime.now()
-                expire_time = datetime.strptime(msg_body.get('expires').rsplit('+', 1)[0], '%Y-%m-%dT%H:%M:%S.%f') \
+                expire_time = datetime.strptime(msg_body.get('expires').replace("Z", "").rsplit('+', 1)[0], '%Y-%m-%dT%H:%M:%S.%f') \
                     if msg_body.get('expires') else cur_time + timedelta(seconds=10)
 
                 check_id = (msg_body['args'][0].get('check_id', 'xx') if len(msg_body['args']) > 0 and isinstance(msg_body['args'][0], dict) else 'XX')
