@@ -8,6 +8,9 @@ import datetime
 import fnmatch
 import json
 import sys
+import logging
+
+from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):

@@ -3,6 +3,9 @@
 
 import json
 import requests
+import logging
+
+from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.scalyr-function')
 
@@ -39,10 +42,30 @@ class ScalyrWrapper(object):
             'filter': query,
             'function': 'count',
             'startTime': str(minutes)+'m',
+            'priority': 'low',
             'buckets': 1
         }
 
-        r = requests.post(self.url, data=json.dumps(val), headers={"Content-Type":"application/json"})
+        r = requests.post(self.url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        j = r.json()
+        if 'values' in j:
+            return j['values'][0]
+        else:
+            return j
+
+    def function(self, function, query, minutes=5):
+
+        val = {
+            'token': self.read_key,
+            'queryType': 'numeric',
+            'filter': query,
+            'function': function,
+            'startTime': str(minutes)+'m',
+            'priority': 'low',
+            'buckets': 1
+        }
+
+        r = requests.post(self.url, data=json.dumps(val), headers={"Content-Type": "application/json"})
         j = r.json()
         if 'values' in j:
             return j['values'][0]
