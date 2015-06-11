@@ -46,7 +46,7 @@ class ScalyrWrapper(object):
             'buckets': 1
         }
 
-        r = requests.post(self.url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.numeric_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
         j = r.json()
         if 'values' in j:
             return j['values'][0]
@@ -65,7 +65,7 @@ class ScalyrWrapper(object):
             'buckets': 1
         }
 
-        r = requests.post(self.url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.numeric_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
         j = r.json()
         if 'values' in j:
             return j['values'][0]
