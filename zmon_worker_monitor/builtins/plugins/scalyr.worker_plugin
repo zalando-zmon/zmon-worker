@@ -1,0 +1,11 @@
+[Core]
+Name = scalyr
+Module = scalyr
+
+[Documentation]
+Author = Jan Mussler
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides an Scalyr functions
+
+[Configuration]

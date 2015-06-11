@@ -205,7 +205,7 @@ def _get_entity_url(entity):
     '''
 
     if 'url' in entity:
-        if entity['url'].startswith('http'):
+        if entity['url'].startswith('http://') or entity.startswith('https://'):
             return entity['url']
 
         return 'http://' + entity['url']
