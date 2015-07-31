@@ -205,7 +205,7 @@ def _get_entity_url(entity):
     '''
 
     if 'url' in entity:
-        if entity['url'].startswith('http://') or entity.startswith('https://'):
+        if entity['url'].startswith('http://') or entity['url'].startswith('https://'):
             return entity['url']
 
         return 'http://' + entity['url']
@@ -648,6 +648,7 @@ def build_default_context():
         'str': str,
         'sum': sum,
         'time': TimeWrapper,
+        'timestamp': time.time,
         'True': True,
         'Try': Try,
         'tuple': tuple,
@@ -927,6 +928,7 @@ class NotaZmonTask(object):
         cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
         cls._queues = config.get('zmon.queues', {}).get('local')
+		cls._scalyr_read_key = config.get('scalyr.read.key','')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
 
         cls._logger = cls.get_configured_logger()
@@ -1388,15 +1390,42 @@ class NotaZmonTask(object):
         if not self._kairosdb_enabled:
             return
 
+		def get_host_data(entity):
+            
+            d = {"entity": normalize_kairos_id(entity["id"])}
+
+            if not ( entity["type"] in ["host","zomcat","zompy"] ):
+                return d
+
+            id = entity["id"].replace('itr-','').replace('gth-', '')
+
+            m = HOST_GROUP_PREFIX.search(id)
+            if None != m:
+                d["hg"]=m.group(0)
+
+            m = INSTANCE_PORT_SUFFIX.search(id)
+            if None != m:
+                d["port"]=m.group(1)
+
+            return d
+
         # use tags in kairosdb to reflect top level keys in result
         # zmon.check.<checkid> as key for time series
 
         series_name = 'zmon.check.{}'.format(req['check_id'])
-        entity = req['entity']['id']
 
         values = []
 
+		host_tags = get_host_data(req["entity"])
+
         if isinstance(result['value'], dict):
+
+            if '_use_scheduled_time' in result['value']:
+                ts = int(req['schedule_time'] * 1000)
+                del result['value']['_use_scheduled_time']
+            else:
+                ts = int(result['ts'] * 1000)
+
             flat_result = flatten(result['value'])
 
             for k, v in flat_result.iteritems():
@@ -1406,8 +1435,23 @@ class NotaZmonTask(object):
                 except (ValueError, TypeError):
                     continue
 
-                points = [[int(result['ts'] * 1000), v]]
-                tags = {'entity': normalize_kairos_id(entity), 'key': normalize_kairos_id(str(k))}
+                points = [[ts, v]]
+                tags = {'key': normalize_kairos_id(str(k))}
+
+                key_split = tags['key'].split('.')
+                metric_tag = key_split[-1]
+                if None == metric_tag or '' == metric_tag:
+                    #should only happen for key ending with a "." and as it is a dict there then exists a -2
+                    metric_tag = key_split[-2]
+                tags['metric'] = metric_tag
+
+                if req['check_id']==2115:
+                    status_code = key_split[-2]
+                    tags['sc']=status_code
+                    tags['sg']=status_code[:1]
+
+                tags.update(host_tags)
+
                 values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
         else:
             try:
@@ -1416,14 +1460,17 @@ class NotaZmonTask(object):
                 pass
             else:
                 points = [[int(result['ts'] * 1000), v]]
-                tags = {'entity': normalize_kairos_id(entity)}
+
+                tags = {}
+                tags.update(host_tags)
+
                 values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
 
         if len(values) > 0:
             self.logger.debug(values)
             try:
                 r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
-                                  json.dumps(values), timeout=5)
+                                  json.dumps(values), timeout=2)
                 if not r.status_code in [200, 204]:
                     self.logger.error(r.text)
                     self.logger.error(json.dumps(values))
