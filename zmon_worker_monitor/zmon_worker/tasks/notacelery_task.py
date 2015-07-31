@@ -887,6 +887,7 @@ class NotaZmonTask(object):
     _plugin_category = 'Function'
     _plugins = []
     _function_factories = {}
+    _zmon_actuator_checkid = None
 
     @classmethod
     def configure(cls, config):
@@ -930,6 +931,7 @@ class NotaZmonTask(object):
         cls._queues = config.get('zmon.queues', {}).get('local')
 		cls._scalyr_read_key = config.get('scalyr.read.key','')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
+        cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
         cls.perload_stash_commands()
@@ -1445,7 +1447,7 @@ class NotaZmonTask(object):
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
 
-                if req['check_id']==2115:
+                if req['check_id'] == self._zmon_actuator_checkid:
                     status_code = key_split[-2]
                     tags['sc']=status_code
                     tags['sg']=status_code[:1]
