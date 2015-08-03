@@ -929,7 +929,7 @@ class NotaZmonTask(object):
         cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
         cls._queues = config.get('zmon.queues', {}).get('local')
-		cls._scalyr_read_key = config.get('scalyr.read.key','')
+        cls._scalyr_read_key = config.get('scalyr.read.key','')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
@@ -1392,7 +1392,7 @@ class NotaZmonTask(object):
         if not self._kairosdb_enabled:
             return
 
-		def get_host_data(entity):
+        def get_host_data(entity):
             
             d = {"entity": normalize_kairos_id(entity["id"])}
 
@@ -1418,7 +1418,7 @@ class NotaZmonTask(object):
 
         values = []
 
-		host_tags = get_host_data(req["entity"])
+        host_tags = get_host_data(req["entity"])
 
         if isinstance(result['value'], dict):
 
