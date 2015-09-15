@@ -40,7 +40,12 @@ def main():
     main_proc = rpc_server.MainProcess()
 
     # load cherrypy configuration
-    cherrypy.config.update(args.config_file or '/app/web.conf')
+    if args.config_file and os.path.exists(args.config_file):
+        cherrypy.config.update(args.config_file)
+    elif os.path.exists('/app/web.conf'):
+        cherrypy.config.update('/app/web.conf')
+    else:
+        cherrypy.config.update('web.conf')
 
     for key in cherrypy.config.keys():
         env_key = key.upper().replace('.', '_')
