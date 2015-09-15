@@ -13,4 +13,3 @@ script:
     - nosetests --with-doctest --with-coverage
 after_success:
     - coveralls
-sudo: false
