@@ -71,6 +71,8 @@ ROUND_SECONDS_DIGITS = 6
 JMX_CONFIG_FILE = 'jmxremote.password'
 KAIROS_ID_FORBIDDEN_RE = re.compile(r'[^a-zA-Z0-9\-_\.]')
 
+HOST_GROUP_PREFIX = re.compile(r'^([a-z]+)')
+INSTANCE_PORT_SUFFIX = re.compile(r':([0-9]+)$')
 
 EVENTS = {
     'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
