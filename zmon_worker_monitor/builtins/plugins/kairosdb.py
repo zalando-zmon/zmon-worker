@@ -30,7 +30,7 @@ class KairosdbFactory(IFunctionFactoryPlugin):
         """
         return propartial(KairosdbFactory, kairosdb_url=factory_ctx.get('entity_url'))
 
-class KairosDBWrapper(Object):
+class KairosDBWrapper(object):
 
     def __init__(self, kairosdb_url):
         self.url = kairosdb_url

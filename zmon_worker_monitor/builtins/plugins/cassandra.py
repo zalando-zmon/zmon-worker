@@ -27,7 +27,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
         """
         return propartial(KairosdbFactory, host=factory_ctx.get('host'))
 
-class CassandraWrapper(Object):
+class CassandraWrapper(object):
 
     def __init__(self, host):
         self.host = host

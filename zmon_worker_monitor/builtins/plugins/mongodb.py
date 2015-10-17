@@ -27,7 +27,7 @@ class MongoDBFactory(IFunctionFactoryPlugin):
         """
         return propartial(KairosdbFactory, host=factory_ctx.get('host'))
 
-class MongoDBWrapper(Object):
+class MongoDBWrapper(object):
 
     def __init__(self, host):
         self.host = host
