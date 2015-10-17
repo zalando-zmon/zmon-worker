@@ -2,7 +2,7 @@ FROM zalando/python:15.01.03
 
 #making this a cachable point as compile takes forever without -j
 
-RUN apt-get install -y libsnappy-dev
+RUN apt-get install -y libsnappy-dev libev4 libev-dev
 
 RUN mkdir -p /app
 WORKDIR /app
