@@ -27,6 +27,7 @@ boto
 stups-tokens#
 prometheus_client
 cassandra-driver
+pymongo==3.0.3
 
 #zalando-cmdb-client==0.9.1
 #zalando-zompy==0.2.17

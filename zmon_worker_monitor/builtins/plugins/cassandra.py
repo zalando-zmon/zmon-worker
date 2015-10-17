@@ -3,6 +3,9 @@
 
 import logging
 
+from cassandra.io.libevreactor import LibevConnection
+from cassandra.cluster import Cluster
+
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.cassandra-function')
@@ -25,12 +28,36 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(CassandraWrapper, host=factory_ctx.get('host'))
+        return propartial(CassandraWrapper, node=factory_ctx.get('host'))
 
 class CassandraWrapper(object):
 
-    def __init__(self, host):
-        self.host = host
+    def __init__(self, node, port = 9042, connect_timeout = 1, keyspace):
+        # for now using a single host / node should be seed nodes or at least available nodes
+        self.node = node
+        self.port = port
+        self.keyspace = keyspace
+        self.connect_timeout = connect_timeout
 
     def execute(self, stmt):
+        cl = Cluster([self.node], self.connect_timeout=self.connect_timeout)
+        cl.connection_class = LibevConnection
+
+        session = None
+        try:
+            session = cl.connect()
+            session.set_keyspace(self.keyspace)
+
+            rs = session.execute(stmt)
+
+            result = []
+
+            for r in rs:
+                result.append(r)
+
+            return result
+
+        finally:
+            cl.shutdown();
+
         return {}

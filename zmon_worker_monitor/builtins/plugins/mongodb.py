@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+from pymongo import MongoClient
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -29,8 +30,21 @@ class MongoDBFactory(IFunctionFactoryPlugin):
 
 class MongoDBWrapper(object):
 
-    def __init__(self, host):
+    def __init__(self, host, port=27017):
         self.host = host
+        self.port = port
 
-    def execute(self, stmt):
-        return {}
+    def query(self, database, collection, query, limit=50):
+        client = MongoClient(self.host, self.port)
+        try:
+            db = client[database]
+            rs = db[collection].find(query, limit=limit)
+            result = []
+
+            for r in rs:
+                result.append(r)
+
+            return result
+
+        finally:
+            client.close()
