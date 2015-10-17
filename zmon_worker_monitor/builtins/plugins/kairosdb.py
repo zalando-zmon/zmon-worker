@@ -28,12 +28,12 @@ class KairosdbFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(KairosdbWrapper, kairosdb_url=factory_ctx.get('entity_url'))
+        return propartial(KairosdbWrapper, url=factory_ctx.get('entity_url'))
 
 class KairosdbWrapper(object):
 
-    def __init__(self, kairosdb_url):
-        self.url = kairosdb_url
+    def __init__(self, url):
+        self.url = url
 
     def query(self, name, group_by = [], tags = None, start = -5, end = 0, time_unit='seconds', aggregators = None):
         url = self.url + '/api/v1/datapoints/query'

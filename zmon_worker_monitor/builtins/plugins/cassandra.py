@@ -40,7 +40,7 @@ class CassandraWrapper(object):
         self.connect_timeout = connect_timeout
 
     def execute(self, stmt):
-        cl = Cluster([self.node], self.connect_timeout=self.connect_timeout)
+        cl = Cluster([self.node], connect_timeout=self.connect_timeout)
         cl.connection_class = LibevConnection
 
         session = None

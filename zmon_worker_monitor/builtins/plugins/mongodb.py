@@ -34,7 +34,7 @@ class MongoDBWrapper(object):
         self.host = host
         self.port = port
 
-    def query(self, database, collection, query, limit=50):
+    def find(self, database, collection, query, limit=50):
         client = MongoClient(self.host, self.port)
         try:
             db = client[database]
