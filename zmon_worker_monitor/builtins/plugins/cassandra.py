@@ -25,7 +25,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(KairosdbFactory, host=factory_ctx.get('host'))
+        return propartial(CassandraWrapper, host=factory_ctx.get('host'))
 
 class CassandraWrapper(object):
 

@@ -28,7 +28,7 @@ class KairosdbFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(KairosdbFactory, kairosdb_url=factory_ctx.get('entity_url'))
+        return propartial(KairosDBWrapper, kairosdb_url=factory_ctx.get('entity_url'))
 
 class KairosDBWrapper(object):
 
