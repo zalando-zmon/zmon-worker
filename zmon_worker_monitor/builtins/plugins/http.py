@@ -12,9 +12,7 @@ from requests.adapters import HTTPAdapter
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-
 logger = logging.getLogger('zmon-worker.http-function')
-
 
 class HttpFactory(IFunctionFactoryPlugin):
 
@@ -117,6 +115,10 @@ class HttpWrapper(object):
     def text(self, raise_error=True):
         r = self.__request(raise_error=raise_error)
         return r.text
+
+    def prometheus(self):
+        # parse text result according to prometheus specs
+        return {}
 
     def headers(self, raise_error=True):
         return self.__request(raise_error=raise_error).headers

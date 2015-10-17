@@ -24,7 +24,9 @@ python-ldap==2.4.19
 Yapsy>=1.10.423
 python-snappy
 boto
-stups-tokens
+stups-tokens#
+prometheus_client
+cassandra-driver
 
 #zalando-cmdb-client==0.9.1
 #zalando-zompy==0.2.17
