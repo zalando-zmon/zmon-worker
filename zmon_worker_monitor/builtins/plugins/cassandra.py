@@ -32,7 +32,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
 
 class CassandraWrapper(object):
 
-    def __init__(self, node, port = 9042, connect_timeout = 1, keyspace):
+    def __init__(self, node, keyspace, port=9042, connect_timeout=1):
         # for now using a single host / node should be seed nodes or at least available nodes
         self.node = node
         self.port = port
