@@ -3,7 +3,7 @@
 
 import logging
 
-from cassandra.io.libevreactor import LibevConnection
+#from cassandra.io.libevreactor import LibevConnection
 from cassandra.cluster import Cluster
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -41,7 +41,7 @@ class CassandraWrapper(object):
 
     def execute(self, stmt):
         cl = Cluster([self.node], connect_timeout=self.connect_timeout)
-        cl.connection_class = LibevConnection
+        #cl.connection_class = LibevConnection
 
         session = None
         try:
