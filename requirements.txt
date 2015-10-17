@@ -26,7 +26,7 @@ python-snappy
 boto
 stups-tokens#
 prometheus_client
-cassandra-driver
+cassandra-driver==3.0.0a3
 pymongo==3.0.3
 
 #zalando-cmdb-client==0.9.1
