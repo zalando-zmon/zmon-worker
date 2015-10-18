@@ -1,6 +1,6 @@
 [Core]
 Name = cassandra
-Module = cassandra
+Module = cassandra_wrapper
 
 [Documentation]
 Author = Jan Mussler
