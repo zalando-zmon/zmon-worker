@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import boto.ec2.cloudwatch
-import boto.utils
+import boto3
 import collections
 import datetime
 import fnmatch
 import json
 import sys
 import logging
+import requests
+import sys
+
+logging.getLogger('botocore').setLevel(logging.WARN)
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -27,11 +30,9 @@ class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
         """
         return propartial(CloudwatchWrapper, region=factory_ctx.get('entity').get('region', None))
 
-
 def get_region():
-    identity = boto.utils.get_instance_identity()['document']
-    return identity['region']
-
+    r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
+    return r.json()['region']
 
 def matches(dimensions, filters):
     for key, pattern in filters.items():
@@ -39,13 +40,12 @@ def matches(dimensions, filters):
             return False
     return True
 
-
 class CloudwatchWrapper(object):
 
     def __init__(self, region=None):
         if not region:
             region = get_region()
-        self.connection = boto.ec2.cloudwatch.connect_to_region(region)
+        self.client = boto3.client('cloudwatch', region_name=region)
 
     def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60):
         filter_dimension_keys = set()
@@ -57,22 +57,31 @@ class CloudwatchWrapper(object):
             if val and '*' in val:
                 filter_dimension_pattern[key] = val
                 del dimensions[key]
-        metrics = self.connection.list_metrics(dimensions=dimensions, metric_name=metric_name, namespace=namespace)
+        dimension_kvpairs = [{'Name': k, 'Value': v} for k, v in dimensions.items()]
+        args = {'Dimensions': dimension_kvpairs, 'MetricName': metric_name}
+        if namespace:
+            args['Namespace'] = namespace
+        metrics = self.client.list_metrics(**args)
+        metrics = metrics['Metrics']
         end = datetime.datetime.utcnow()
         start = end - datetime.timedelta(minutes=5)
         data = collections.defaultdict(int)
         for metric in metrics:
-            if set(metric.dimensions.keys()) & filter_dimension_keys:
+            metric_dimensions = {d['Name']: d['Value'] for d in metric['Dimensions']}
+            if set(metric_dimensions.keys()) & filter_dimension_keys:
                 continue
-            if filter_dimension_pattern and not matches(metric.dimensions, filter_dimension_pattern):
+            if filter_dimension_pattern and not matches(metric_dimensions, filter_dimension_pattern):
                 continue
-            data_points = metric.query(start, end, statistics, period=period)
+            response = self.client.get_metric_statistics(Namespace=metric['Namespace'], MetricName=metric['MetricName'], Dimensions=metric['Dimensions'],
+                                                         StartTime=start, EndTime=end, Period=period, Statistics=[statistics])
+            data_points = response['Datapoints']
             if data_points:
-                data[metric.name] += data_points[-1][statistics]
+                data[metric['MetricName']] += data_points[-1][statistics]
         return data
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     cloudwatch = CloudwatchWrapper(sys.argv[1])
     data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average')
     print(json.dumps(data))
