@@ -7,6 +7,7 @@ import urllib
 import urlparse
 import logging
 import os
+from collections import defaultdict
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError
 from requests.adapters import HTTPAdapter
@@ -199,8 +200,14 @@ class HttpWrapper(object):
         return r.text
 
     def prometheus(self):
-        # parse text result according to prometheus specs
-        return {}
+        t = self.__request().text
+        samples_by_name = defaultdict(list)
+
+        for l in text_string_to_metric_families(t):
+            for s in l.samples:
+                samples_by_name[s[0]].append((s[1],s[2]))
+
+        return samples_by_name
 
     def headers(self, raise_error=True):
         return self.__request(raise_error=raise_error).headers
