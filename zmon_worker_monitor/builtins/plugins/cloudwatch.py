@@ -74,7 +74,7 @@ class CloudwatchWrapper(object):
                 continue
             response = self.client.get_metric_statistics(Namespace=metric['Namespace'], MetricName=metric['MetricName'], Dimensions=metric['Dimensions'],
                                                          StartTime=start, EndTime=end, Period=period, Statistics=[statistics])
-            data_points = response['Datapoints']
+            data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
             if data_points:
                 data[metric['MetricName']] += data_points[-1][statistics]
         return data
