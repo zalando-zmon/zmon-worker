@@ -57,16 +57,30 @@ class Mail(BaseNotification):
                 msg['To'] = ', '.join(args)
             msg['Cc'] = ', '.join(cc)
 
+            mail_host = cls._config.get('notifications.mail.host', 'localhost')
+            mail_port = cls._config.get('notifications.mail.port', '25')
+
+            logger.info("Relaying via %s %s", mail_host, mail_port)
+
             if cls._config.get('notifications.mail.on', True):
                 try:
-                    s = smtplib.SMTP(cls._config.get('notifications.mail.host', 'localhost'),
-                                     cls._config.get('notifications.mail.port', 25))
+                    if mail_host != 'localhost':
+                        s = smtplib.SMTP_SSL(mail_host, mail_port)
+                    else:
+                        s = smtplib.SMTP(mail_host, mail_port)
+
                 except Exception:
-                    logger.exception('Error connecting to SMTP server for alert %s with id %s', alert['name'],
-                                     alert['id'])
+                    logger.exception('Error connecting to SMTP server %s for alert %s with id %s',
+                                     mail_host, alert['name'], alert['id'])
                 else:
                     try:
+                        mail_user = cls._config.get('notifications.mail.user', None)
+                        if mail_user is not None:
+                            s.login(mail_user, cls._config.get('notifications.mail.password'))
+
                         s.sendmail(sender, list(args) + cc, msg.as_string())
+                    except SMTPAuthenticationError:
+                        logger.exception('Error sending email for alert %s with id %s: authentication failed for %s', alert['name'], alert['id'], mail_user)
                     except Exception:
                         logger.exception('Error sending email for alert %s with id %s', alert['name'], alert['id'])
                     finally:

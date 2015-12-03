@@ -34,6 +34,8 @@ from zmon_worker_monitor.zmon_worker.functions import HistoryWrapper, NagiosWrap
 from bisect import bisect_left
 from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
 
+from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
+from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
@@ -445,7 +447,13 @@ def _apply_aggregate_function_for_time(
 
 
 def _build_notify_context(alert):
-    return {'send_mail': functools.partial(Mail.send, alert), 'send_sms': functools.partial(Sms.send, alert)}
+    return {
+            'send_mail': functools.partial(Mail.send, alert),
+            'send_email': functools.partial(Mail.send, alert),
+            'send_sms': functools.partial(Sms.send, alert),
+            'send_hipchat': functools.partial(NotifyHipchat.send, alert),
+            'send_slack': functools.partial(NotifySlack.send, alert)
+           }
 
 
 def _prepare_condition(condition):
