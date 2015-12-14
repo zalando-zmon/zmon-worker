@@ -103,7 +103,7 @@ class LdapWrapper(object):
         self.use_tls = tls
         self.use_krb5 = krb5
         self.user_base_dn = ','.join(explode_dn(user)[1:])
-        self.user_filter = '(uid=nagios)'
+        self.user_filter = '(' + explode_dn(user)[0] + ')'
         self.user_attrib = ['dn']
         # password auth
         self.bind_dn = user
