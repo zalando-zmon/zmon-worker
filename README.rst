@@ -11,6 +11,7 @@ Running and building with Docker
 
 .. code-block:: bash
 
+    $ sudo apt-get install libldap2-dev libsasl2-dev libsnappy-dev
     $ sudo pip2 install -r requirements.txt
     $ python2 -m zmon_worker_monitor
 
