@@ -47,7 +47,7 @@ class CloudwatchWrapper(object):
             region = get_region()
         self.client = boto3.client('cloudwatch', region_name=region)
 
-    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60):
+    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60, minutes=5):
         filter_dimension_keys = set()
         filter_dimension_pattern = {}
         for key, val in list(dimensions.items()):
@@ -64,7 +64,7 @@ class CloudwatchWrapper(object):
         metrics = self.client.list_metrics(**args)
         metrics = metrics['Metrics']
         end = datetime.datetime.utcnow()
-        start = end - datetime.timedelta(minutes=5)
+        start = end - datetime.timedelta(minutes=minutes)
         data = collections.defaultdict(int)
         for metric in metrics:
             metric_dimensions = {d['Name']: d['Value'] for d in metric['Dimensions']}
