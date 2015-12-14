@@ -11,5 +11,10 @@ Running and building with Docker
 
 .. code-block:: bash
 
+    $ sudo pip2 install -r requirements.txt
+    $ python2 -m zmon_worker_monitor
+
+.. code-block:: bash
+
     $ docker build -t zmon-worker .
     $ docker run -it zmon-worker

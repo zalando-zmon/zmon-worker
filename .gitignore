@@ -1,3 +1,6 @@
 *.pyc
 .idea/
 *.iml
+*.egg*
+dist/
+zmon_worker_data/
