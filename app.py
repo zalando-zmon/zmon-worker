@@ -8,7 +8,7 @@ def main():
     env_keys = set(["WORKER_NOTIFICATION_SMS_APIKEY",
                    "WORKER_MYSQL_USER",
                    "WORKER_MYSQL_PASSWORD",
-                   "SCALYR_READ_KEY",
+                   "WORKER_SCALYR_READ_KEY",
                    "WORKER_POSTGRESQL_USER",
                    "WORKER_POSTGRESQL_PASSWORD",
                    "WORKER_ACCOUNT",
