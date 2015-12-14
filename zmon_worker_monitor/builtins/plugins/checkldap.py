@@ -118,7 +118,9 @@ class LdapWrapper(object):
         if self.session:
             raise CheckError('LDAP Error: duplicate bind exception.')
         self.logger.debug('connect to %s', ldapserver)
-        uri = 'ldap://{0}'.format(ldapserver)
+        uri = ldapserver
+        if not uri.startswith("ldap://") and not uri.startswith("ldaps://"):
+            uri = 'ldap://{0}'.format(ldapserver)
         try:
             if self.use_krb5 and self.use_tls:
                 self.logger.debug('sasl bind')
@@ -126,6 +128,9 @@ class LdapWrapper(object):
             elif self.use_tls:
                 self.logger.debug('simple bind')
                 self.session = ldapapi.Session(uri, self.bind_dn, self.__password, tls=True)
+            elif uri.startswith("ldaps://"):
+                self.logger.debug('LDAPS + simple bind')
+                self.session = ldapapi.Session(uri, self.bind_dn, self.__password, tls=False)
             else:
                 raise CheckError('LDAP Error: unsupported method exception.')
         except CheckError:
