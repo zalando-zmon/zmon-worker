@@ -125,7 +125,7 @@ class HistoryWrapper(object):
         if not self.__enabled:
             raise Exception("History() function disabled for now")
 
-        logger.info("history query %s %s %s", self.check_id, time_from, time_to)
+        #self.logger.info("history query %s %s %s", self.check_id, time_from, time_to)
         return requests.post(self.url, get_request_json(self.check_id, self.entities, int(time_from),
                              int(time_to))).json()
 
@@ -133,7 +133,7 @@ class HistoryWrapper(object):
         if not self.__enabled:
             raise Exception("History() function disabled for now")
 
-        logger.info("history get one %s %s %s", self.check_id, time_from, time_to)
+        #self.logger.info("history get one %s %s %s", self.check_id, time_from, time_to)
         return requests.post(self.url, get_request_json(self.check_id, self.entities, int(time_from),
                              int(time_to))).json()['queries'][0]['results'][0]['values']
 
@@ -161,21 +161,21 @@ class HistoryWrapper(object):
         if not self.__enabled:
             raise Exception("History() function disabled for now")
 
-        logger.info("history get avg %s %s %s", self.check_id, time_from, time_to)
+        #self.logger.info("history get avg %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'avg', time_from, time_to)
 
     def get_std_dev(self, key, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         if not self.__enabled:
             raise Exception("History() function disabled for now")
 
-        logger.info("history get std %s %s %s", self.check_id, time_from, time_to)
+        #self.logger.info("history get std %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'dev', time_from, time_to)
 
     def distance(self, weeks=4, snap_to_bin=True, bin_size='1h', dict_extractor_path=''):
         if not self.__enabled:
             raise Exception("History() function disabled for now")
 
-        logger.info("history distance %s %s ", self.check_id, weeks, bin_size)
+        #self.logger.info("history distance %s %s ", self.check_id, weeks, bin_size)
         return DistanceWrapper(history_wrapper=self, weeks=weeks, bin_size=bin_size, snap_to_bin=snap_to_bin,
                                dict_extractor_path=dict_extractor_path)
 
