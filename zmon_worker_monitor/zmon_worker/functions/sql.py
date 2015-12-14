@@ -95,7 +95,7 @@ class SqlWrapper(object):
             if not m:
                 raise CheckError('Invalid shard connection: {}'.format(shard_def))
             connection_str = \
-                "host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' options='-c statement_timeout={timeout}' application_name='ZMON Check {check_id} (created by {created_by})' ".format(
+                "host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' connect_timeout=5 options='-c statement_timeout={timeout}' application_name='ZMON Check {check_id} (created by {created_by})' ".format(
                 host=m.group('host'),
                 port=int(m.group('port') or DEFAULT_PORT),
                 dbname=m.group('dbname'),
