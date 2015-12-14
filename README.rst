@@ -23,7 +23,7 @@ Install the required development libraries:
 
 .. code-block:: bash
 
-    $ sudo apt-get install libldap2-dev libsasl2-dev libsnappy-dev
+    $ sudo apt-get install libpq-dev libldap2-dev libsasl2-dev libsnappy-dev
     $ sudo pip2 install -r requirements.txt
 
 Start the ZMON worker process:
