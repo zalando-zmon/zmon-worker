@@ -81,7 +81,7 @@ class HttpWrapper(object):
         self.oauth2 = oauth2
         self.__r = None
 
-    def __request(self, raise_error=True):
+    def __request(self, raise_error=True, post_data = None):
         if self.__r is not None:
             return self.__r
         if self.max_retries:
@@ -103,8 +103,12 @@ class HttpWrapper(object):
             self.headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
 
         try:
-            self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                             headers=self.headers, auth = basic_auth)
+            if post_data is None:
+                self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                 headers=self.headers, auth = basic_auth)
+            else:
+                self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                  headers=self.headers, auth = basic_auth, data=json.dumps(post_data))
         except requests.Timeout, e:
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError, e:
@@ -120,6 +124,24 @@ class HttpWrapper(object):
 
     def json(self, raise_error=True):
         r = self.__request(raise_error=raise_error)
+        try:
+            return r.json()
+        except Exception, e:
+            raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+
+    def jolokia(self, read_requests, raise_error=True):
+
+        def set_read_type(x):
+            x['type'] = 'READ'
+
+        # hack quick verify
+        if (not self.url.endswith('jolokia/')) or ('?' in self.url) or ('&' in self.url):
+            raise HttpError("URL needs to end in jolokia/ and not contain ? and &", self.url)
+
+        map(set_read_type, read_requests)
+
+        r = self.__request(post_data=read_requests, raise_error=raise_error)
+
         try:
             return r.json()
         except Exception, e:
