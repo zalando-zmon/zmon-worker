@@ -9,11 +9,31 @@ Running and building with Docker
    :target: https://coveralls.io/r/zalando/zmon-worker
    :alt: Coverage Status
 
+Local Development
+=================
+
+Start Redis on localhost:6379:
+
+.. code-block:: bash
+
+    $ docker run -p 6379:6379 -it redis
+
+Install the required development libraries:
+
 .. code-block:: bash
 
     $ sudo apt-get install libldap2-dev libsasl2-dev libsnappy-dev
     $ sudo pip2 install -r requirements.txt
+
+Start the ZMON worker process:
+
+.. code-block:: bash
+
     $ python2 -m zmon_worker_monitor
+
+
+Building the Docker Image
+=========================
 
 .. code-block:: bash
 
