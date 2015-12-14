@@ -20,7 +20,7 @@ class TestMail(unittest.TestCase):
             'notifications.mail.on': True,
         }
 
-    @patch.object(smtplib, 'SMTP')
+    @patch.object(smtplib, 'SMTP_SSL')
     @patch.object(m, 'jinja_env')
     def test_send(self, mock_jinja, mock_smtp):
         alert = {

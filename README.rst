@@ -9,6 +9,7 @@ Running and building with Docker
    :target: https://coveralls.io/r/zalando/zmon-worker
    :alt: Coverage Status
 
+
 Local Development
 =================
 
@@ -30,6 +31,14 @@ Start the ZMON worker process:
 .. code-block:: bash
 
     $ python2 -m zmon_worker_monitor
+
+Running Unit Tests
+==================
+
+.. code-block:: bash
+
+    $ sudo pip2 install -r test_requirements.txt
+    $ nosetests --with-doctest --with-coverage
 
 
 Building the Docker Image
