@@ -28,6 +28,7 @@ stups-tokens#
 prometheus_client
 cassandra-driver==2.7.2
 pymongo==3.0.3
+MarkupSafe
 
 #zalando-cmdb-client==0.9.1
 #zalando-zompy==0.2.17
