@@ -23,19 +23,19 @@ import rpc_server
 DEFAULT_NUM_PROC = 16
 
 
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="path to config file")
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
-def main():
+def main(args=None):
     # add src dir to sys.path
     # src_dir = os.path.abspath(os.path.dirname(__file__))
     # if src_dir not in sys.path:
     #     sys.path.append(src_dir)
 
-    args = parse_args()
+    args = parse_args(args)
 
     main_proc = rpc_server.MainProcess()
 
