@@ -258,15 +258,15 @@ def _get_shards(entity):
     return None
 
 
-def entity_values(con, check_id, alert_id):
-    return map(get_value, entity_results(con, check_id, alert_id))
+def entity_values(con, check_id, alert_id,count=1):
+    return map(get_value, entity_results(con, check_id, alert_id, count))
 
 
-def entity_results(con, check_id, alert_id):
+def entity_results(con, check_id, alert_id, count=1):
     all_entities = con.hkeys('zmon:alerts:{}:entities'.format(alert_id))
     all_results = []
     for entity_id in all_entities:
-        results = get_results(con, check_id, entity_id, 1)
+        results = get_results(con, check_id, entity_id, count)
         all_results.extend(results)
     return all_results
 
@@ -610,7 +610,12 @@ def get_results_user(count=1, con=None, check_id=None, entity_id=None):
     return map(lambda x: x["value"], get_results(con, check_id, entity_id, count))
 
 def get_results(con, check_id, entity_id, count=1):
-    return map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
+    r = map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
+
+    for x in r:
+        x.update({"entity_id": entity_id})
+
+    return r
 
 
 def avg(sequence):
