@@ -355,6 +355,31 @@ def _inject_alert_parameters(alert_parameters, ctx):
         if params_name not in ctx:
             ctx[params_name] = params
 
+def alert_series(f, n, con, check_id, entity_id):
+    """ evaluate given function on the last n check results and return true if the "alert" function f returns true for all values"""
+
+    vs = get_results(con, check_id, entity_id, n)
+    active_count = 0
+    exception_count = 0
+
+    for v in vs:
+        # counting exceptions thrown during eval as alert being active for that interval
+        try:
+            v = v["value"]
+            r = 1 if f(v) else 0
+            x =0
+        except:
+            r = 1
+            x = 1
+
+        active_count += r
+        exception_count += x
+
+    if exception_count == n:
+        raise Exception("All alert evaluations failed!")
+
+    # activating alert if not enough value found (this should only affect starting period)
+    return n == active_count or len(vs)<n
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
@@ -370,6 +395,8 @@ def build_condition_context(con, check_id, alert_id, entity, captures, alert_par
     ctx['entity_values'] = functools.partial(entity_values, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity'] = dict(entity)
     ctx['history'] = functools.partial(HistoryWrapper, logger=logger, check_id=check_id, entities=entity['id'])
+    ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
+    ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
 
     _inject_alert_parameters(alert_parameters, ctx)
 
@@ -579,8 +606,10 @@ class Try(Callable):
         except self.exc_cls, e:
             return self.except_call(e)
 
+def get_results_user(count=1, con=None, check_id=None, entity_id=None):
+    return map(lambda x: x["value"], get_results(con, check_id, entity_id, count))
 
-def get_results(con, check_id, entity_id, count):
+def get_results(con, check_id, entity_id, count=1):
     return map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
 
 
