@@ -31,6 +31,7 @@ import urllib
 import pytz
 import threading
 import Queue
+from collections import defaultdict
 
 from bisect import bisect_left
 from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
