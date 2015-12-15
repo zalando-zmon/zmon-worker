@@ -1007,6 +1007,8 @@ class NotaZmonTask(object):
     _cassandra_time_series_enabled = False
     _cassandra_seed_nodes = []
 
+    _is_secure_worker = True
+
     _timezone = None
     _account = None
     _dataservice_url = None
@@ -1071,6 +1073,8 @@ class NotaZmonTask(object):
         cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
         cls._cassandra_seed_nodes = config.get('cassandra.seeds')
 
+        cls._is_secure_worker = config.get('worker.is_secure')
+
         cls._timezone = pytz.timezone('Europe/Berlin')
         cls._account = config.get('account')
         cls._dataservice_url = config.get('dataservice.url')
@@ -1092,7 +1096,8 @@ class NotaZmonTask(object):
 
     @classmethod
     def is_secure_worker(cls):
-        return cls._secure_queue in (cls._queues or '')
+        return cls._is_secure_worker
+
 
     @classmethod
     def perload_stash_commands(cls):
