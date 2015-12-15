@@ -40,6 +40,7 @@ from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
+from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
 
 from operator import itemgetter
@@ -482,6 +483,7 @@ def _build_notify_context(alert):
             'send_mail': functools.partial(Mail.send, alert),
             'send_email': functools.partial(Mail.send, alert),
             'send_sms': functools.partial(Sms.send, alert),
+            'notify_hubot': functools.partial(Hubot.notify, alert),
             'send_hipchat': functools.partial(NotifyHipchat.send, alert),
             'send_slack': functools.partial(NotifySlack.send, alert)
            }
@@ -1485,9 +1487,8 @@ class NotaZmonTask(object):
 
     def _enforce_security(self, req):
         '''
-        PF-3792: Security checks for PPD
         Check tasks from the secure queue to asert the command to run is specified in stash check definition
-        Side effect: modifies req to address unique PPD concerns, e.g: pp-ccsn01 needs to become ccsn01.pp in PCI env
+        Side effect: modifies req to address unique security concerns
         Raises SecurityError on check failure
         '''
 
@@ -1500,7 +1501,7 @@ class NotaZmonTask(object):
                 raise SecurityError('Unexpected Internal error: {}'.format(e)), None, traceback
 
             if req['command'] not in stash_commands:
-                raise SecurityError('Security violation: Non-authorized command received in ppd environment')
+                raise SecurityError('Security violation: Non-authorized command received in secure environment')
 
             # transformations of entities: hostname "pp-whatever" needs to become "whatever.pp"
             prefix = 'pp-'
