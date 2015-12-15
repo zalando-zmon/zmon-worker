@@ -8,5 +8,6 @@ eventlog.*
 worker*.log
 .cache/
 *.swp
-.coverage
+.coverage*
 htmlcov/
+rpc_server.log
