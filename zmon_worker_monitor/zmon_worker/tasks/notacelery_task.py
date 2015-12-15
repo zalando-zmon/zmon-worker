@@ -385,18 +385,20 @@ def alert_series(f, n, con, check_id, entity_id):
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
-    >>> 'timeseries_median' in build_condition_context(None, 1, 1, {'id': 1}, {}, {})
+    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
-    >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': 1}, {}, {})
+    >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
     '''
+
+    history_factory = plugin_manager.get_plugin_obj_by_name('history', 'Function')
 
     ctx = build_default_context()
     ctx['capture'] = functools.partial(capture, captures=captures)
     ctx['entity_results'] = functools.partial(entity_results, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity_values'] = functools.partial(entity_values, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity'] = dict(entity)
-    ctx['history'] = functools.partial(HistoryWrapper, logger=logger, check_id=check_id, entities=entity['id'])
+    ctx['history'] = history_factory.create({ 'check_id': check_id, 'entity_id_for_kairos': normalize_kairos_id(entity['id']) })
     ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
     ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
 
@@ -1076,7 +1078,6 @@ class NotaZmonTask(object):
 
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
-
         # store function factories from plugins in a dict by name
         cls._function_factories = {p.name: p.plugin_object for p in cls._plugins}
 
