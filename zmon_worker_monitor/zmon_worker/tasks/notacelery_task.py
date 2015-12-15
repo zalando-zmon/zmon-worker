@@ -1011,6 +1011,7 @@ class NotaZmonTask(object):
 
     _timezone = None
     _account = None
+    _team = None
     _dataservice_url = None
 
     _dataservice_poster = None
@@ -1076,7 +1077,10 @@ class NotaZmonTask(object):
         cls._is_secure_worker = config.get('worker.is_secure')
 
         cls._timezone = pytz.timezone('Europe/Berlin')
+
         cls._account = config.get('account')
+        cls._team = config.get('team')
+
         cls._dataservice_url = config.get('dataservice.url')
 
         if cls._dataservice_url:
