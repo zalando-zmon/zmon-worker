@@ -6,3 +6,7 @@ dist/
 zmon_worker_data/
 eventlog.*
 worker*.log
+.cache/
+*.swp
+.coverage
+htmlcov/

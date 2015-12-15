@@ -21,17 +21,6 @@ import re
 from collections import namedtuple
 
 
-class Queue(object):
-
-    '''
-    Used to emulate kombu Queue
-    '''
-
-    def __init__(self, queue, routing_key=None):
-        self.queue = queue
-        self.routing_key = routing_key
-
-
 def parse_redis_conn(conn_str):
     '''
     Emulates kombu.connection.Connection that we were using only to parse redis connection string
@@ -45,5 +34,3 @@ def parse_redis_conn(conn_str):
     if not m:
         raise Exception('unable to parse redis connection string: {}'.format(conn_str))
     return Connection(m.group(1), int(m.group(2)), m.group(3))
-
-

@@ -132,8 +132,8 @@ class TestPluginManager(unittest.TestCase):
             known_plugin_names = ['http', 'color_spain', 'color_germany', 'temperature_fridge']
             plugin_names = plugin_manager.get_all_plugin_names()
 
-            print 'known_plugin_names', known_plugin_names
-            print 'plugin_names', plugin_names
+            # print 'known_plugin_names', known_plugin_names
+            # print 'plugin_names', plugin_names
 
 
             self.assertTrue(set(known_plugin_names).issubset(plugin_names), 'All known test plugins are loaded')

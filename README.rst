@@ -38,7 +38,7 @@ Running Unit Tests
 .. code-block:: bash
 
     $ sudo pip2 install -r test_requirements.txt
-    $ nosetests --with-doctest --with-coverage
+    $ python2 setup.py test
 
 
 Building the Docker Image
