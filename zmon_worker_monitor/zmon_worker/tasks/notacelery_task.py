@@ -1061,8 +1061,8 @@ class NotaZmonTask(object):
         cls._exacrm_cluster = config.get('exacrm.cluster')
         cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
-        cls._queues = config.get('zmon.queues', {}).get('local')
         cls._scalyr_read_key = config.get('scalyr.read.key','')
+        cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
