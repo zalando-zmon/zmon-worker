@@ -27,6 +27,8 @@ import requests
 import sys
 import setproctitle
 from datetime import timedelta, datetime
+import threading
+import Queue
 
 from bisect import bisect_left
 from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
@@ -507,6 +509,81 @@ def _prepare_condition(condition):
         return condition
 
 
+class PeriodicBufferedAction(object):
+
+    def __init__(self, action, action_name=None, retries=5, t_wait=10, t_random_fraction=0.5):
+
+        self._stop = True
+        self.action = action
+        self.action_name = action_name if action_name else (action.func_name if hasattr(action, 'func_name') else
+                                                            (action.__name__ if hasattr(action, '__name__') else None))
+        self.retries = retries
+        self.t_wait = t_wait
+        self.t_rand_fraction = t_random_fraction
+
+        self._queue = Queue.Queue()
+        self._thread = threading.Thread(target=self._loop)
+        self._thread.daemon = True
+
+    def start(self):
+        self._stop = False
+        self._thread.start()
+
+    def stop(self):
+        self._stop = True
+
+    def is_active(self):
+        return not self._stop
+
+    def get_time_randomized(self):
+        return self.t_wait * (1 + random.uniform(-self.t_rand_fraction, self.t_rand_fraction))
+
+    def enqueue(self, data, count=0):
+        elem = {
+            'data': data,
+            'count': count,
+            # 'time': time.time()
+        }
+        try:
+            self._queue.put_nowait(elem)
+        except Queue.Full:
+            logger.exception('Fatal Error: is worker out of memory? Details: ')
+
+    def _collect_from_queue(self):
+        elem_list = []
+        empty = False
+
+        while not empty and not self._stop:
+            try:
+                elem_list.append(self._queue.get_nowait())
+            except Queue.Empty:
+                empty = True
+        return elem_list
+
+    def _loop(self):
+        t_last = time.time()
+        t_wait_last = self.get_time_randomized()
+
+        while not self._stop:
+            if time.time() - t_last >= t_wait_last:
+                elem_list = self._collect_from_queue()
+                try:
+                    if elem_list:
+                        self.action([e['data'] for e in elem_list])
+                except Exception as e:
+                    logger.error('Error executing action %s: %s', self.action_name, e)
+                    for elem in elem_list:
+                        if elem['count'] < self.retries:
+                            self.enqueue(elem['data'], count=elem['count']+1)
+                        else:
+                            logger.error('Error: Maximum retries reached for action %s. Dropping data: %s ',
+                                         self.action_name, elem['data'])
+                finally:
+                    t_last = time.time()
+                    t_wait_last = self.get_time_randomized()
+            else:
+                time.sleep(0.2)  # so loop is responsive to stop commands
+
 
 def _log_event(event_name, alert, result, entity=None):
     params = {'checkId': alert['check_id'], 'alertId': alert['id'], 'value': result['value']}
@@ -923,6 +1000,13 @@ class NotaZmonTask(object):
     _cassandra_time_series_enabled = False
     _cassandra_seed_nodes = []
 
+    _timezone = None
+    _account = None
+    _dataservice_url = None
+
+    _dataservice_poster = None
+
+
     _plugin_category = 'Function'
     _plugins = []
     _function_factories = {}
@@ -979,6 +1063,17 @@ class NotaZmonTask(object):
         cls._cassandra_enabled = config.get('cassandra.enabled')
         cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
         cls._cassandra_seed_nodes = config.get('cassandra.seeds')
+
+        cls._timezone = pytz.timezone('Europe/Berlin')
+        cls._account = config.get('account')
+        cls._dataservice_url = config.get('dataservice.url')
+
+        if cls._dataservice_url:
+            # start action loop for sending reports to dataservice
+            cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
+            cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
+            cls._dataservice_poster.start()
+
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
 
@@ -1101,6 +1196,40 @@ class NotaZmonTask(object):
                 self._last_captures_sent = now
                 # clean local list
                 del self._captures_local[:len(captures_local)]
+
+    @classmethod
+    def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
+
+        http_req = {'PUT': requests.put, 'POST': requests.post, 'GET': requests.get}
+        headers = {'content-type': 'application/json'}
+
+        team = cls._team if cls._team is not None else ''
+        account = cls._account if cls._account is not None else ''
+
+        try:
+            # group check_results by check_id
+            results_by_id = defaultdict(list)
+            for cr in check_results:
+                results_by_id[cr['check_id']].append(cr)
+
+            # make separate posts per check_id
+            for check_id, results in results_by_id.items():
+
+                url = '{url}/{account}/{check_id}/'.format(url=cls._dataservice_url.rstrip('/'),
+                                                           account=urllib.quote(account), check_id=check_id)
+                worker_result = {
+                    'team': team,
+                    'account': account,
+                    'results': results,
+                }
+
+                r = http_req[method](url, data=json.dumps(worker_result), timeout=timeout, headers=headers)
+                if r.status_code != requests.codes.ok:
+                    raise Exception('http request to {} got status_code={}'.format(url, r.status_code))
+
+        except Exception:
+            logger.exception('Error in dataservice post: ')
+            raise
 
 
     def check_and_notify(self, req, alerts, task_context=None):
@@ -1594,9 +1723,21 @@ class NotaZmonTask(object):
             A list of alert definitions matching given entity.
         '''
 
+        ts_serialize = lambda ts: datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
+
         result = []
         entity_id = req['entity']['id']
         start = time.time()
+
+        check_result = {
+            'time': ts_serialize(val.get('ts')) if isinstance(val, dict) else None,
+            'run_time': val.get('td') if isinstance(val, dict) else None,  # TODO: should be float or is it milliseconds?
+            'check_id': req['check_id'],
+            'entity_id': req['entity']['id'],
+            'check_result': val,
+            'exception': True if isinstance(val, dict) and val.get('exc') else False,
+            'alerts': {},
+        }
 
         try:
             setp(req['check_id'], entity_id, 'notify loop')
@@ -1648,6 +1789,39 @@ class NotaZmonTask(object):
 
                 self._store_captures_locally(alert_id, entity_id, int(start), captures)
 
+                # prepare report - alert part
+                check_result['alerts'][alert_id] = {
+                    'alert_id': alert_id,
+                    'captures': captures,
+                    'downtimes': [],
+                    'exception': True if isinstance(captures, dict) and 'exception' in captures else False,
+                    'active':  is_alert,
+                    'changed': changed,
+                    'in_period': is_in_period,
+                    'start_time': None,
+                    # '_alert_stored': None,
+                    # '_notifications_stored': None,
+                }
+
+                # get last alert data stored in redis if any
+                alert_stored = None
+                try:
+                    stored_raw = self.con.get(alerts_key)
+                    alert_stored = json.loads(stored_raw) if stored_raw else None
+                except (ValueError, TypeError):
+                    self.logger.warn('My messy Error parsing JSON alert result for key: %s', alerts_key)
+
+                if False:
+                    # get notification data stored in redis if any
+                    notifications_stored = None
+                    try:
+                        stored_raw = self.con.get(notifications_key)
+                        notifications_stored = json.loads(stored_raw) if stored_raw else None
+                    except (ValueError, TypeError):
+                        self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s', notifications_key)
+
+                downtimes = None
+
                 if is_in_period:
 
                     self._counter.update({'alerts.{}.count'.format(alert_id): 1,
@@ -1658,23 +1832,16 @@ class NotaZmonTask(object):
                     # the alert is no longer active.
                     downtimes = self._evaluate_downtimes(alert_id, entity_id)
 
+                    start_time = time.time()
+
                     # Store or remove the check value that triggered the alert
                     if is_alert:
                         result.append(alert_id)
+                        start_time = alert_stored['start_time'] if alert_stored and not changed else time.time()
 
-                        if changed:
-                            start_time = time.time()
-                        else:
-                            # NOTE I'm not sure if it's possible to have two workers evaluating the same alert for the same
-                            # entity. If it happens, the difference in start time should negligible.
-                            try:
-                                start_time = json.loads(self.con.get(alerts_key))['start_time']
-                            except (ValueError, TypeError):
-                                self.logger.warn('Error parsing JSON alert result for key: %s', alerts_key)
-                                start_time = time.time()
-
-                        self.con.set(alerts_key, json.dumps(dict(captures=captures, downtimes=downtimes,
-                                     start_time=start_time, **val), cls=JsonDataEncoder))
+                        # create or refresh stored alert
+                        alert_stored = dict(captures=captures, downtimes=downtimes, start_time=start_time, **val)
+                        self.con.set(alerts_key, json.dumps(alert_stored, cls=JsonDataEncoder))
                     else:
                         self.con.delete(alerts_key)
                         self.con.delete(notifications_key)
@@ -1724,7 +1891,28 @@ class NotaZmonTask(object):
 
                         self.logger.info('Removed alert with id %s on entity %s from active alerts due to time period: %s',
                                          alert_id, entity_id, alert.get('period', ''))
+
+                # add to alert report regardless alert up/down/out of period
+                # report['results']['alerts'][alert_id]['_alert_stored'] = alert_stored
+                # report['results']['alerts'][alert_id]['_notifications_stored'] = notifications_stored
+
+                check_result['alerts'][alert_id]['start_time'] = ts_serialize(alert_stored['start_time']) if alert_stored else None
+                check_result['alerts'][alert_id]['start_time_ts'] = alert_stored['start_time'] if alert_stored else None
+                check_result['alerts'][alert_id]['downtimes'] = downtimes
+
             setp(req['check_id'], entity_id, 'return notified')
+
+            # enqueue report to be sent via http request
+            if self._dataservice_poster:
+                #'entity_id': req['entity']['id'],
+                check_result["entity"] = {"id": req['entity']['id']}
+
+                for k in ["application_id","application_version","stack_name","stack_version","team","account_alias"]:
+                    if k in req["entity"]:
+                        check_result["entity"][k] = req["entity"][k]
+
+                self._dataservice_poster.enqueue(check_result)
+
             return result
         #TODO: except SoftTimeLimitExceeded:
         except Exception:
