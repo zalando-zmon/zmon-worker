@@ -2,7 +2,7 @@ dogpile.cache
 functional
 numpy
 pysnmp
-redis
+redis==2.10.3
 requests
 subprocess32
 graphitesend
@@ -12,6 +12,7 @@ psycopg2
 CherryPy
 Jinja2
 setproctitle
+pytz
 PyYAML
 eventlog-writer==0.4.5
 timeperiod2==0.1
