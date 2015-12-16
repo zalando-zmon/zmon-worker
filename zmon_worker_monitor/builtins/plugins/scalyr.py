@@ -31,6 +31,7 @@ class ScalyrWrapper(object):
     def __init__(self, read_key):
         self.numeric_url = 'https://www.scalyr.com/api/numericQuery'
         self.timeseries_url = 'https://www.scalyr.com/api/timeseriesQuery'
+        self.facet_url = 'https://www.scalyr.com/api/facetQuery'
         self.read_key = read_key
 
     def count(self, query, minutes=5):
@@ -70,6 +71,23 @@ class ScalyrWrapper(object):
             return j['values'][0]
         else:
             return j
+
+    def facets(self, filter, field, max_count=5, minutes=30, prio="low"):
+
+        val = {
+            'token': self.read_key,
+            'queryType': 'facet',
+            'filter': filter,
+            'field': field,
+            'maxCount': max_count,
+            "startTime": str(minutes)+"m",
+            "priority": prio
+        }
+
+        r = requests.post(self.facet_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        j = r.json()
+        return j
+
 
     def timeseries(self, filter, function="count", minutes=30, buckets=1, prio="low"):
 
