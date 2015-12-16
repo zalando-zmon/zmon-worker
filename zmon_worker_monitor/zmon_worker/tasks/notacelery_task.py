@@ -1585,9 +1585,12 @@ class NotaZmonTask(object):
             if None != m:
                 d["hg"]=m.group(0)
 
-            m = INSTANCE_PORT_SUFFIX.search(id)
-            if None != m:
-                d["port"]=m.group(1)
+            if not 'ports' in entity:
+                m = INSTANCE_PORT_SUFFIX.search(id)
+                if None != m:
+                    d["port"]=m.group(1)
+            else:
+                d["port"] = str(entity['ports'].items()[-1:][0][1])
 
             return d
 
