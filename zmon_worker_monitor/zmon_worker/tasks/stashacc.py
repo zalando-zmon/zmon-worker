@@ -8,6 +8,7 @@ except:
 import os
 import yaml
 import logging
+from yaml.scanner import ScannerError
 
 
 class StashAccessor(object):
@@ -47,7 +48,12 @@ class StashAccessor(object):
 
                             file_path = os.path.join(check_path, check_file)
                             fd = self.stash.get_content(repo, file_path)
-                            check_definitions.append(yaml.safe_load(fd))
+
+                            try:
+                                check_definitions.append(yaml.safe_load(fd))
+                            except ScannerError as e:
+                                self._logger.exception("Could not parse file %s/%s", check_path, check_file, e )
+
                     except Exception:
                         self._logger.exception('Unexpected error when fetching info from stash: ')
 
