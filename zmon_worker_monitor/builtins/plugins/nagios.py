@@ -371,7 +371,7 @@ class NagiosWrapper(object):
     @staticmethod
     @error_wrapped
     def _to_dict(output, func=float):
-        return dict((a.split('=')[0], func(re.sub('[^0-9.]', '', a.split('=')[1].split(';')[0]))) for a in
+        return dict((a.split('=')[0], func(re.sub(r'.*?(-?[0-9]*\.[0-9]+|-?[0-9]+).*', r'\1', a.split('=')[1].split(';')[0]))) for a in
                     output.split('|')[-1].split())
 
     @staticmethod
