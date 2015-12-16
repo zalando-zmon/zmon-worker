@@ -163,6 +163,8 @@ class HttpWrapper(object):
         if "timers" in j:
             metric_map = {'p99':'99th','p75':'75th','mean':'median','m1_rate':'mRate'}
             j = j["timers"]
+            j["zmon.response.200.GET.metrics"]={"mRate": 0.12345}
+
             for (k,v) in j.iteritems():
                 if k.startswith(prefix):
                     ks = k.split('.')
@@ -188,6 +190,7 @@ class HttpWrapper(object):
                             r[ep][method][status][mn]=mv
             return r
 
+        j["zmon.response.200.GET.metrics.oneMinuteRate"]=0.12345
         for (k,v) in j.iteritems():
             if k.startswith(prefix):
                 ks = k.split('.')
