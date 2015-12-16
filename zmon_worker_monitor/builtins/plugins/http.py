@@ -165,10 +165,12 @@ class HttpWrapper(object):
             j = j["timers"]
             j["zmon.response.200.GET.metrics"]={"mRate": 0.12345}
 
+            start_index = len(prefix.split('.')) - 1
+
             for (k,v) in j.iteritems():
                 if k.startswith(prefix):
                     ks = k.split('.')
-                    ks = ks[2:]
+                    ks = ks[start_index:]
 
                     status = ks[0]
                     method = ks[1]
