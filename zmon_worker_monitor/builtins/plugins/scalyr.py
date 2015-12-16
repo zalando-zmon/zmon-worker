@@ -71,14 +71,18 @@ class ScalyrWrapper(object):
         else:
             return j
 
-    def timeseries(self, ts_id, minutes=30, buckets=1):
+    def timeseries(self, filter, function="count", minutes=30, buckets=1):
 
         val = {
             'token': self.read_key,
             'queries': [
-                {'timeseriesId':ts_id,
-                 'startTime': str(minutes)+'m',
-                 'buckets': buckets}
+                {
+                    "filter": filter,
+                    "function": function,
+                    "startTime": str(minutes)+"m",
+                    "buckets": buckets,
+                    "priority": "low"
+                }
             ]
         }
 
