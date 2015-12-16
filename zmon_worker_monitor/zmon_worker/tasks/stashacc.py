@@ -8,6 +8,7 @@ except:
 import os
 import yaml
 import logging
+from yaml.scanner import ScannerError
 
 
 class StashAccessor(object):
@@ -31,6 +32,7 @@ class StashAccessor(object):
         check_definitions = []
         if self.stash:
             for repo_url in repo_urls:
+                self._logger.info("Scanning Stash url: %s", repo_url)
                 try:
                     repo, check_path = self.stash.get_repo_from_scm_url(repo_url)
                 except Exception:
@@ -42,11 +44,19 @@ class StashAccessor(object):
                             self._logger.warn('No check definitions found in secure repo: %s', repo_url)
 
                         for check_file in files:
+                            self._logger.info("Reading file: %s", check_file)
+
                             file_path = os.path.join(check_path, check_file)
                             fd = self.stash.get_content(repo, file_path)
-                            check_definitions.append(yaml.safe_load(fd))
+
+                            try:
+                                check_definitions.append(yaml.safe_load(fd))
+                            except ScannerError as e:
+                                self._logger.exception("Could not parse file %s/%s", check_path, check_file, e )
+
                     except Exception:
                         self._logger.exception('Unexpected error when fetching info from stash: ')
+
             if repo_urls and not check_definitions:  # StashApi returns empty results on failure
                 self._logger.error('Stash error: Check definition download finished with empty results')
                 raise Exception('Check definition download finished with empty results')

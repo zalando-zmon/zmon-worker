@@ -5,7 +5,7 @@ import logging
 from zmon_worker_monitor.zmon_worker.errors import CheckError
 from functools import partial
 from suds.client import Client
-from time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 from timeperiod import in_period, InvalidFormat
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache
 
@@ -151,4 +151,3 @@ class ZmonWrapper(object):
         entities = p.execute()
 
         return sum(len(e) for e in entities)
-

@@ -12,6 +12,7 @@ psycopg2
 CherryPy
 Jinja2
 setproctitle
+pytz
 PyYAML
 eventlog-writer==0.4.5
 timeperiod2==0.1

@@ -47,7 +47,7 @@ class CloudwatchWrapper(object):
             region = get_region()
         self.client = boto3.client('cloudwatch', region_name=region)
 
-    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60):
+    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60, minutes=5):
         filter_dimension_keys = set()
         filter_dimension_pattern = {}
         for key, val in list(dimensions.items()):
@@ -64,8 +64,9 @@ class CloudwatchWrapper(object):
         metrics = self.client.list_metrics(**args)
         metrics = metrics['Metrics']
         end = datetime.datetime.utcnow()
-        start = end - datetime.timedelta(minutes=5)
+        start = end - datetime.timedelta(minutes=minutes)
         data = collections.defaultdict(int)
+        data['dimensions'] = collections.defaultdict(int)
         for metric in metrics:
             metric_dimensions = {d['Name']: d['Value'] for d in metric['Dimensions']}
             if set(metric_dimensions.keys()) & filter_dimension_keys:
@@ -76,6 +77,10 @@ class CloudwatchWrapper(object):
                                                          StartTime=start, EndTime=end, Period=period, Statistics=[statistics])
             data_points = response['Datapoints']
             if data_points:
+                for [dim_name, dim_val] in metric_dimensions.items():
+                    if not dim_name in data['dimensions']:
+                        data['dimensions'][dim_name] = collections.defaultdict(int)
+                    data['dimensions'][dim_name][dim_val] += data_points[-1][statistics]
                 data[metric['MetricName']] += data_points[-1][statistics]
         return data
 
@@ -83,5 +88,9 @@ class CloudwatchWrapper(object):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     cloudwatch = CloudwatchWrapper(sys.argv[1])
-    data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average')
-    print(json.dumps(data))
+    print "ELB result (eu-west-1 only):"
+    elb_data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average')
+    print(json.dumps(elb_data))
+    print "Billing result (us-east-1 only):"
+    billing_data = cloudwatch.query({'Currency': 'USD'}, 'EstimatedCharges', 'Maximum', 'AWS/Billing', None, 3600, 60*4)
+    print(json.dumps(billing_data))

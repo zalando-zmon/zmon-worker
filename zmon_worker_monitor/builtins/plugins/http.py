@@ -73,6 +73,7 @@ class HttpWrapper(object):
     ):
 
         self.url = (base_url + url if not absolute_http_url(url) else url)
+        self.clean_url = None
         self.params = params
         self.timeout = timeout
         self.max_retries = max_retries
@@ -81,7 +82,7 @@ class HttpWrapper(object):
         self.oauth2 = oauth2
         self.__r = None
 
-    def __request(self, raise_error=True):
+    def __request(self, raise_error=True, post_data = None):
         if self.__r is not None:
             return self.__r
         if self.max_retries:
@@ -98,28 +99,51 @@ class HttpWrapper(object):
             base_url = base_url.replace("{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
             base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
             basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
+        self.clean_url = base_url
 
         if self.oauth2:
             self.headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
 
         try:
-            self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                             headers=self.headers, auth = basic_auth)
+            if post_data is None:
+                self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                 headers=self.headers, auth = basic_auth)
+            else:
+                self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                  headers=self.headers, auth = basic_auth, data=json.dumps(post_data))
         except requests.Timeout, e:
-            raise HttpError('timeout', self.url), None, sys.exc_info()[2]
+            raise HttpError('timeout', self.clean_url), None, sys.exc_info()[2]
         except requests.ConnectionError, e:
-            raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
+            raise HttpError('connection failed', self.clean_url), None, sys.exc_info()[2]
         except Exception, e:
-            raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+            raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
         if raise_error:
             try:
                 self.__r.raise_for_status()
             except requests.HTTPError, e:
-                raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+                raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
         return self.__r
 
     def json(self, raise_error=True):
         r = self.__request(raise_error=raise_error)
+        try:
+            return r.json()
+        except Exception, e:
+            raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+
+    def jolokia(self, read_requests, raise_error=True):
+
+        def set_read_type(x):
+            x['type'] = 'READ'
+
+        # hack quick verify
+        if (not self.url.endswith('jolokia/')) or ('?' in self.url) or ('&' in self.url):
+            raise HttpError("URL needs to end in jolokia/ and not contain ? and &", self.url)
+
+        map(set_read_type, read_requests)
+
+        r = self.__request(post_data=read_requests, raise_error=raise_error)
+
         try:
             return r.json()
         except Exception, e:
@@ -137,12 +161,16 @@ class HttpWrapper(object):
 
         # for clojure projects we use the dropwizard servlet, there the json looks slightly different
         if "timers" in j:
-            metric_map = {'p99':'99th','p75':'75th','mean':'median','m1_rate':'mRate'}
+            metric_map = {'p99':'99th','p75':'75th','mean':'median','m1_rate':'mRate','99%':'99th','75%':'75th','1m.rate':'mRate'}
             j = j["timers"]
+            j["zmon.response.200.GET.metrics"]={"mRate": 0.12345}
+
+            start_index = len(prefix.split('.')) - 1
+
             for (k,v) in j.iteritems():
                 if k.startswith(prefix):
                     ks = k.split('.')
-                    ks = ks[2:]
+                    ks = ks[start_index:]
 
                     status = ks[0]
                     method = ks[1]
@@ -158,12 +186,13 @@ class HttpWrapper(object):
                         r[ep][method][status]={}
 
                     for (mn, mv) in v.iteritems():
-                        if mn in ['count','p99','p75','m1_rate','min','max','mean']:
+                        if mn in ['count','p99','p75','m1_rate','min','max','mean','75%','99%','1m.rate','median']:
                             if mn in metric_map:
                                 mn = metric_map[mn]
                             r[ep][method][status][mn]=mv
             return r
 
+        j["zmon.response.200.GET.metrics.oneMinuteRate"]=0.12345
         for (k,v) in j.iteritems():
             if k.startswith(prefix):
                 ks = k.split('.')

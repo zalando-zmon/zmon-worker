@@ -31,6 +31,7 @@ class ScalyrWrapper(object):
     def __init__(self, read_key):
         self.numeric_url = 'https://www.scalyr.com/api/numericQuery'
         self.timeseries_url = 'https://www.scalyr.com/api/timeseriesQuery'
+        self.facet_url = 'https://www.scalyr.com/api/facetQuery'
         self.read_key = read_key
 
     def count(self, query, minutes=5):
@@ -71,14 +72,35 @@ class ScalyrWrapper(object):
         else:
             return j
 
-    def timeseries(self, ts_id, minutes=30, buckets=1):
+    def facets(self, filter, field, max_count=5, minutes=30, prio="low"):
+
+        val = {
+            'token': self.read_key,
+            'queryType': 'facet',
+            'filter': filter,
+            'field': field,
+            'maxCount': max_count,
+            "startTime": str(minutes)+"m",
+            "priority": prio
+        }
+
+        r = requests.post(self.facet_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        j = r.json()
+        return j
+
+
+    def timeseries(self, filter, function="count", minutes=30, buckets=1, prio="low"):
 
         val = {
             'token': self.read_key,
             'queries': [
-                {'timeseriesId':ts_id,
-                 'startTime': str(minutes)+'m',
-                 'buckets': buckets}
+                {
+                    "filter": filter,
+                    "function": function,
+                    "startTime": str(minutes)+"m",
+                    "buckets": buckets,
+                    "priority": prio
+                }
             ]
         }
 
@@ -86,7 +108,7 @@ class ScalyrWrapper(object):
         j = r.json()
         if j['status'] == 'success':
             if len(j['results'][0]['values'])==1:
-                return j['results'][0]['values'][0] * minutes
+                return j['results'][0]['values'][0]
             return map(lambda x: x * minutes / buckets, j['results'][0]['values'])
         return j
 

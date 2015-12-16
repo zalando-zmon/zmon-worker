@@ -23,19 +23,20 @@ import rpc_server
 DEFAULT_NUM_PROC = 16
 
 
-def parse_args():
+def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config-file", help="path to config file")
-    return parser.parse_args()
+    parser.add_argument('--no-rpc', action='store_true', help='Do not start XML-RPC server')
+    return parser.parse_args(args)
 
 
-def main():
+def main(args=None):
     # add src dir to sys.path
     # src_dir = os.path.abspath(os.path.dirname(__file__))
     # if src_dir not in sys.path:
     #     sys.path.append(src_dir)
 
-    args = parse_args()
+    args = parse_args(args)
 
     main_proc = rpc_server.MainProcess()
 
@@ -66,7 +67,10 @@ def main():
         queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
         main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"})
 
-    main_proc.start_rpc_server()
+    if not args.no_rpc:
+        main_proc.start_rpc_server()
+
+    return main_proc
 
 
 if __name__ == '__main__':

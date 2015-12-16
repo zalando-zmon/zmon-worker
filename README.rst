@@ -32,6 +32,12 @@ Start the ZMON worker process:
 
     $ python2 -m zmon_worker_monitor
 
+You can query the worker monitor via RPC:
+
+.. code-block:: bash
+
+    $ python2 -m zmon_worker_monitor.rpc_client http://localhost:23500/zmon_rpc list_stats
+
 Running Unit Tests
 ==================
 

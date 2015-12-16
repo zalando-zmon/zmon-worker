@@ -155,6 +155,7 @@ class NagiosWrapper(object):
                           'parameters': {'targethost': 'default', 'port': 443, 'timeout': 10}},
             'check_statistics.pl': {'args': '', 'parser': self._to_dict},
             'check_oracle': {'args': '{user_args}', 'parser': self._to_dict, 'parameters': {'user_args': ''}},
+            'check_dbus': {'args': '', 'parser': self._to_dict_win_text,},
             'check_flocked_file': {'args': '-a {lockfile}', 'parser': self._to_dict_from_text},
             'check_apachestatus_uri': {'args': '-a 16000,10000,48 32000,20000,64 {url}', 'parser': self._to_dict,
                                        'parameters': {'url': 'http://127.0.0.1/server-status?auto'}},
@@ -370,7 +371,7 @@ class NagiosWrapper(object):
     @staticmethod
     @error_wrapped
     def _to_dict(output, func=float):
-        return dict((a.split('=')[0], func(re.sub('[^0-9.]', '', a.split('=')[1].split(';')[0]))) for a in
+        return dict((a.split('=')[0], func(re.sub(r'.*?(-?[0-9]*\.[0-9]+|-?[0-9]+).*', r'\1', a.split('=')[1].split(';')[0]))) for a in
                     output.split('|')[-1].split())
 
     @staticmethod

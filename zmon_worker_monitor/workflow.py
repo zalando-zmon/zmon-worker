@@ -100,6 +100,11 @@ def flow_simple_queue_processor(queue='', **execution_context):
     reactor = FlowControlReactor.get_instance()
 
     conn_handler = RedisConnHandler.get_instance()
+
+    # try cleanup captures queue in aws context
+    r = conn_handler.get_healthy_conn()
+    r.delete('zmon:captures2graphite')
+
     expired_count = 0
     count = 0
 
@@ -173,6 +178,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
         except Exception:
             logger.exception('Exception in redis loop. Details: ')
+            time.sleep(5) # avoid heavy log spam here
             # some exit condition on failure: maybe when number of consecutive failures > n ?
 
     # TODO: Clean redis connection... very important!!!!

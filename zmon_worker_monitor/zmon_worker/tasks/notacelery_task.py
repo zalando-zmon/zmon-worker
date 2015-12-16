@@ -7,7 +7,6 @@ import __future__
 
 from collections import Callable, Counter
 import socket
-from zmon_worker_monitor.zmon_worker.functions import TimeWrapper
 from graphitesend import GraphiteClient
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
@@ -27,17 +26,20 @@ import requests
 import sys
 import setproctitle
 from datetime import timedelta, datetime
-
-from zmon_worker_monitor.zmon_worker.functions import HistoryWrapper, NagiosWrapper, RedisWrapper, SnmpWrapper, JmxWrapper, TcpWrapper, \
-    ping, SqlWrapper, CounterWrapper, LdapWrapper, ExaplusWrapper, SqlOracleWrapper, MySqlWrapper, WhoisWrapper, MsSqlWrapper
+import urllib
+import pytz
+import threading
+import Queue
+from collections import defaultdict
 
 from bisect import bisect_left
-from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
+from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
 
 from operator import itemgetter
@@ -261,15 +263,15 @@ def _get_shards(entity):
     return None
 
 
-def entity_values(con, check_id, alert_id):
-    return map(get_value, entity_results(con, check_id, alert_id))
+def entity_values(con, check_id, alert_id,count=1):
+    return map(get_value, entity_results(con, check_id, alert_id, count))
 
 
-def entity_results(con, check_id, alert_id):
+def entity_results(con, check_id, alert_id, count=1):
     all_entities = con.hkeys('zmon:alerts:{}:entities'.format(alert_id))
     all_results = []
     for entity_id in all_entities:
-        results = get_results(con, check_id, entity_id, 1)
+        results = get_results(con, check_id, entity_id, count)
         all_results.extend(results)
     return all_results
 
@@ -358,21 +360,50 @@ def _inject_alert_parameters(alert_parameters, ctx):
         if params_name not in ctx:
             ctx[params_name] = params
 
+def alert_series(f, n, con, check_id, entity_id):
+    """ evaluate given function on the last n check results and return true if the "alert" function f returns true for all values"""
+
+    vs = get_results(con, check_id, entity_id, n)
+    active_count = 0
+    exception_count = 0
+
+    for v in vs:
+        # counting exceptions thrown during eval as alert being active for that interval
+        try:
+            v = v["value"]
+            r = 1 if f(v) else 0
+            x =0
+        except:
+            r = 1
+            x = 1
+
+        active_count += r
+        exception_count += x
+
+    if exception_count == n:
+        raise Exception("All alert evaluations failed!")
+
+    # activating alert if not enough value found (this should only affect starting period)
+    return n == active_count or len(vs)<n
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
-    >>> 'timeseries_median' in build_condition_context(None, 1, 1, {'id': 1}, {}, {})
+    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
-    >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': 1}, {}, {})
+    >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
     '''
+
+    history_factory = plugin_manager.get_plugin_obj_by_name('history', 'Function')
 
     ctx = build_default_context()
     ctx['capture'] = functools.partial(capture, captures=captures)
     ctx['entity_results'] = functools.partial(entity_results, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity_values'] = functools.partial(entity_values, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity'] = dict(entity)
-    ctx['history'] = functools.partial(HistoryWrapper, logger=logger, check_id=check_id, entities=entity['id'])
+    ctx['history'] = history_factory.create({ 'check_id': check_id, 'entity_id_for_kairos': normalize_kairos_id(entity['id']) })
+    ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
+    ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
 
     _inject_alert_parameters(alert_parameters, ctx)
 
@@ -451,6 +482,7 @@ def _build_notify_context(alert):
             'send_mail': functools.partial(Mail.send, alert),
             'send_email': functools.partial(Mail.send, alert),
             'send_sms': functools.partial(Sms.send, alert),
+            'notify_hubot': functools.partial(Hubot.notify, alert),
             'send_hipchat': functools.partial(NotifyHipchat.send, alert),
             'send_slack': functools.partial(NotifySlack.send, alert)
            }
@@ -482,6 +514,81 @@ def _prepare_condition(condition):
         # condition is more complex, e.g. "value > 3 and value < 10"
         return condition
 
+
+class PeriodicBufferedAction(object):
+
+    def __init__(self, action, action_name=None, retries=5, t_wait=10, t_random_fraction=0.5):
+
+        self._stop = True
+        self.action = action
+        self.action_name = action_name if action_name else (action.func_name if hasattr(action, 'func_name') else
+                                                            (action.__name__ if hasattr(action, '__name__') else None))
+        self.retries = retries
+        self.t_wait = t_wait
+        self.t_rand_fraction = t_random_fraction
+
+        self._queue = Queue.Queue()
+        self._thread = threading.Thread(target=self._loop)
+        self._thread.daemon = True
+
+    def start(self):
+        self._stop = False
+        self._thread.start()
+
+    def stop(self):
+        self._stop = True
+
+    def is_active(self):
+        return not self._stop
+
+    def get_time_randomized(self):
+        return self.t_wait * (1 + random.uniform(-self.t_rand_fraction, self.t_rand_fraction))
+
+    def enqueue(self, data, count=0):
+        elem = {
+            'data': data,
+            'count': count,
+            # 'time': time.time()
+        }
+        try:
+            self._queue.put_nowait(elem)
+        except Queue.Full:
+            logger.exception('Fatal Error: is worker out of memory? Details: ')
+
+    def _collect_from_queue(self):
+        elem_list = []
+        empty = False
+
+        while not empty and not self._stop:
+            try:
+                elem_list.append(self._queue.get_nowait())
+            except Queue.Empty:
+                empty = True
+        return elem_list
+
+    def _loop(self):
+        t_last = time.time()
+        t_wait_last = self.get_time_randomized()
+
+        while not self._stop:
+            if time.time() - t_last >= t_wait_last:
+                elem_list = self._collect_from_queue()
+                try:
+                    if elem_list:
+                        self.action([e['data'] for e in elem_list])
+                except Exception as e:
+                    logger.error('Error executing action %s: %s', self.action_name, e)
+                    for elem in elem_list:
+                        if elem['count'] < self.retries:
+                            self.enqueue(elem['data'], count=elem['count']+1)
+                        else:
+                            logger.error('Error: Maximum retries reached for action %s. Dropping data: %s ',
+                                         self.action_name, elem['data'])
+                finally:
+                    t_last = time.time()
+                    t_wait_last = self.get_time_randomized()
+            else:
+                time.sleep(0.2)  # so loop is responsive to stop commands
 
 
 def _log_event(event_name, alert, result, entity=None):
@@ -582,9 +689,16 @@ class Try(Callable):
         except self.exc_cls, e:
             return self.except_call(e)
 
+def get_results_user(count=1, con=None, check_id=None, entity_id=None):
+    return map(lambda x: x["value"], get_results(con, check_id, entity_id, count))
 
-def get_results(con, check_id, entity_id, count):
-    return map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
+def get_results(con, check_id, entity_id, count=1):
+    r = map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
+
+    for x in r:
+        x.update({"entity_id": entity_id})
+
+    return r
 
 
 def avg(sequence):
@@ -655,7 +769,6 @@ def build_default_context():
         'sorted': sorted,
         'str': str,
         'sum': sum,
-        'time': TimeWrapper,
         'timestamp': time.time,
         'True': True,
         'Try': Try,
@@ -892,6 +1005,16 @@ class NotaZmonTask(object):
     _cassandra_time_series_enabled = False
     _cassandra_seed_nodes = []
 
+    _is_secure_worker = True
+
+    _timezone = None
+    _account = None
+    _team = None
+    _dataservice_url = None
+
+    _dataservice_poster = None
+
+
     _plugin_category = 'Function'
     _plugins = []
     _function_factories = {}
@@ -907,7 +1030,7 @@ class NotaZmonTask(object):
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
-        cls._graphite_host = config.get('graphite.host')
+        cls._graphite_host = config.get('graphite.host', '')
         cls._graphite_port = config.get('graphite.port', 2003)
         cls._graphite_prefix = config.get('graphite.prefix', 'zmon2')
         cls._pg_user = config.get('postgres.user')
@@ -936,8 +1059,8 @@ class NotaZmonTask(object):
         cls._exacrm_cluster = config.get('exacrm.cluster')
         cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
-        cls._queues = config.get('zmon.queues', {}).get('local')
         cls._scalyr_read_key = config.get('scalyr.read.key','')
+        cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
@@ -949,8 +1072,23 @@ class NotaZmonTask(object):
         cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
         cls._cassandra_seed_nodes = config.get('cassandra.seeds')
 
-        cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
+        cls._is_secure_worker = config.get('worker.is_secure')
 
+        cls._timezone = pytz.timezone('Europe/Berlin')
+
+        cls._account = config.get('account')
+        cls._team = config.get('team')
+
+        cls._dataservice_url = config.get('dataservice.url')
+
+        if cls._dataservice_url:
+            # start action loop for sending reports to dataservice
+            cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
+            cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
+            cls._dataservice_poster.start()
+
+
+        cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
         # store function factories from plugins in a dict by name
         cls._function_factories = {p.name: p.plugin_object for p in cls._plugins}
 
@@ -960,7 +1098,8 @@ class NotaZmonTask(object):
 
     @classmethod
     def is_secure_worker(cls):
-        return cls._secure_queue in (cls._queues or '')
+        return cls._is_secure_worker
+
 
     @classmethod
     def perload_stash_commands(cls):
@@ -1047,10 +1186,9 @@ class NotaZmonTask(object):
             p.sadd('zmon:metrics', self.worker_name)
             for key, val in self._counter.items():
                 p.incrby('zmon:metrics:{}:{}'.format(self.worker_name, key), val)
-            # reset counter
-            self._counter.clear()
             p.set('zmon:metrics:{}:ts'.format(self.worker_name), now)
             p.execute()
+            self._counter.clear()
             self._last_metrics_sent = now
             self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
 
@@ -1062,7 +1200,7 @@ class NotaZmonTask(object):
         '''
 
         now = time.time()
-        if now > self._last_captures_sent + CAPTURES_INTERVAL:
+        if (self._graphite_host != '') and (now > self._last_captures_sent + CAPTURES_INTERVAL):
             captures_local = self._captures_local[:]
             if captures_local:
                 captures_json = [json.dumps(c, cls=JsonDataEncoder) for c in captures_local]
@@ -1070,6 +1208,40 @@ class NotaZmonTask(object):
                 self._last_captures_sent = now
                 # clean local list
                 del self._captures_local[:len(captures_local)]
+
+    @classmethod
+    def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
+
+        http_req = {'PUT': requests.put, 'POST': requests.post, 'GET': requests.get}
+        headers = {'content-type': 'application/json'}
+
+        team = cls._team if cls._team is not None else ''
+        account = cls._account if cls._account is not None else ''
+
+        try:
+            # group check_results by check_id
+            results_by_id = defaultdict(list)
+            for cr in check_results:
+                results_by_id[cr['check_id']].append(cr)
+
+            # make separate posts per check_id
+            for check_id, results in results_by_id.items():
+
+                url = '{url}/{account}/{check_id}/'.format(url=cls._dataservice_url.rstrip('/'),
+                                                           account=urllib.quote(account), check_id=check_id)
+                worker_result = {
+                    'team': team,
+                    'account': account,
+                    'results': results,
+                }
+
+                r = http_req[method](url, data=json.dumps(worker_result), timeout=timeout, headers=headers)
+                if r.status_code != requests.codes.ok:
+                    raise Exception('http request to {} got status_code={}'.format(url, r.status_code))
+
+        except Exception:
+            logger.exception('Error in dataservice post: ')
+            raise
 
 
     def check_and_notify(self, req, alerts, task_context=None):
@@ -1092,17 +1264,15 @@ class NotaZmonTask(object):
         #     notify(check_and_notify, {'ts': start_time, 'td': soft_time_limit, 'value': str(e)}, req, alerts,
         #            force_alert=True)
         except CheckError, e:
-            self.logger.warn('Check error for request with id %s on entity %s. Output: %s', check_id,
-                                         entity_id, str(e))
+            # self.logger.warn('Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
                    force_alert=True)
         except SecurityError, e:
-            self.logger.exception('Security error in request with id %s on entity %s', check_id, entity_id)
+            self.logger.exception('Security exception in request with id %s on entity %s', check_id, entity_id)
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
                    force_alert=True)
         except Exception, e:
-            self.logger.exception('Check request with id %s on entity %s threw an exception', check_id,
-                                              entity_id)
+            # self.logger.exception('Check request with id %s on entity %s threw an exception', check_id, entity_id)
             # PF-3685 Disconnect on unknown exceptions: we don't know what actually happened, it might be that redis
             # connection is dirty. CheckError exception is "safe", it's thrown by the worker whenever the check returns a
             # different response than expected, the user doesn't have access to the checked entity or there's an error in
@@ -1275,12 +1445,15 @@ class NotaZmonTask(object):
             raise
         finally:
             # Store duration in milliseconds as redis only supports integers for counters.
+
+            # 'check.{}.count'.format(req['check_id']): 1,
+            # 'check.{}.duration'.format(req['check_id']): int(round(1000.0 * (time.time() - start))),
+            # 'check.{}.latency'.format(req['check_id']): int(round(1000.0 * (start - schedule_time))),
+
             self._counter.update({
-                'check.count': 1,
-                'check.{}.count'.format(req['check_id']): 1,
-                'check.{}.duration'.format(req['check_id']): int(round(1000.0 * (time.time() - start))),
-                'check.{}.latency'.format(req['check_id']): int(round(1000.0 * (start - schedule_time))),
+                'check.count': 1
             })
+
             self.send_metrics()
 
         setp(req['check_id'], req['entity']['id'], 'store')
@@ -1321,14 +1494,12 @@ class NotaZmonTask(object):
 
     def _enforce_security(self, req):
         '''
-        PF-3792: Security checks for PPD
         Check tasks from the secure queue to asert the command to run is specified in stash check definition
-        Side effect: modifies req to address unique PPD concerns, e.g: pp-ccsn01 needs to become ccsn01.pp in PCI env
+        Side effect: modifies req to address unique security concerns
         Raises SecurityError on check failure
         '''
 
-        #if self.request.delivery_info.get('routing_key') == 'secure' and self.is_secure_worker():
-        if self.task_context['delivery_info'].get('routing_key') == 'secure' and self.is_secure_worker():
+        if self.is_secure_worker() or self.task_context['delivery_info'].get('routing_key') == 'secure':
             try:
                 stash_commands = self.load_stash_commands(self._safe_repositories)
             except Exception, e:
@@ -1336,7 +1507,7 @@ class NotaZmonTask(object):
                 raise SecurityError('Unexpected Internal error: {}'.format(e)), None, traceback
 
             if req['command'] not in stash_commands:
-                raise SecurityError('Security violation: Non-authorized command received in ppd environment')
+                raise SecurityError('Security violation: Non-authorized command received in secure environment')
 
             # transformations of entities: hostname "pp-whatever" needs to become "whatever.pp"
             prefix = 'pp-'
@@ -1413,9 +1584,12 @@ class NotaZmonTask(object):
             if None != m:
                 d["hg"]=m.group(0)
 
-            m = INSTANCE_PORT_SUFFIX.search(id)
-            if None != m:
-                d["port"]=m.group(1)
+            if not 'ports' in entity:
+                m = INSTANCE_PORT_SUFFIX.search(id)
+                if None != m:
+                    d["port"]=m.group(1)
+            else:
+                d["port"] = str(entity['ports'].items()[-1:][0][1])
 
             return d
 
@@ -1563,9 +1737,21 @@ class NotaZmonTask(object):
             A list of alert definitions matching given entity.
         '''
 
+        ts_serialize = lambda ts: datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
+
         result = []
         entity_id = req['entity']['id']
         start = time.time()
+
+        check_result = {
+            'time': ts_serialize(val.get('ts')) if isinstance(val, dict) else None,
+            'run_time': val.get('td') if isinstance(val, dict) else None,  # TODO: should be float or is it milliseconds?
+            'check_id': req['check_id'],
+            'entity_id': req['entity']['id'],
+            'check_result': val,
+            'exception': True if isinstance(val, dict) and val.get('exc') else False,
+            'alerts': {},
+        }
 
         try:
             setp(req['check_id'], entity_id, 'notify loop')
@@ -1615,7 +1801,41 @@ class NotaZmonTask(object):
                 self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
                               cls=JsonDataEncoder))
 
-                self._store_captures_locally(alert_id, entity_id, int(start), captures)
+                if self._graphite_host != '':
+                    self._store_captures_locally(alert_id, entity_id, int(start), captures)
+
+                # prepare report - alert part
+                check_result['alerts'][alert_id] = {
+                    'alert_id': alert_id,
+                    'captures': captures,
+                    'downtimes': [],
+                    'exception': True if isinstance(captures, dict) and 'exception' in captures else False,
+                    'active':  is_alert,
+                    'changed': changed,
+                    'in_period': is_in_period,
+                    'start_time': None,
+                    # '_alert_stored': None,
+                    # '_notifications_stored': None,
+                }
+
+                # get last alert data stored in redis if any
+                alert_stored = None
+                try:
+                    stored_raw = self.con.get(alerts_key)
+                    alert_stored = json.loads(stored_raw) if stored_raw else None
+                except (ValueError, TypeError):
+                    self.logger.warn('My messy Error parsing JSON alert result for key: %s', alerts_key)
+
+                if False:
+                    # get notification data stored in redis if any
+                    notifications_stored = None
+                    try:
+                        stored_raw = self.con.get(notifications_key)
+                        notifications_stored = json.loads(stored_raw) if stored_raw else None
+                    except (ValueError, TypeError):
+                        self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s', notifications_key)
+
+                downtimes = None
 
                 if is_in_period:
 
@@ -1627,23 +1847,16 @@ class NotaZmonTask(object):
                     # the alert is no longer active.
                     downtimes = self._evaluate_downtimes(alert_id, entity_id)
 
+                    start_time = time.time()
+
                     # Store or remove the check value that triggered the alert
                     if is_alert:
                         result.append(alert_id)
+                        start_time = alert_stored['start_time'] if alert_stored and not changed else time.time()
 
-                        if changed:
-                            start_time = time.time()
-                        else:
-                            # NOTE I'm not sure if it's possible to have two workers evaluating the same alert for the same
-                            # entity. If it happens, the difference in start time should negligible.
-                            try:
-                                start_time = json.loads(self.con.get(alerts_key))['start_time']
-                            except (ValueError, TypeError):
-                                self.logger.warn('Error parsing JSON alert result for key: %s', alerts_key)
-                                start_time = time.time()
-
-                        self.con.set(alerts_key, json.dumps(dict(captures=captures, downtimes=downtimes,
-                                     start_time=start_time, **val), cls=JsonDataEncoder))
+                        # create or refresh stored alert
+                        alert_stored = dict(captures=captures, downtimes=downtimes, start_time=start_time, **val)
+                        self.con.set(alerts_key, json.dumps(alert_stored, cls=JsonDataEncoder))
                     else:
                         self.con.delete(alerts_key)
                         self.con.delete(notifications_key)
@@ -1693,7 +1906,28 @@ class NotaZmonTask(object):
 
                         self.logger.info('Removed alert with id %s on entity %s from active alerts due to time period: %s',
                                          alert_id, entity_id, alert.get('period', ''))
+
+                # add to alert report regardless alert up/down/out of period
+                # report['results']['alerts'][alert_id]['_alert_stored'] = alert_stored
+                # report['results']['alerts'][alert_id]['_notifications_stored'] = notifications_stored
+
+                check_result['alerts'][alert_id]['start_time'] = ts_serialize(alert_stored['start_time']) if alert_stored else None
+                check_result['alerts'][alert_id]['start_time_ts'] = alert_stored['start_time'] if alert_stored else None
+                check_result['alerts'][alert_id]['downtimes'] = downtimes
+
             setp(req['check_id'], entity_id, 'return notified')
+
+            # enqueue report to be sent via http request
+            if self._dataservice_poster:
+                #'entity_id': req['entity']['id'],
+                check_result["entity"] = {"id": req['entity']['id']}
+
+                for k in ["application_id","application_version","stack_name","stack_version","team","account_alias"]:
+                    if k in req["entity"]:
+                        check_result["entity"][k] = req["entity"][k]
+
+                self._dataservice_poster.enqueue(check_result)
+
             return result
         #TODO: except SoftTimeLimitExceeded:
         except Exception:
@@ -1703,8 +1937,19 @@ class NotaZmonTask(object):
             return None
 
 
+    def post_trial_run(self, id, entity, result):
+        if self._dataservice_url is not None:
 
+            val = {
+                'id': id,
+                'entity-id': entity,
+                'result': result
+            }
 
+            try:
+                requests.put(self._dataservice_url+"trial-run/", data=json.dumps(val, cls=JsonDataEncoder), headers={"Content-Type":"application/json"})
+            except Exception as ex:
+                self.logger.exception(ex)
 
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
@@ -1725,24 +1970,29 @@ class NotaZmonTask(object):
                 is_in_period = True
 
             try:
-                result_json = json.dumps({
+                result = {
                     'entity': req['entity'],
                     'value': val,
                     'captures': captures,
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                }, cls=JsonDataEncoder)
+                    }
+                result_json = json.dumps(result, cls=JsonDataEncoder)
             except TypeError, e:
-                result_json = json.dumps({
+                result = {
                     'entity': req['entity'],
                     'value': str(e),
                     'captures': {},
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                }, cls=JsonDataEncoder)
+                    }
+                result_json = json.dumps(result, cls=JsonDataEncoder)
 
             self.con.hset(redis_key, req['entity']['id'], result_json)
             self.con.expire(redis_key, TRIAL_RUN_RESULT_EXPIRY_TIME)
+
+            self.post_trial_run(alert['id'][3:], req['entity'], result)
+
             return ([alert['id']] if is_alert and is_in_period else [])
 
         #TODO: except SoftTimeLimitExceeded:
