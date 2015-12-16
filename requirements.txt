@@ -2,7 +2,7 @@ dogpile.cache
 functional
 numpy
 pysnmp
-redis==2.10.3
+redis
 requests
 subprocess32
 graphitesend
