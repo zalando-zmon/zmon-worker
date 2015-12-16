@@ -1030,7 +1030,7 @@ class NotaZmonTask(object):
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
-        cls._graphite_host = config.get('graphite.host')
+        cls._graphite_host = config.get('graphite.host', '')
         cls._graphite_port = config.get('graphite.port', 2003)
         cls._graphite_prefix = config.get('graphite.prefix', 'zmon2')
         cls._pg_user = config.get('postgres.user')
@@ -1186,10 +1186,9 @@ class NotaZmonTask(object):
             p.sadd('zmon:metrics', self.worker_name)
             for key, val in self._counter.items():
                 p.incrby('zmon:metrics:{}:{}'.format(self.worker_name, key), val)
-            # reset counter
-            self._counter.clear()
             p.set('zmon:metrics:{}:ts'.format(self.worker_name), now)
             p.execute()
+            self._counter.clear()
             self._last_metrics_sent = now
             self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
 
@@ -1201,7 +1200,7 @@ class NotaZmonTask(object):
         '''
 
         now = time.time()
-        if now > self._last_captures_sent + CAPTURES_INTERVAL:
+        if (self._graphite_host != '') and (now > self._last_captures_sent + CAPTURES_INTERVAL):
             captures_local = self._captures_local[:]
             if captures_local:
                 captures_json = [json.dumps(c, cls=JsonDataEncoder) for c in captures_local]
@@ -1448,12 +1447,15 @@ class NotaZmonTask(object):
             raise
         finally:
             # Store duration in milliseconds as redis only supports integers for counters.
+
+            # 'check.{}.count'.format(req['check_id']): 1,
+            # 'check.{}.duration'.format(req['check_id']): int(round(1000.0 * (time.time() - start))),
+            # 'check.{}.latency'.format(req['check_id']): int(round(1000.0 * (start - schedule_time))),
+
             self._counter.update({
-                'check.count': 1,
-                'check.{}.count'.format(req['check_id']): 1,
-                'check.{}.duration'.format(req['check_id']): int(round(1000.0 * (time.time() - start))),
-                'check.{}.latency'.format(req['check_id']): int(round(1000.0 * (start - schedule_time))),
+                'check.count': 1
             })
+
             self.send_metrics()
 
         setp(req['check_id'], req['entity']['id'], 'store')
@@ -1799,7 +1801,8 @@ class NotaZmonTask(object):
                 self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
                               cls=JsonDataEncoder))
 
-                self._store_captures_locally(alert_id, entity_id, int(start), captures)
+                if self._graphite_host != '':
+                    self._store_captures_locally(alert_id, entity_id, int(start), captures)
 
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
