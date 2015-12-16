@@ -56,9 +56,9 @@ class RedisWrapper(object):
 
     '''Class to allow only readonly access to underlying redis connection'''
 
-    def __init__(self, counter, host, port=6379, db=0):
+    def __init__(self, counter, host, port=6379, db=0, socket_connect_timeout=1):
         self._counter = counter('')
-        self.__con = redis.StrictRedis(host, port, db)
+        self.__con = redis.StrictRedis(host, port, db, socket_connect_timeout=socket_connect_timeout)
 
     def llen(self, key):
         return self.__con.llen(key)
