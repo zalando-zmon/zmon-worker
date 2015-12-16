@@ -15,3 +15,6 @@ Description = Builtin plugin that provides an http request check function.
 ;; Note that these values may are overridden by zmon's global config.
 
 ;; key = value
+
+jmxquery.host = localhost
+jmxquery.port = 8074
