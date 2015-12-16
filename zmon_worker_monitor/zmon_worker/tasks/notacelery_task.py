@@ -1937,7 +1937,6 @@ class NotaZmonTask(object):
 
     def post_trial_run(self, id, entity, result):
         if self._dataservice_url is not None:
-            self.logger.info("pushing trial run result %s %s", id, entity)
 
             val = {
                 'id': id,
@@ -1947,8 +1946,8 @@ class NotaZmonTask(object):
 
             try:
                 requests.put(self._dataservice_url+"trial-run/", data=json.dumps(val, cls=JsonDataEncoder), headers={"Content-Type":"application/json"})
-            except:
-                pass
+            except Exception as ex:
+                self.logger.exception(ex)
 
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
