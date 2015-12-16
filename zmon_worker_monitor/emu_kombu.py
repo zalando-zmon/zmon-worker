@@ -21,6 +21,17 @@ import re
 from collections import namedtuple
 
 
+class Queue(object):
+
+    '''
+    Used to emulate kombu Queue
+    '''
+
+    def __init__(self, queue, routing_key=None):
+        self.queue = queue
+        self.routing_key = routing_key
+
+
 def parse_redis_conn(conn_str):
     '''
     Emulates kombu.connection.Connection that we were using only to parse redis connection string
