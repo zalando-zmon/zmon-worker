@@ -1499,8 +1499,7 @@ class NotaZmonTask(object):
         Raises SecurityError on check failure
         '''
 
-        #if self.request.delivery_info.get('routing_key') == 'secure' and self.is_secure_worker():
-        if self.task_context['delivery_info'].get('routing_key') == 'secure' and self.is_secure_worker():
+        if self.is_secure_worker() or self.task_context['delivery_info'].get('routing_key') == 'secure':
             try:
                 stash_commands = self.load_stash_commands(self._safe_repositories)
             except Exception, e:
