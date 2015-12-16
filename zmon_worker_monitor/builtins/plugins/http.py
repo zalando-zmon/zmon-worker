@@ -73,6 +73,7 @@ class HttpWrapper(object):
     ):
 
         self.url = (base_url + url if not absolute_http_url(url) else url)
+        self.clean_url = None
         self.params = params
         self.timeout = timeout
         self.max_retries = max_retries
@@ -98,6 +99,7 @@ class HttpWrapper(object):
             base_url = base_url.replace("{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
             base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
             basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
+        self.clean_url = base_url
 
         if self.oauth2:
             self.headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
@@ -110,16 +112,16 @@ class HttpWrapper(object):
                 self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
                                   headers=self.headers, auth = basic_auth, data=json.dumps(post_data))
         except requests.Timeout, e:
-            raise HttpError('timeout', self.url), None, sys.exc_info()[2]
+            raise HttpError('timeout', self.clean_url), None, sys.exc_info()[2]
         except requests.ConnectionError, e:
-            raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
+            raise HttpError('connection failed', self.clean_url), None, sys.exc_info()[2]
         except Exception, e:
-            raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+            raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
         if raise_error:
             try:
                 self.__r.raise_for_status()
             except requests.HTTPError, e:
-                raise HttpError(str(e), self.url), None, sys.exc_info()[2]
+                raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
         return self.__r
 
     def json(self, raise_error=True):
