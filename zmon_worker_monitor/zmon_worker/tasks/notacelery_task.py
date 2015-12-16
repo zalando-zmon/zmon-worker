@@ -1264,17 +1264,15 @@ class NotaZmonTask(object):
         #     notify(check_and_notify, {'ts': start_time, 'td': soft_time_limit, 'value': str(e)}, req, alerts,
         #            force_alert=True)
         except CheckError, e:
-            self.logger.warn('Check error for request with id %s on entity %s. Output: %s', check_id,
-                                         entity_id, str(e))
+            # self.logger.warn('Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
                    force_alert=True)
         except SecurityError, e:
-            self.logger.exception('Security error in request with id %s on entity %s', check_id, entity_id)
+            self.logger.exception('Security exception in request with id %s on entity %s', check_id, entity_id)
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
                    force_alert=True)
         except Exception, e:
-            self.logger.exception('Check request with id %s on entity %s threw an exception', check_id,
-                                              entity_id)
+            # self.logger.exception('Check request with id %s on entity %s threw an exception', check_id, entity_id)
             # PF-3685 Disconnect on unknown exceptions: we don't know what actually happened, it might be that redis
             # connection is dirty. CheckError exception is "safe", it's thrown by the worker whenever the check returns a
             # different response than expected, the user doesn't have access to the checked entity or there's an error in
