@@ -6,7 +6,7 @@
 import logging
 import requests
 
-from zmon_worker_monitor.zmon_worker.functions.distance_to_history import DistanceWrapper
+from zmon_worker_monitor.builtins.plugins.distance_to_history import DistanceWrapper
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 

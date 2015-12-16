@@ -3,7 +3,7 @@
 
 import numpy
 import datetime
-from time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 
 
 # from tasks.check import flatten
