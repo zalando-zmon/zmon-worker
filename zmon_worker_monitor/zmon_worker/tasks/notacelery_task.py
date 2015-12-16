@@ -1935,8 +1935,19 @@ class NotaZmonTask(object):
             return None
 
 
+    def post_trial_run(self, id, entity, result):
+        if self._dataservice_url is not None:
 
+            val = {
+                'id': id,
+                'entity-id': entity,
+                'result': result
+            }
 
+            try:
+                requests.put(self._dataservice_url+"trial-run/",data=json.dumps(val, cls=JsonDataEncoder))
+            except:
+                pass
 
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
@@ -1957,24 +1968,29 @@ class NotaZmonTask(object):
                 is_in_period = True
 
             try:
-                result_json = json.dumps({
+                result = {
                     'entity': req['entity'],
                     'value': val,
                     'captures': captures,
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                }, cls=JsonDataEncoder)
+                    }
+                result_json = json.dumps(result, cls=JsonDataEncoder)
             except TypeError, e:
-                result_json = json.dumps({
+                result = {
                     'entity': req['entity'],
                     'value': str(e),
                     'captures': {},
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                }, cls=JsonDataEncoder)
+                    }
+                result_json = json.dumps(result, cls=JsonDataEncoder)
 
             self.con.hset(redis_key, req['entity']['id'], result_json)
             self.con.expire(redis_key, TRIAL_RUN_RESULT_EXPIRY_TIME)
+
+            self.post_trial_run(alert['id'][3:], req['entity'], result)
+
             return ([alert['id']] if is_alert and is_in_period else [])
 
         #TODO: except SoftTimeLimitExceeded:
