@@ -7,7 +7,6 @@ import __future__
 
 from collections import Callable, Counter
 import socket
-from zmon_worker_monitor.zmon_worker.functions import TimeWrapper
 from graphitesend import GraphiteClient
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
@@ -34,7 +33,7 @@ import Queue
 from collections import defaultdict
 
 from bisect import bisect_left
-from zmon_worker_monitor.zmon_worker.functions.time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
@@ -770,7 +769,6 @@ def build_default_context():
         'sorted': sorted,
         'str': str,
         'sum': sum,
-        'time': TimeWrapper,
         'timestamp': time.time,
         'True': True,
         'Try': Try,
