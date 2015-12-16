@@ -71,7 +71,7 @@ class ScalyrWrapper(object):
         else:
             return j
 
-    def timeseries(self, filter, function="count", minutes=30, buckets=1):
+    def timeseries(self, filter, function="count", minutes=30, buckets=1, prio="low"):
 
         val = {
             'token': self.read_key,
@@ -81,7 +81,7 @@ class ScalyrWrapper(object):
                     "function": function,
                     "startTime": str(minutes)+"m",
                     "buckets": buckets,
-                    "priority": "low"
+                    "priority": prio
                 }
             ]
         }
@@ -90,7 +90,7 @@ class ScalyrWrapper(object):
         j = r.json()
         if j['status'] == 'success':
             if len(j['results'][0]['values'])==1:
-                return j['results'][0]['values'][0] * minutes
+                return j['results'][0]['values'][0]
             return map(lambda x: x * minutes / buckets, j['results'][0]['values'])
         return j
 
