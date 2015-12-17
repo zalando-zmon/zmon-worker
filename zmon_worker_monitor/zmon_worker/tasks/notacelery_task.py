@@ -1459,7 +1459,12 @@ class NotaZmonTask(object):
         setp(req['check_id'], req['entity']['id'], 'store')
         self._store_check_result(req, res)
         setp(req['check_id'], req['entity']['id'], 'store kairos')
-        self._store_check_result_to_kairosdb(req, res)
+
+        try:
+            self._store_check_result_to_kairosdb(req, res)
+        except:
+            pass
+
         setp(req['check_id'], req['entity']['id'], 'stored')
 
         return res

@@ -21,10 +21,6 @@ for d in (data_dir, get_log_path()):
     if not os.path.isdir(d):
         os.mkdir(d)
 
-#Log configuration for the workers
-
-_LOG_MAIN_FILENAME = 'worker_{pid}.log'
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
@@ -38,25 +34,13 @@ LOGGING = {
     },
 
     'handlers': {
-        'file': {
-            'level': 'DEBUG',
-            'filename': os.path.join(get_log_path(), _LOG_MAIN_FILENAME),
-            'class': 'logging.FileHandler',
-            'formatter': 'custom'
-        },
+
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'custom'
         },
-        'rot_file': {
-            'level': 'DEBUG',
-            'filename': os.path.join(get_log_path(), _LOG_MAIN_FILENAME),
-            'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': 5242880,
-            'backupCount': 10,
-            'formatter': 'custom'
-        },
+
     },
 
     'loggers': {
@@ -68,8 +52,6 @@ LOGGING = {
     }
 }
 
-#Log filename for the xmlrpcserver
-_LOG_RPC_SERVER_FILENAME = 'rpc_server.log'
 
 RPC_SERVER_CONF = dict(
 
@@ -91,25 +73,13 @@ RPC_SERVER_CONF = dict(
             },
         },
         'handlers': {
-            'file': {
-                'level': 'DEBUG',
-                'filename': os.path.join(get_log_path(), _LOG_RPC_SERVER_FILENAME),
-                'class': 'logging.FileHandler',
-                'formatter': 'custom'
-            },
+
             'console': {
                 'level': 'INFO',
                 'class': 'logging.StreamHandler',
                 'formatter': 'custom'
             },
-            'rot_file': {
-                'level': 'DEBUG',
-                'filename': os.path.join(get_log_path(), _LOG_RPC_SERVER_FILENAME),
-                'class': 'logging.handlers.RotatingFileHandler',
-                'maxBytes': 5242880,
-                'backupCount': 10,
-                'formatter': 'custom'
-            },
+
         },
         'loggers': {
             '': {

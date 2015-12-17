@@ -5,8 +5,8 @@ import requests
 import sys
 import urllib
 import urlparse
-import logging
-import os
+import json
+from prometheus_client.parser import text_string_to_metric_families
 from collections import defaultdict
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError
@@ -16,8 +16,10 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 import tokens
 
-tokens.configure(url=os.environ.get('OAUTH_TOKEN_SERVICE_URL',''))
-tokens.manage('zmon', ['zmon'])
+# will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
+# will try to read application credentials from CREDENTIALS_DIR
+tokens.configure()
+tokens.manage('uid', ['uid'])
 tokens.start()
 
 logger = logging.getLogger('zmon-worker.http-function')

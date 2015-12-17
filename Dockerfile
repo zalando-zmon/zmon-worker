@@ -7,7 +7,7 @@ RUN apt-get install -y libsnappy-dev libev4 libev-dev
 RUN mkdir -p /app/zmon_worker_data
 RUN chmod 777 /app/zmon_worker_data
 VOLUME /app/zmon_worker_data
-WORKDIR /app
+WORKDIR /app/zmon_worker_data
 
 ADD requirements.txt /app/requirements.txt
 ADD test_requirements.txt /app/test_requirements.txt
@@ -21,6 +21,4 @@ ADD app.py /app/app.py
 
 RUN cd /app && python setup.py install
 
-RUN mkdir -p /app/logs
-
-CMD ["python","app.py"]
+CMD ["python", "/app/app.py"]

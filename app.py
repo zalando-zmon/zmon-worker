@@ -5,24 +5,18 @@ import subprocess
 
 def main():
 
-    env_keys = set(["WORKER_NOTIFICATION_SMS_APIKEY",
-                   "WORKER_MYSQL_USER",
-                   "WORKER_MYSQL_PASSWORD",
-                   "WORKER_SCALYR_READ_KEY",
-                   "WORKER_NOTIFICATIONS_SLACK_TOKEN",
-                   "WORKER_NOTIFICATIONS_HIPCHAT_TOKEN",
-                   "WORKER_NOTIFICATIONS_HIPCHAT_URL",
-                   "WORKER_POSTGRESQL_USER",
-                   "WORKER_POSTGRESQL_PASSWORD",
-                   "WORKER_ACCOUNT",
-                   "WORKER_TEAM"])
-
     conf = open('/app/web.conf', 'ab')
 
-    for k in env_keys:
-        v = os.environ.get(k, None)
-        if v is not None:
-            conf.write(k.replace("WORKER_", "").replace("_",".").lower()+" = " + v + "\n")
+    for k, v in os.environ.items():
+        if k.startswith('WORKER_'):
+            conf.write(k.replace("WORKER_", "").replace("_",".").lower()+" = '" + v + "'\n")
+
+    # If running on AWS, fetch the account number
+    try:
+      worker_account = subprocess.check_output('curl --connect-timeout 5 --silent http://169.254.169.254/latest/meta-data/iam/info/ | grep "ProfileArn" | grep -E -o "iam::([0-9]+)" | grep -E -o "[0-9]+"', shell=True)[:-1]
+      conf.write("account='aws:"+worker_account+"'\n")
+    except:
+      conf.write("account='aws:error-during-startup'\n")
 
     redis_keys = set(['broker', 'backend', 'redis_servers'])
     redis_host = os.environ.get("WORKER_REDIS_HOST", 'localhost')
