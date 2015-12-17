@@ -14,8 +14,8 @@ Description = Builtin plugin that provides an http request check function.
 ;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
 ;; Note that these values may are overridden by zmon's global config.
 ;; key = valueX
-;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.configuration.{key} = valueY
+;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.{key} = valueY
 
 
-ldapuser = user
-ldappass = --secret--
+user = user
+pass = --secret--

@@ -15,7 +15,7 @@ Description = Builtin plugin that provides an http request check function.
 
 ;; key = valueX
 
-;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.configuration.{key} = valueY
+;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.{key} = valueY
 
 
 kairosdb_host = cassandra01
