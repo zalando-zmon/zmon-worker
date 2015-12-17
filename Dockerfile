@@ -4,7 +4,9 @@ FROM zalando/python:15.01.03
 
 RUN apt-get install -y libsnappy-dev libev4 libev-dev
 
-RUN mkdir -p /app
+RUN mkdir -p /app/zmon_worker_data
+RUN chmod 777 /app/zmon_worker_data
+VOLUME /app/zmon_worker_data
 WORKDIR /app
 
 ADD requirements.txt /app/requirements.txt
