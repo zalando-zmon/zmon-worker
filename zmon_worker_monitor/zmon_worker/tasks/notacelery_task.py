@@ -1125,22 +1125,6 @@ class NotaZmonTask(object):
     def get_configured_logger(cls):
         if not cls._logger:
             cls._logger = logger
-            #cls._logger.setLevel(cls._loglevel)
-            # cls._logger.propagate = False
-            #
-            # if cls._logfile:
-            #     log_file_handler = logging.handlers.TimedRotatingFileHandler(cls._logfile, when='midnight')
-            #     log_file_handler.setLevel(cls._loglevel)
-            #     log_file_handler.setFormatter(logging.Formatter('%(asctime)s %(processName)s %(message)s'))
-            #     cls._logger.addHandler(log_file_handler)
-            #
-            # exception_log_file = os.path.join(get_log_path(), 'log_database_{}_{}.log'.format(manifest.host,
-            #                                   manifest.instance))
-            # exception_handler = logging.handlers.TimedRotatingFileHandler(exception_log_file, when='S', interval=10)
-            # exception_handler.setLevel(logging.ERROR)
-            # exception_handler.setFormatter(ExceptionFormatter(EXCEPTION_LOG_FORMAT))
-            # exception_handler.addFilter(ExceptionFilter(host=manifest.host, instance=manifest.instance))
-            #cls._logger.addHandler(exception_handler)
         return cls._logger
 
     @property
@@ -1577,7 +1561,7 @@ class NotaZmonTask(object):
             return
 
         def get_host_data(entity):
-            
+
             d = {"entity": normalize_kairos_id(entity["id"])}
 
             if not ( entity["type"] in ["host","zomcat","zompy"] ):

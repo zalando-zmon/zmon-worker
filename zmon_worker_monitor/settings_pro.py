@@ -7,17 +7,12 @@ Project settings for development:
 
 import os
 
-
-get_log_path = lambda: os.path.join(os.environ['APP_HOME'], 'logs') if 'APP_HOME' in os.environ else './'
-
 app_home = os.path.abspath(os.environ['APP_HOME'] if 'APP_HOME' in os.environ else './')
 
 data_dir = os.path.abspath(os.path.join(app_home, 'zmon_worker_data'))
 
-#_LOG_DIR = os.path.abspath(os.path.join(app_home, 'logs'))
-
 # application data folder needs to be created by the application itself
-for d in (data_dir, get_log_path()):
+for d in (data_dir, ):
     if not os.path.isdir(d):
         os.mkdir(d)
 
