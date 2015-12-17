@@ -974,8 +974,6 @@ class NotaZmonTask(object):
     _mssql_pass = None
     _ldappass = None
     _ldapuser = None
-    _hetcrawler_proxy_user = None
-    _hetcrawler_proxy_pass = None
     _exacrm_user = None
     _exacrm_pass = None
     _exarpc_user = None
@@ -1032,8 +1030,6 @@ class NotaZmonTask(object):
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
         cls._ldapuser = config.get('ldap.user')
         cls._ldappass = config.get('ldap.password')
-        cls._hetcrawler_proxy_user = config.get('hetcrawler.proxy_user')
-        cls._hetcrawler_proxy_pass = config.get('hetcrawler.proxy_pass')
         cls._exacrm_user = config.get('exacrm.user')
         cls._exacrm_pass = config.get('exacrm.password')
         cls._exarpc_user = config.get('exasol.rpc.user')
@@ -1068,7 +1064,6 @@ class NotaZmonTask(object):
             cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
             cls._dataservice_poster.start()
-
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
         # store function factories from plugins in a dict by name
