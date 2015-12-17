@@ -49,6 +49,7 @@ class ZmonWrapper(object):
     ZMON_ALERTS_ENTITIES_PATTERN = 'zmon:alerts:*:entities'
 
     def __init__(self, wsdl, host, port):
+        # TODO: ZMON Controller no longer provides a SOAP endpoint
         try:
             self.__ws_client = Client(url=wsdl)
             self.__ws_client.set_options(cache=None)

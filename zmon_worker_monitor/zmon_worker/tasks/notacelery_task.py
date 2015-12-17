@@ -7,7 +7,6 @@ import __future__
 
 from collections import Callable, Counter
 import socket
-from graphitesend import GraphiteClient
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
@@ -56,7 +55,6 @@ logger = logging.getLogger(__name__)
 
 # interval in seconds for sending metrics to graphite
 METRICS_INTERVAL = 15
-CAPTURES_INTERVAL = 10
 STASH_CACHE_EXPIRATION_TIME = 3600
 
 DEFAULT_CHECK_RESULTS_HISTORY_LENGTH = 20
@@ -159,11 +157,6 @@ def setp(check_id, entity, msg):
 
     setproctitle.setproctitle('zmon-worker.{} check {} on {} {} {}'.format(orig_process_title, check_id, entity, msg,
                               datetime.now().strftime('%H:%M:%S.%f')))
-
-
-def get_kairosdb_value(env, name, points, tags):
-    tags['env'] = env
-    return {'name': name, 'datapoints': points, 'tags': tags}
 
 
 def flatten(structure, key='', path='', flattened=None):
@@ -979,10 +972,6 @@ class NotaZmonTask(object):
     _ora_pass = None
     _mssql_user = None
     _mssql_pass = None
-    _kairosdb_enabled = False
-    _kairosdb_host = None
-    _kairosdb_port = None
-    _kairosdb_env = None
     _ldappass = None
     _ldapuser = None
     _hetcrawler_proxy_user = None
@@ -1030,9 +1019,6 @@ class NotaZmonTask(object):
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
-        cls._graphite_host = config.get('graphite.host', '')
-        cls._graphite_port = config.get('graphite.port', 2003)
-        cls._graphite_prefix = config.get('graphite.prefix', 'zmon2')
         cls._pg_user = config.get('postgres.user')
         cls._pg_pass = config.get('postgres.password')
         cls._my_user = config.get('mysql.user')
@@ -1044,10 +1030,6 @@ class NotaZmonTask(object):
         cls._mssql_user = config.get('mssql.user')
         cls._mssql_pass = config.get('mssql.password')
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
-        cls._kairosdb_enabled = config.get('kairosdb.enabled')
-        cls._kairosdb_host = config.get('kairosdb.host')
-        cls._kairosdb_port = config.get('kairosdb.port')
-        cls._kairosdb_env = config.get('kairosdb.env')
         cls._ldapuser = config.get('ldap.user')
         cls._ldappass = config.get('ldap.password')
         cls._hetcrawler_proxy_user = config.get('hetcrawler.proxy_user')
@@ -1141,13 +1123,6 @@ class NotaZmonTask(object):
         return self._con
 
     @property
-    def graphite(self):
-        if self._graphite is None:
-            self._graphite = GraphiteClient(graphite_server=self._graphite_host, graphite_port=self._graphite_port,
-                                            prefix=self._graphite_prefix)
-        return self._graphite
-
-    @property
     def logger(self):
         return self.get_configured_logger()
 
@@ -1175,23 +1150,6 @@ class NotaZmonTask(object):
             self._counter.clear()
             self._last_metrics_sent = now
             self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
-
-    def send_captures(self):
-        '''
-        Push elements from self._captures_local into redis list 'zmon:captures2graphite'
-        The list elements look like: (key , value, timestamp)
-        where key format is '{instance}_{host}.alerts.{alert_id}.captures.{capture_name}'
-        '''
-
-        now = time.time()
-        if (self._graphite_host != '') and (now > self._last_captures_sent + CAPTURES_INTERVAL):
-            captures_local = self._captures_local[:]
-            if captures_local:
-                captures_json = [json.dumps(c, cls=JsonDataEncoder) for c in captures_local]
-                self.con.rpush('zmon:captures2graphite', *captures_json)
-                self._last_captures_sent = now
-                # clean local list
-                del self._captures_local[:len(captures_local)]
 
     @classmethod
     def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
@@ -1442,13 +1400,6 @@ class NotaZmonTask(object):
 
         setp(req['check_id'], req['entity']['id'], 'store')
         self._store_check_result(req, res)
-        setp(req['check_id'], req['entity']['id'], 'store kairos')
-
-        try:
-            self._store_check_result_to_kairosdb(req, res)
-        except:
-            pass
-
         setp(req['check_id'], req['entity']['id'], 'stored')
 
         return res
@@ -1553,102 +1504,6 @@ class NotaZmonTask(object):
                 ctx[func_name] = func_factory.create(factory_ctx)
 
         return ctx
-
-
-    def _store_check_result_to_kairosdb(self, req, result):
-
-        if not self._kairosdb_enabled:
-            return
-
-        def get_host_data(entity):
-
-            d = {"entity": normalize_kairos_id(entity["id"])}
-
-            if not ( entity["type"] in ["host","zomcat","zompy"] ):
-                return d
-
-            id = entity["id"].replace('itr-','').replace('gth-', '')
-
-            m = HOST_GROUP_PREFIX.search(id)
-            if None != m:
-                d["hg"]=m.group(0)
-
-            if not 'ports' in entity:
-                m = INSTANCE_PORT_SUFFIX.search(id)
-                if None != m:
-                    d["port"]=m.group(1)
-            else:
-                d["port"] = str(entity['ports'].items()[-1:][0][1])
-
-            return d
-
-        # use tags in kairosdb to reflect top level keys in result
-        # zmon.check.<checkid> as key for time series
-
-        series_name = 'zmon.check.{}'.format(req['check_id'])
-
-        values = []
-
-        host_tags = get_host_data(req["entity"])
-
-        if isinstance(result['value'], dict):
-
-            if '_use_scheduled_time' in result['value']:
-                ts = int(req['schedule_time'] * 1000)
-                del result['value']['_use_scheduled_time']
-            else:
-                ts = int(result['ts'] * 1000)
-
-            flat_result = flatten(result['value'])
-
-            for k, v in flat_result.iteritems():
-
-                try:
-                    v = float(v)
-                except (ValueError, TypeError):
-                    continue
-
-                points = [[ts, v]]
-                tags = {'key': normalize_kairos_id(str(k))}
-
-                key_split = tags['key'].split('.')
-                metric_tag = key_split[-1]
-                if None == metric_tag or '' == metric_tag:
-                    #should only happen for key ending with a "." and as it is a dict there then exists a -2
-                    metric_tag = key_split[-2]
-                tags['metric'] = metric_tag
-
-                if req['check_id'] == self._zmon_actuator_checkid:
-                    status_code = key_split[-2]
-                    tags['sc']=status_code
-                    tags['sg']=status_code[:1]
-
-                tags.update(host_tags)
-
-                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
-        else:
-            try:
-                v = float(result['value'])
-            except (ValueError, TypeError):
-                pass
-            else:
-                points = [[int(result['ts'] * 1000), v]]
-
-                tags = {}
-                tags.update(host_tags)
-
-                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
-
-        if len(values) > 0:
-            self.logger.debug(values)
-            try:
-                r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
-                                  json.dumps(values), timeout=2)
-                if not r.status_code in [200, 204]:
-                    self.logger.error(r.text)
-                    self.logger.error(json.dumps(values))
-            except Exception, e:
-                self.logger.error("KairosDB write failed {}".format(e))
 
 
     def evaluate_alert(self, alert_def, req, result):
@@ -1790,9 +1645,6 @@ class NotaZmonTask(object):
                 self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
                               cls=JsonDataEncoder))
 
-                if self._graphite_host != '':
-                    self._store_captures_locally(alert_id, entity_id, int(start), captures)
-
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
                     'alert_id': alert_id,
@@ -1877,8 +1729,6 @@ class NotaZmonTask(object):
                                          * (time.time() - start)))})
                     setp(req['check_id'], entity_id, 'notify loop - send metrics')
                     self.send_metrics()
-                    setp(req['check_id'], entity_id, 'notify loop - send captures')
-                    self.send_captures()
                     setp(req['check_id'], entity_id, 'notify loop end')
                 else:
                     self.logger.debug('Alert %s is not in time period: %s', alert_id, alert['period'])
