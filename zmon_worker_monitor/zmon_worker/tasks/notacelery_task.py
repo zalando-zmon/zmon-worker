@@ -149,7 +149,7 @@ orig_process_title = None
 
 def setp(check_id, entity, msg):
     global orig_process_title
-    if orig_process_title == None:
+    if not orig_process_title:
         try:
             orig_process_title = setproctitle.getproctitle().split(' ')[2].split(':')[0].split('.')[0]
         except:
@@ -962,35 +962,12 @@ class NotaZmonTask(object):
     _logger = None
     _logfile = None
     _loglevel = logging.DEBUG
-    _pg_user = None
-    _pg_pass = None
-    _my_user = None
-    _my_pass = None
-    _loungemysql_user = None
-    _loungemysql_pass = None
-    _ora_user = None
-    _ora_pass = None
-    _mssql_user = None
-    _mssql_pass = None
-    _ldappass = None
-    _ldapuser = None
-    _exacrm_user = None
-    _exacrm_pass = None
-    _exarpc_user = None
-    _exarpc_pass = None
-    _exacrm_cluster = None
-    _cmdb_url = None
     _zmon_url = None
     _worker_name = None
     _queues = None
     _stash = None
     _stash_cmds = None
     _safe_repositories = []
-
-    _cassandra_enabled = False
-    _cassandra_keyspace = ''
-    _cassandra_time_series_enabled = False
-    _cassandra_seed_nodes = []
 
     _is_secure_worker = True
 
@@ -1017,38 +994,14 @@ class NotaZmonTask(object):
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
-        cls._pg_user = config.get('postgres.user')
-        cls._pg_pass = config.get('postgres.password')
-        cls._my_user = config.get('mysql.user')
-        cls._my_pass = config.get('mysql.password')
-        cls._loungemysql_user = config.get('loungemysql.user')
-        cls._loungemysql_pass = config.get('loungemysql.password')
-        cls._ora_user = config.get('oracle.user')
-        cls._ora_pass = config.get('oracle.password')
-        cls._mssql_user = config.get('mssql.user')
-        cls._mssql_pass = config.get('mssql.password')
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
-        cls._ldapuser = config.get('ldap.user')
-        cls._ldappass = config.get('ldap.password')
-        cls._exacrm_user = config.get('exacrm.user')
-        cls._exacrm_pass = config.get('exacrm.password')
-        cls._exarpc_user = config.get('exasol.rpc.user')
-        cls._exarpc_pass = config.get('exasol.rpc.pass')
-        cls._exacrm_cluster = config.get('exacrm.cluster')
-        cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
-        cls._scalyr_read_key = config.get('scalyr.read.key','')
         cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
         cls.perload_stash_commands()
-
-        cls._cassandra_keyspace = config.get('cassandra.keyspace')
-        cls._cassandra_enabled = config.get('cassandra.enabled')
-        cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
-        cls._cassandra_seed_nodes = config.get('cassandra.seeds')
 
         cls._is_secure_worker = config.get('worker.is_secure')
 
@@ -1106,15 +1059,8 @@ class NotaZmonTask(object):
 
     @property
     def con(self):
-        if self._cassandra_enabled:
-            raise NotImplementedError()
-        else:
-            self.logger.info("running with redis write only")
-            #self._con = redis.StrictRedis(self._host, self._port)
-            self._con = RedisConnHandler.get_instance().get_conn()
-
+        self._con = RedisConnHandler.get_instance().get_conn()
         BaseNotification.set_redis_con(self._con)
-
         return self._con
 
     @property
@@ -1184,7 +1130,7 @@ class NotaZmonTask(object):
     def check_and_notify(self, req, alerts, task_context=None):
         self.task_context = task_context
         start_time = time.time()
-        soft_time_limit = req['interval']
+        # soft_time_limit = req['interval']
         check_id = req['check_id']
         entity_id = req['entity']['id']
 
@@ -1223,7 +1169,7 @@ class NotaZmonTask(object):
     def trial_run(self, req, alerts, task_context=None):
         self.task_context = task_context
         start_time = time.time()
-        soft_time_limit = req['interval']
+        # soft_time_limit = req['interval']
         entity_id = req['entity']['id']
 
         try:
@@ -1361,14 +1307,11 @@ class NotaZmonTask(object):
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
 
-        if self._cassandra_time_series_enabled and self._cassandra_enabled:
-            self.con.getCassandraConnection().writeToHistory(key, datetime.now(), value, ttl=60*30)
-
 
     def check(self, req):
 
         self.logger.debug(req)
-        schedule_time = req['schedule_time']
+        # schedule_time = req['schedule_time']
         start = time.time()
 
         try:

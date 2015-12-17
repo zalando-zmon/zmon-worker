@@ -7,6 +7,7 @@ def main():
     conf = open('/app/web.conf', 'ab')
 
     # WRITE ENV VARS TO CONFIG FILE
+    # TODO: we should get rid of the old CherryPy config file..
     for k, v in os.environ.items():
         if k.startswith('WORKER_'):
             conf.write(k.replace("WORKER_", "").replace("_", ".").lower() + " = '" + v + "'\n")

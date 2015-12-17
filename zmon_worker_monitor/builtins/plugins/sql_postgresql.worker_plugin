@@ -17,5 +17,5 @@ Description = Builtin plugin that provides an http request check function.
 ;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.configuration.{key} = valueY
 
 
-postgres_user = nagios
-postgres_pass = --secret--
+user = zmon
+pass = --secret--

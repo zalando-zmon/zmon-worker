@@ -50,8 +50,8 @@ class SqlFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        self._user = conf['postgres_user']
-        self._pass = conf['postgres_pass']
+        self._user = conf['user']
+        self._pass = conf['pass']
 
     def create(self, factory_ctx):
         """
@@ -89,7 +89,7 @@ class SqlWrapper(object):
     def __init__(
         self,
         shards,
-        user='nagios',
+        user='zmon',
         password='',
         timeout=60000,
         shard=None,
