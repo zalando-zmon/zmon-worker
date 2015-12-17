@@ -27,7 +27,7 @@ class Hubot(BaseNotification):
             'data': message,
         }
 
-        alert_id = alert.get('alert_def', {}).get('id', 0)
+        alert.get('alert_def', {}).get('id', 0)
 
         try:
             r = requests.post(hubot_url, data=post_params)

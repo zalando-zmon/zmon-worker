@@ -7,7 +7,6 @@ import sys
 import os
 import json
 import settings
-import logging
 
 
 def _set_logging(log_conf):
