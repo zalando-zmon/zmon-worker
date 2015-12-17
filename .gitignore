@@ -11,3 +11,4 @@ worker*.log
 .coverage*
 htmlcov/
 rpc_server.log
+build/
