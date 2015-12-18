@@ -7,21 +7,25 @@ import traceback
 from zmon_worker_monitor.web import main
 from mock import MagicMock
 
+
 def build_redis_queue_item(check_command):
     return {'properties': {'body_encoding': 'nested'},
             'body': {
                  'task': 'check_and_notify',
-                 'args': [{'check_id': 123, 'entity': {'id': '77', 'type': 'test'}, 'command': check_command, 'interval': 10}, {}],
+                 'args': [{'check_id': 123, 'check_name': 'Test Check',
+                           'entity': {'id': '77', 'type': 'test'}, 'command': check_command, 'interval': 10},
+                        []],
                  'kwargs': {},
                  'timelimit': [90, 60],
            }}
 
-def test_check(tmpdir, monkeypatch):
+
+def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     data = {}
 
     def blpop(key, timeout):
         assert key == 'zmon:queue:default'
-        return key, json.dumps(build_redis_queue_item('"test-result"'))
+        return key, json.dumps(build_redis_queue_item(check_command))
 
     def lpush(key, val):
         data[key] = val
@@ -47,7 +51,13 @@ def test_check(tmpdir, monkeypatch):
 
     with open(str(tmpdir) + 'data.json') as fd:
         data = json.load(fd)
-    assert '"value": "test-result"' in data['zmon:checks:123:77']
+    for string in expected_strings:
+        assert string in data['zmon:checks:123:77']
 
 
+def test_check_failure(tmpdir, monkeypatch):
+    execute_check(tmpdir, monkeypatch, 'invalid_python_code', ['"value": "name \'invalid_python_code\' is not defined"', '"exc": 1'])
+
+def test_check_success(tmpdir, monkeypatch):
+    execute_check(tmpdir, monkeypatch, '"test-result"', ['"value": "test-result"'])
 
