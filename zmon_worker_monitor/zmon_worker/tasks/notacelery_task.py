@@ -10,7 +10,7 @@ import socket
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
-from zmon_worker_monitor.zmon_worker.errors import *
+from zmon_worker_monitor.zmon_worker.errors import CheckError, SecurityError, InsufficientPermissionsError
 
 import zmon_worker_monitor.eventloghttp as eventlog
 import functools
@@ -157,6 +157,11 @@ def setp(check_id, entity, msg):
 
     setproctitle.setproctitle('zmon-worker.{} check {} on {} {} {}'.format(orig_process_title, check_id, entity, msg,
                               datetime.now().strftime('%H:%M:%S.%f')))
+
+
+def get_kairosdb_value(env, name, points, tags):
+    tags['env'] = env
+    return {'name': name, 'datapoints': points, 'tags': tags}
 
 
 def flatten(structure, key='', path='', flattened=None):
@@ -962,6 +967,10 @@ class NotaZmonTask(object):
     _logger = None
     _logfile = None
     _loglevel = logging.DEBUG
+    _kairosdb_enabled = False
+    _kairosdb_host = None
+    _kairosdb_port = None
+    _kairosdb_env = None
     _zmon_url = None
     _worker_name = None
     _queues = None
@@ -995,6 +1004,10 @@ class NotaZmonTask(object):
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
+        cls._kairosdb_enabled = config.get('kairosdb.enabled')
+        cls._kairosdb_host = config.get('kairosdb.host')
+        cls._kairosdb_port = config.get('kairosdb.port')
+        cls._kairosdb_env = config.get('kairosdb.env')
         cls._zmon_url = config.get('zmon.url')
         cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
@@ -1338,11 +1351,16 @@ class NotaZmonTask(object):
 
         setp(req['check_id'], req['entity']['id'], 'store')
         self._store_check_result(req, res)
+        setp(req['check_id'], req['entity']['id'], 'store kairos')
+
+        try:
+            self._store_check_result_to_kairosdb(req, res)
+        except:
+            pass
+
         setp(req['check_id'], req['entity']['id'], 'stored')
 
         return res
-
-
 
 
     def check_for_trial_run(self, req):
@@ -1441,7 +1459,99 @@ class NotaZmonTask(object):
             if func_name not in ctx:
                 ctx[func_name] = func_factory.create(factory_ctx)
 
-        return ctx
+    def _store_check_result_to_kairosdb(self, req, result):
+
+        if not self._kairosdb_enabled:
+            return
+
+        def get_host_data(entity):
+            d = {"entity": normalize_kairos_id(entity["id"])}
+
+            if not ( entity["type"] in ["host","zomcat","zompy"] ):
+                return d
+
+            id = entity["id"].replace('itr-','').replace('gth-', '')
+
+            m = HOST_GROUP_PREFIX.search(id)
+            if None != m:
+                d["hg"]=m.group(0)
+
+            if not 'ports' in entity:
+                m = INSTANCE_PORT_SUFFIX.search(id)
+                if None != m:
+                    d["port"]=m.group(1)
+            else:
+                d["port"] = str(entity['ports'].items()[-1:][0][1])
+
+            return d
+
+        # use tags in kairosdb to reflect top level keys in result
+        # zmon.check.<checkid> as key for time series
+
+        series_name = 'zmon.check.{}'.format(req['check_id'])
+
+        values = []
+
+        host_tags = get_host_data(req["entity"])
+
+        if isinstance(result['value'], dict):
+
+            if '_use_scheduled_time' in result['value']:
+                ts = int(req['schedule_time'] * 1000)
+                del result['value']['_use_scheduled_time']
+            else:
+                ts = int(result['ts'] * 1000)
+
+            flat_result = flatten(result['value'])
+
+            for k, v in flat_result.iteritems():
+
+                try:
+                    v = float(v)
+                except (ValueError, TypeError):
+                    continue
+
+                points = [[ts, v]]
+                tags = {'key': normalize_kairos_id(str(k))}
+
+                key_split = tags['key'].split('.')
+                metric_tag = key_split[-1]
+                if None == metric_tag or '' == metric_tag:
+                    #should only happen for key ending with a "." and as it is a dict there then exists a -2
+                    metric_tag = key_split[-2]
+                tags['metric'] = metric_tag
+
+                if req['check_id']==2115:
+                    status_code = key_split[-2]
+                    tags['sc']=status_code
+                    tags['sg']=status_code[:1]
+
+                tags.update(host_tags)
+
+                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
+        else:
+            try:
+                v = float(result['value'])
+            except (ValueError, TypeError):
+                pass
+            else:
+                points = [[int(result['ts'] * 1000), v]]
+
+                tags = {}
+                tags.update(host_tags)
+
+                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
+
+        if len(values) > 0:
+            self.logger.debug(values)
+            try:
+                r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
+                                  json.dumps(values), timeout=2)
+                if not r.status_code in [200, 204]:
+                    self.logger.error(r.text)
+                    self.logger.error(json.dumps(values))
+            except Exception, e:
+                self.logger.error("KairosDB write failed {}".format(e))
 
 
     def evaluate_alert(self, alert_def, req, result):
