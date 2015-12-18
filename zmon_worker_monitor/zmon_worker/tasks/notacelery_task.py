@@ -159,8 +159,7 @@ def setp(check_id, entity, msg):
                               datetime.now().strftime('%H:%M:%S.%f')))
 
 
-def get_kairosdb_value(env, name, points, tags):
-    tags['env'] = env
+def get_kairosdb_value(name, points, tags):
     return {'name': name, 'datapoints': points, 'tags': tags}
 
 
@@ -970,7 +969,6 @@ class NotaZmonTask(object):
     _kairosdb_enabled = False
     _kairosdb_host = None
     _kairosdb_port = None
-    _kairosdb_env = None
     _zmon_url = None
     _worker_name = None
     _queues = None
@@ -1007,7 +1005,6 @@ class NotaZmonTask(object):
         cls._kairosdb_enabled = config.get('kairosdb.enabled')
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
-        cls._kairosdb_env = config.get('kairosdb.env')
         cls._zmon_url = config.get('zmon.url')
         cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
@@ -1528,7 +1525,7 @@ class NotaZmonTask(object):
 
                 tags.update(host_tags)
 
-                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
+                values.append(get_kairosdb_value(series_name, points, tags))
         else:
             try:
                 v = float(result['value'])
@@ -1540,7 +1537,7 @@ class NotaZmonTask(object):
                 tags = {}
                 tags.update(host_tags)
 
-                values.append(get_kairosdb_value(self._kairosdb_env, series_name, points, tags))
+                values.append(get_kairosdb_value(series_name, points, tags))
 
         if len(values) > 0:
             self.logger.debug(values)
