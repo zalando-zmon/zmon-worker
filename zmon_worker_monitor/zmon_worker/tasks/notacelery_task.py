@@ -38,6 +38,8 @@ from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
+from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
+
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
@@ -483,7 +485,8 @@ def _build_notify_context(alert):
             'send_sms': functools.partial(Sms.send, alert),
             'notify_hubot': functools.partial(Hubot.notify, alert),
             'send_hipchat': functools.partial(NotifyHipchat.send, alert),
-            'send_slack': functools.partial(NotifySlack.send, alert)
+            'send_slack': functools.partial(NotifySlack.send, alert),
+            'send_push': functools.partial(NotifyPush.send, alert)
            }
 
 
