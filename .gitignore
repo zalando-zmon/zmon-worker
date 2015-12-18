@@ -12,3 +12,4 @@ worker*.log
 htmlcov/
 rpc_server.log
 build/
+scm-source.json

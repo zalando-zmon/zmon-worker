@@ -67,6 +67,8 @@ Building the Docker Image
 
 .. code-block:: bash
 
+    $ sudo pip3 install -U scm-source
+    $ scm-source
     $ docker build -t zmon-worker .
     $ docker run -it zmon-worker
 

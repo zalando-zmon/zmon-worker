@@ -22,3 +22,5 @@ ADD app.py /app/app.py
 RUN cd /app && python setup.py install
 
 CMD ["python", "/app/app.py"]
+
+COPY scm-source.json /
