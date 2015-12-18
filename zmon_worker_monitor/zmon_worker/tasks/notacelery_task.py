@@ -1457,7 +1457,7 @@ class NotaZmonTask(object):
         for func_name, func_factory in self._function_factories.items():
             if func_name not in ctx:
                 ctx[func_name] = func_factory.create(factory_ctx)
-        return ctx
+        # return ctx
 
     def _store_check_result_to_kairosdb(self, req, result):
 

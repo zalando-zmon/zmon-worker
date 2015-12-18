@@ -176,8 +176,8 @@ def flow_simple_queue_processor(queue='', **execution_context):
                         logger.warning("expired tasks count: %s", expired_count)
                 count += 1
 
-        except Exception:
-            logger.exception('Exception in redis loop. Details: ')
+        except Exception as e:
+            logger.exception('Exception in redis loop. Details: ', e)
             time.sleep(5) # avoid heavy log spam here
             # some exit condition on failure: maybe when number of consecutive failures > n ?
 
