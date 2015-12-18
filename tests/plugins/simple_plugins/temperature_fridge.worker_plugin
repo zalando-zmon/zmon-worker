@@ -13,7 +13,7 @@ Description = Example plugin that does nothing good except been useful for docum
 
 ;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
 ;; Note that these values may are overridden by zmon's global config. For example, the fridge_ip defined below
-;; would be overridden by a global config entry: plugin.temperature_fridge.configuration.fridge_ip = 'another value'
+;; would be overridden by a global config entry: plugin.temperature_fridge.fridge_ip = 'another value'
 
 fridge_ip = 192.168.1.36
 center = -5

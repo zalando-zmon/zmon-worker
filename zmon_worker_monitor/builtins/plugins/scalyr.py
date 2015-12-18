@@ -14,7 +14,7 @@ class ScalyrWrapperFactory(IFunctionFactoryPlugin):
         super(ScalyrWrapperFactory, self).__init__()
 
     def configure(self, conf):
-        self.read_key = conf.get('scalyr.read.key', '')
+        self.read_key = conf.get('read.key', '')
         return
 
     def create(self, factory_ctx):

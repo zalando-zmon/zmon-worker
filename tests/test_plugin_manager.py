@@ -205,8 +205,8 @@ class TestPluginManager(unittest.TestCase):
 
         # inject as global conf to color_german plugin fashion sites different from the local conf
         global_conf = {
-            'plugin.color_germany.configuration.fashion_sites': 'superfashion.de hypefashion.de',
-            'plugin.other_plugin.configuration.otherkey': 'this will not be passed to color_germany.configure',
+            'plugin.color_germany.fashion_sites': 'superfashion.de hypefashion.de',
+            'plugin.other_plugin.otherkey': 'this will not be passed to color_germany.configure',
         }
 
         # collect plugins builtin and explore env_var: ZMON_PLUGINS="/.../tests/plugins/simple_plugins"

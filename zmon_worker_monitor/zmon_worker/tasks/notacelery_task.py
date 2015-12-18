@@ -7,11 +7,11 @@ import __future__
 
 from collections import Callable, Counter
 import socket
-from graphitesend import GraphiteClient
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
 from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
+from zmon_worker_monitor.zmon_worker.errors import CheckError, SecurityError, InsufficientPermissionsError
 
 import zmon_worker_monitor.eventloghttp as eventlog
 import functools
@@ -57,7 +57,6 @@ logger = logging.getLogger(__name__)
 
 # interval in seconds for sending metrics to graphite
 METRICS_INTERVAL = 15
-CAPTURES_INTERVAL = 10
 STASH_CACHE_EXPIRATION_TIME = 3600
 
 DEFAULT_CHECK_RESULTS_HISTORY_LENGTH = 20
@@ -152,7 +151,7 @@ orig_process_title = None
 
 def setp(check_id, entity, msg):
     global orig_process_title
-    if orig_process_title == None:
+    if not orig_process_title:
         try:
             orig_process_title = setproctitle.getproctitle().split(' ')[2].split(':')[0].split('.')[0]
         except:
@@ -970,41 +969,16 @@ class NotaZmonTask(object):
     _logger = None
     _logfile = None
     _loglevel = logging.DEBUG
-    _pg_user = None
-    _pg_pass = None
-    _my_user = None
-    _my_pass = None
-    _loungemysql_user = None
-    _loungemysql_pass = None
-    _ora_user = None
-    _ora_pass = None
-    _mssql_user = None
-    _mssql_pass = None
     _kairosdb_enabled = False
     _kairosdb_host = None
     _kairosdb_port = None
     _kairosdb_env = None
-    _ldappass = None
-    _ldapuser = None
-    _hetcrawler_proxy_user = None
-    _hetcrawler_proxy_pass = None
-    _exacrm_user = None
-    _exacrm_pass = None
-    _exarpc_user = None
-    _exarpc_pass = None
-    _exacrm_cluster = None
-    _cmdb_url = None
     _zmon_url = None
     _worker_name = None
     _queues = None
     _stash = None
     _stash_cmds = None
     _safe_repositories = []
-
-    _cassandra_enabled = False
-    _cassandra_keyspace = ''
-    _cassandra_time_series_enabled = False
-    _cassandra_seed_nodes = []
 
     _is_secure_worker = True
 
@@ -1031,47 +1005,18 @@ class NotaZmonTask(object):
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._logfile = config.get('logfile')
-        cls._graphite_host = config.get('graphite.host', '')
-        cls._graphite_port = config.get('graphite.port', 2003)
-        cls._graphite_prefix = config.get('graphite.prefix', 'zmon2')
-        cls._pg_user = config.get('postgres.user')
-        cls._pg_pass = config.get('postgres.password')
-        cls._my_user = config.get('mysql.user')
-        cls._my_pass = config.get('mysql.password')
-        cls._loungemysql_user = config.get('loungemysql.user')
-        cls._loungemysql_pass = config.get('loungemysql.password')
-        cls._ora_user = config.get('oracle.user')
-        cls._ora_pass = config.get('oracle.password')
-        cls._mssql_user = config.get('mssql.user')
-        cls._mssql_pass = config.get('mssql.password')
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
         cls._kairosdb_enabled = config.get('kairosdb.enabled')
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
         cls._kairosdb_env = config.get('kairosdb.env')
-        cls._ldapuser = config.get('ldap.user')
-        cls._ldappass = config.get('ldap.password')
-        cls._hetcrawler_proxy_user = config.get('hetcrawler.proxy_user')
-        cls._hetcrawler_proxy_pass = config.get('hetcrawler.proxy_pass')
-        cls._exacrm_user = config.get('exacrm.user')
-        cls._exacrm_pass = config.get('exacrm.password')
-        cls._exarpc_user = config.get('exasol.rpc.user')
-        cls._exarpc_pass = config.get('exasol.rpc.pass')
-        cls._exacrm_cluster = config.get('exacrm.cluster')
-        cls._cmdb_url = config.get('cmdb.url')
         cls._zmon_url = config.get('zmon.url')
-        cls._scalyr_read_key = config.get('scalyr.read.key','')
         cls._queues = config.get('zmon.queues', {}).get('local')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
         cls.perload_stash_commands()
-
-        cls._cassandra_keyspace = config.get('cassandra.keyspace')
-        cls._cassandra_enabled = config.get('cassandra.enabled')
-        cls._cassandra_time_series_enabled = config.get('cassandra.time_series_enabled')
-        cls._cassandra_seed_nodes = config.get('cassandra.seeds')
 
         cls._is_secure_worker = config.get('worker.is_secure')
 
@@ -1087,7 +1032,6 @@ class NotaZmonTask(object):
             cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
             cls._dataservice_poster.start()
-
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
         # store function factories from plugins in a dict by name
@@ -1126,43 +1070,13 @@ class NotaZmonTask(object):
     def get_configured_logger(cls):
         if not cls._logger:
             cls._logger = logger
-            #cls._logger.setLevel(cls._loglevel)
-            # cls._logger.propagate = False
-            #
-            # if cls._logfile:
-            #     log_file_handler = logging.handlers.TimedRotatingFileHandler(cls._logfile, when='midnight')
-            #     log_file_handler.setLevel(cls._loglevel)
-            #     log_file_handler.setFormatter(logging.Formatter('%(asctime)s %(processName)s %(message)s'))
-            #     cls._logger.addHandler(log_file_handler)
-            #
-            # exception_log_file = os.path.join(get_log_path(), 'log_database_{}_{}.log'.format(manifest.host,
-            #                                   manifest.instance))
-            # exception_handler = logging.handlers.TimedRotatingFileHandler(exception_log_file, when='S', interval=10)
-            # exception_handler.setLevel(logging.ERROR)
-            # exception_handler.setFormatter(ExceptionFormatter(EXCEPTION_LOG_FORMAT))
-            # exception_handler.addFilter(ExceptionFilter(host=manifest.host, instance=manifest.instance))
-            #cls._logger.addHandler(exception_handler)
         return cls._logger
 
     @property
     def con(self):
-        if self._cassandra_enabled:
-            raise NotImplementedError()
-        else:
-            self.logger.info("running with redis write only")
-            #self._con = redis.StrictRedis(self._host, self._port)
-            self._con = RedisConnHandler.get_instance().get_conn()
-
+        self._con = RedisConnHandler.get_instance().get_conn()
         BaseNotification.set_redis_con(self._con)
-
         return self._con
-
-    @property
-    def graphite(self):
-        if self._graphite is None:
-            self._graphite = GraphiteClient(graphite_server=self._graphite_host, graphite_port=self._graphite_port,
-                                            prefix=self._graphite_prefix)
-        return self._graphite
 
     @property
     def logger(self):
@@ -1192,23 +1106,6 @@ class NotaZmonTask(object):
             self._counter.clear()
             self._last_metrics_sent = now
             self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
-
-    def send_captures(self):
-        '''
-        Push elements from self._captures_local into redis list 'zmon:captures2graphite'
-        The list elements look like: (key , value, timestamp)
-        where key format is '{instance}_{host}.alerts.{alert_id}.captures.{capture_name}'
-        '''
-
-        now = time.time()
-        if (self._graphite_host != '') and (now > self._last_captures_sent + CAPTURES_INTERVAL):
-            captures_local = self._captures_local[:]
-            if captures_local:
-                captures_json = [json.dumps(c, cls=JsonDataEncoder) for c in captures_local]
-                self.con.rpush('zmon:captures2graphite', *captures_json)
-                self._last_captures_sent = now
-                # clean local list
-                del self._captures_local[:len(captures_local)]
 
     @classmethod
     def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
@@ -1248,7 +1145,7 @@ class NotaZmonTask(object):
     def check_and_notify(self, req, alerts, task_context=None):
         self.task_context = task_context
         start_time = time.time()
-        soft_time_limit = req['interval']
+        # soft_time_limit = req['interval']
         check_id = req['check_id']
         entity_id = req['entity']['id']
 
@@ -1287,7 +1184,7 @@ class NotaZmonTask(object):
     def trial_run(self, req, alerts, task_context=None):
         self.task_context = task_context
         start_time = time.time()
-        soft_time_limit = req['interval']
+        # soft_time_limit = req['interval']
         entity_id = req['entity']['id']
 
         try:
@@ -1425,14 +1322,11 @@ class NotaZmonTask(object):
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
 
-        if self._cassandra_time_series_enabled and self._cassandra_enabled:
-            self.con.getCassandraConnection().writeToHistory(key, datetime.now(), value, ttl=60*30)
-
 
     def check(self, req):
 
         self.logger.debug(req)
-        schedule_time = req['schedule_time']
+        # schedule_time = req['schedule_time']
         start = time.time()
 
         try:
@@ -1469,8 +1363,6 @@ class NotaZmonTask(object):
         setp(req['check_id'], req['entity']['id'], 'stored')
 
         return res
-
-
 
 
     def check_for_trial_run(self, req):
@@ -1569,16 +1461,12 @@ class NotaZmonTask(object):
             if func_name not in ctx:
                 ctx[func_name] = func_factory.create(factory_ctx)
 
-        return ctx
-
-
     def _store_check_result_to_kairosdb(self, req, result):
 
         if not self._kairosdb_enabled:
             return
 
         def get_host_data(entity):
-            
             d = {"entity": normalize_kairos_id(entity["id"])}
 
             if not ( entity["type"] in ["host","zomcat","zompy"] ):
@@ -1635,7 +1523,7 @@ class NotaZmonTask(object):
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
 
-                if req['check_id'] == self._zmon_actuator_checkid:
+                if req['check_id']==2115:
                     status_code = key_split[-2]
                     tags['sc']=status_code
                     tags['sg']=status_code[:1]
@@ -1807,9 +1695,6 @@ class NotaZmonTask(object):
                 self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
                               cls=JsonDataEncoder))
 
-                if self._graphite_host != '':
-                    self._store_captures_locally(alert_id, entity_id, int(start), captures)
-
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
                     'alert_id': alert_id,
@@ -1892,8 +1777,6 @@ class NotaZmonTask(object):
                                          * (time.time() - start)))})
                     setp(req['check_id'], entity_id, 'notify loop - send metrics')
                     self.send_metrics()
-                    setp(req['check_id'], entity_id, 'notify loop - send captures')
-                    self.send_captures()
                     setp(req['check_id'], entity_id, 'notify loop end')
                 else:
                     self.logger.debug('Alert %s is not in time period: %s', alert_id, alert['period'])

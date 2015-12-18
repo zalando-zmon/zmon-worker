@@ -32,7 +32,7 @@ PLUGIN_CATEGORIES_FILTER = {
     'Function': IFunctionFactoryPlugin,
 }
 
-GLOBAL_CONFIG_PREFIX = 'plugin.{plugin_name}.configuration.'
+GLOBAL_CONFIG_PREFIX = 'plugin.{plugin_name}.'
 
 
 class PluginError(Exception):

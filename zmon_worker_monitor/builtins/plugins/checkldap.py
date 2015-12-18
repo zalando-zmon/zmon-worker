@@ -57,8 +57,8 @@ class LdapFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        self._ldapuser = conf['ldapuser']
-        self._ldappass = conf['ldappass']
+        self._ldapuser = conf['user']
+        self._ldappass = conf['pass']
 
     def create(self, factory_ctx):
         """

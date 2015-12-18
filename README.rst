@@ -1,5 +1,6 @@
-Running and building with Docker
-================================
+===========
+ZMON Worker
+===========
 
 .. image:: https://travis-ci.org/zalando/zmon-worker.svg?branch=master
    :target: https://travis-ci.org/zalando/zmon-worker
@@ -9,6 +10,20 @@ Running and building with Docker
    :target: https://coveralls.io/r/zalando/zmon-worker
    :alt: Coverage Status
 
+.. image:: https://img.shields.io/pypi/dw/zmon-worker.svg
+   :target: https://pypi.python.org/pypi/zmon-worker/
+   :alt: PyPI Downloads
+
+.. image:: https://img.shields.io/pypi/v/zmon-worker.svg
+   :target: https://pypi.python.org/pypi/zmon-worker/
+   :alt: Latest PyPI version
+
+.. image:: https://img.shields.io/pypi/l/zmon-worker.svg
+   :target: https://pypi.python.org/pypi/zmon-worker/
+   :alt: License
+
+ZMON's Python worker is doing the heavy lifting of executing tasks against entities, and evaluating all alerts assigned to check.
+Tasks are picked up from Redis and the resulting check values plus alert state changes are written back to Redis.
 
 Local Development
 =================
@@ -54,3 +69,9 @@ Building the Docker Image
 
     $ docker build -t zmon-worker .
     $ docker run -it zmon-worker
+
+Running the Docker image
+========================
+
+The Docker image supports many configuration options via environment variables.
+Configuration options are explained in the `ZMON Documentation <http://zmon.readthedocs.org/en/latest/installation/configuration.html#worker>`_.

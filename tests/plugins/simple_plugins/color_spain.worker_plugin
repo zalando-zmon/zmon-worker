@@ -13,7 +13,7 @@ Description = Example plugin that does nothing good except been useful for docum
 
 ;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
 ;; Note that these values may are overridden by zmon's global config. For example, the fashion_sites defined below
-;; would be overridden by a global config entry like: plugin.color_spain.configuration.fashion_sites = 'another value'
+;; would be overridden by a global config entry like: plugin.color_spain.fashion_sites = 'another value'
 
 fashion_sites = www.big_fashion_site.es
                 www.other_fashion_site.es
