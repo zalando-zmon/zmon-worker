@@ -6,6 +6,8 @@ import requests
 import json
 import sys
 
+from zmon_worker_monitor.zmon_worker.errors import HttpError
+
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.kairosdb-function')
@@ -59,9 +61,9 @@ class KairosdbWrapper(object):
                 return response.json()["queries"][0]
             else:
                 raise Exception("KairosDB Query failed: " + json.dumps(q))
-        except requests.Timeout, e:
+        except requests.Timeout:
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
-        except requests.ConnectionError, e:
+        except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
 
     def tagnames(self):

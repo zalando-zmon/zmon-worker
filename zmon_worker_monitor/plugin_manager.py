@@ -338,7 +338,7 @@ def _check_dependencies(path):
             if stripped and not stripped.startswith('#'):
                 try:
                     pkg_resources.get_distribution(stripped)
-                except Exception as _:
+                except Exception:
                     missing_pkg.append(stripped)
     return missing_pkg
 

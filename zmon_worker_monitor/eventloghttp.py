@@ -2,7 +2,6 @@ import eventlog
 import json
 import requests
 import datetime
-from eventlog import Event
 
 _target_host = 'localhost'
 _target_port = 8081
@@ -34,7 +33,6 @@ def log(e_id, **kwargs):
     event = {'typeId': e_id, 'attributes': kwargs, 'time': now.strftime("%Y-%m-%dT%H:%M:%S.")+now.strftime("%f")[:3]}
 
     try:
-        res = requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers)
-    except Exception as e:
+        requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers)
+    except Exception:
         pass
-

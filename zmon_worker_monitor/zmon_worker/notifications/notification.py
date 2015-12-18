@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import datetime
 import logging
 
 class BaseNotification(object):
@@ -28,7 +27,7 @@ class BaseNotification(object):
         >>> BaseNotification._get_subject({'is_alert': True, 'changed': True, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}})
         'NEW ALERT: Test on hostxy'
 
-        >>> BaseNotification._get_subject({'is_alert': True, 'changed': False, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}, 'duration': datetime.timedelta(seconds=30)})
+        >>> import datetime; BaseNotification._get_subject({'is_alert': True, 'changed': False, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}, 'duration': datetime.timedelta(seconds=30)})
         'ALERT ONGOING: Test on hostxy for 0:00:30'
         """
 
@@ -88,4 +87,3 @@ class BaseNotification(object):
 
         logging.info("Redirect notifications: from %s to %s", targets, new_targets)
         return new_targets
-

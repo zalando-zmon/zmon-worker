@@ -10,6 +10,7 @@ import socket
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
+from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
 from zmon_worker_monitor.zmon_worker.errors import CheckError, SecurityError, InsufficientPermissionsError
 
 import zmon_worker_monitor.eventloghttp as eventlog
@@ -17,6 +18,7 @@ import functools
 import itertools
 import json
 import logging
+import eventlog
 import random
 from zmon_worker_monitor.redis_context_manager import RedisConnHandler
 import time
@@ -1701,7 +1703,6 @@ class NotaZmonTask(object):
                     'in_period': is_in_period,
                     'start_time': None,
                     # '_alert_stored': None,
-                    # '_notifications_stored': None,
                 }
 
                 # get last alert data stored in redis if any
@@ -1714,10 +1715,9 @@ class NotaZmonTask(object):
 
                 if False:
                     # get notification data stored in redis if any
-                    notifications_stored = None
                     try:
                         stored_raw = self.con.get(notifications_key)
-                        notifications_stored = json.loads(stored_raw) if stored_raw else None
+                        json.loads(stored_raw) if stored_raw else None
                     except (ValueError, TypeError):
                         self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s', notifications_key)
 
