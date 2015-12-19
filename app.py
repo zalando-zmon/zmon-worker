@@ -19,7 +19,7 @@ def main():
     for k in redis_keys:
         os.environ['WORKER_{}'.format(k.upper())] = 'redis://{}:{}/0'.format(k, redis_host, redis_port)
 
-    subprocess.check_output(["zmon-worker", "-c", "/app/web.conf"])
+    subprocess.check_output(["zmon-worker", "-c", "/app/config.yaml"])
 
 if __name__ == "__main__":
     main()
