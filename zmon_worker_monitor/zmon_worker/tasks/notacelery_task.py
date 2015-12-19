@@ -969,7 +969,6 @@ class NotaZmonTask(object):
     _last_metrics_sent = 0
     _last_captures_sent = 0
     _logger = None
-    _logfile = None
     _loglevel = logging.DEBUG
     _kairosdb_enabled = False
     _kairosdb_host = None
@@ -1005,7 +1004,6 @@ class NotaZmonTask(object):
             logger.exception('Error creating connection: ')
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
-        cls._logfile = config.get('logfile')
         cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
         cls._kairosdb_enabled = config.get('kairosdb.enabled')
         cls._kairosdb_host = config.get('kairosdb.host')

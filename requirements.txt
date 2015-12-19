@@ -8,7 +8,6 @@ subprocess32
 suds
 dnspython
 psycopg2
-CherryPy
 Jinja2
 setproctitle
 pytz

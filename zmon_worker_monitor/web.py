@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import cherrypy
 
 import argparse
 import settings
+import yaml
 import logging
 
 if __name__ == '__main__':
@@ -30,39 +30,40 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def main(args=None):
-    # add src dir to sys.path
-    # src_dir = os.path.abspath(os.path.dirname(__file__))
-    # if src_dir not in sys.path:
-    #     sys.path.append(src_dir)
+def read_config(path):
+    with open(path) as fd:
+        config = yaml.safe_load(fd)
+    return config
 
+
+def main(args=None):
     args = parse_args(args)
 
     main_proc = rpc_server.MainProcess()
 
-    # load cherrypy configuration
-    if args.config_file and os.path.exists(args.config_file):
-        cherrypy.config.update(args.config_file)
-    elif os.path.exists('/app/web.conf'):
-        cherrypy.config.update('/app/web.conf')
-    else:
-        cherrypy.config.update('web.conf')
+    config = {}
 
-    for key in cherrypy.config.keys():
-        env_key = key.upper().replace('.', '_')
-        if env_key in os.environ:
-            cherrypy.config[key] = os.environ[env_key]
+    # load default configuration from file
+    for path in (args.config_file, 'config.yaml'):
+        if path and os.path.exists(path):
+            config = read_config(path)
+            break
 
-    # save cherrypy config in owr settings module
-    settings.set_workers_log_level(cherrypy.config.get('loglevel', 'INFO'))
-    settings.set_external_config(cherrypy.config)
+    # allow overwritting any configuration setting via env vars
+    for k, v in os.environ.items():
+        if k.startswith('WORKER_'):
+            config[k.replace("WORKER_", "").replace("_", ".").lower()] = v
+
+    # save config in owr settings module
+    settings.set_workers_log_level(config.get('loglevel', 'INFO'))
+    settings.set_external_config(config)
     settings.set_rpc_server_port('2{}'.format('3500'))
 
     # start the process controller
     main_proc.start_proc_control()
 
     # start some processes per queue according to the config
-    queues = cherrypy.config['zmon.queues']['local']
+    queues = config['zmon.queues']['local']
     for qn in queues.split(','):
         queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
         main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"})
