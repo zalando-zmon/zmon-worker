@@ -58,8 +58,6 @@ class RedisConnHandler(object):
 
     t_wait_no_tasks = 5 * 60  # if 5 minutes pass without getting any message we switch server
 
-    #t_reconnect_master = 10 * 60  # in 10 minutes it will attempt to connect to server 0 again
-
     _pid = None
 
     _max_wait_step = 15  # a top value for our exponential increase in waiting time
@@ -74,7 +72,6 @@ class RedisConnHandler(object):
     _last_failure_tstamp = 0
     _last_success_tstamp = time.time()
     _last_message_tstamp = time.time()
-
 
     class IdleLoopException(Exception):
         pass
@@ -92,8 +89,6 @@ class RedisConnHandler(object):
 
         # estimate the reties_per_server from the wait_time_per_server
         cls.reties_per_server = cls.calculate_reties_per_server(cls.t_wait_per_server, cls.t_wait0)
-
-        #cls.t_reconnect_master = int(config.get('t_reconnect_master', cls.t_reconnect_master))
 
         servers = config.get('redis_servers')
         if servers:
@@ -159,8 +154,8 @@ class RedisConnHandler(object):
         return int(round(math.log(wait_time_per_server * 1.0 / t_wait0 + 1, 2) - 1))
 
     def get_active_server(self):
-        if self.should_switch_server(): #or self.should_reconnect_master():
-            self.switch_active_server()  # (force_master=self.should_reconnect_master())
+        if self.should_switch_server():
+            self.switch_active_server()
         return self.servers[self._active_index]
 
     def get_parsed_redis(self):

@@ -221,7 +221,7 @@ class ProcessController(object):
     def set_dynamic_num_processes(self, dynamic_num_processes):
         try:
             assert type(dynamic_num_processes) is int and \
-                   self.min_processes <= dynamic_num_processes <= self.max_processes
+                self.min_processes <= dynamic_num_processes <= self.max_processes
         except AssertionError:
             raise Exception('dynamic_num_processes passed is not in correct range')
         self.dynamic_num_processes = dynamic_num_processes
