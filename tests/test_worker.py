@@ -24,8 +24,9 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     data = {}
 
     def blpop(key, timeout):
-        assert key == 'zmon:queue:default'
-        return key, json.dumps(build_redis_queue_item(check_command))
+        assert key in ('zmon:queue:default', 'zmon:queue:internal')
+        if key == 'zmon:queue:default':
+            return key, json.dumps(build_redis_queue_item(check_command))
 
     def lpush(key, val):
         data[key] = val
@@ -44,9 +45,9 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     monkeypatch.setattr('zmon_worker_monitor.redis_context_manager.RedisConnHandler.get_conn', lambda x: redis)
     monkeypatch.setattr('zmon_worker_monitor.workflow.logger.exception', exc)
 
-    proc = main(['--no-rpc'])
+    proc = main(['-c', 'tests/config-test.yaml', '--no-rpc'])
     # make sure the worker processes get enough time to execute our check
-    time.sleep(0.1)
+    time.sleep(1.5)
     proc.proc_control.terminate_all_processes()
 
     with open(str(tmpdir) + 'data.json') as fd:
