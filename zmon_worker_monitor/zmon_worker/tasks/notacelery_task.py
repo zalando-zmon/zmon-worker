@@ -11,14 +11,12 @@ from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from stashacc import StashAccessor
 from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
 from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
-from zmon_worker_monitor.zmon_worker.errors import CheckError, SecurityError, InsufficientPermissionsError
 
-import zmon_worker_monitor.eventloghttp as eventlog
+import eventlog
 import functools
 import itertools
 import json
 import logging
-import eventlog
 import random
 from zmon_worker_monitor.redis_context_manager import RedisConnHandler
 import time
