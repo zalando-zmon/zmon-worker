@@ -17,7 +17,6 @@ ADD README.rst /app/README.rst
 ADD setup.py /app/setup.py
 ADD zmon_worker_monitor /app/zmon_worker_monitor
 ADD config.yaml /app/config.yaml
-ADD app.py /app/app.py
 
 RUN cd /app && python setup.py install
 
