@@ -42,20 +42,20 @@ class RpcProxy(object):
             return ""
 
     def get_exposed_obj(self):
-        #Never add this method to valid_methods
+        # Never add this method to valid_methods
         return self.exposed_obj
 
     def on_exit(self):
-        #Override this to provide a logic to be executed when server is finishing
+        # Override this to provide a logic to be executed when server is finishing
         pass
 
     def signal_termination(self, terminate):
         self._signal_terminate_and_exit = bool(terminate)
 
     def _dispatch(self, method, params):
-        #This method is automatically called by Python's SimpleXMLRPCServer for every incoming rpc call
+        # This method is automatically called by Python's SimpleXMLRPCServer for every incoming rpc call
         if method in self.valid_methods:
-            obj = self  if hasattr(self, method)  else  self.exposed_obj
+            obj = self if hasattr(self, method) else self.exposed_obj
             try:
                 kw = {}
                 m = getattr(obj, method)
@@ -85,7 +85,8 @@ def get_rpc_client(endpoint):
     """
     return xmlrpclib.ServerProxy(endpoint)
 
-#TODO: move to a method in RpcProxy
+
+# TODO: move to a method in RpcProxy
 def start_RPC_server(host, port, rpc_path, rpc_proxy):
     """
     Starts the RPC server and expose some methods of rpc_proxy
@@ -96,7 +97,7 @@ def start_RPC_server(host, port, rpc_path, rpc_proxy):
     """
     # Restrict to a particular path.
     class RequestHandler(SimpleXMLRPCRequestHandler):
-        #rpc_paths = ('/RPC2',)
+        # default path was "RPC2"
         rpc_paths = ('/' + rpc_path.lstrip('/'), )
 
     # Create server

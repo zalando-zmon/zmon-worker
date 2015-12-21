@@ -163,7 +163,7 @@ class ProcessController(object):
         all_pnames = list(self.proc_dict.keys())
 
         for proc_name in all_pnames:
-            self.terminate_process(proc_name,  kill_wait=0.1)
+            self.terminate_process(proc_name, kill_wait=0.1)
 
         logger.info("proc_stats after terminate_all_processes() : %s", self.list_stats())
         return True
