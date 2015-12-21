@@ -12,6 +12,10 @@ class NotifyPush(BaseNotification):
     def send(cls, alert, *args, **kwargs):
         url = kwargs.get('url', cls._config.get('notifications.push.url'))
         key = kwargs.get('key', cls._config.get('notifications.push.key'))
+
+        if url is None or "" == url:
+            return 0
+
         repeat = kwargs.get('repeat', 0)
 
         message = {
