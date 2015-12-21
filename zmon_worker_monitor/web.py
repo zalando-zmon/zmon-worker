@@ -7,6 +7,7 @@ import argparse
 import settings
 import yaml
 import logging
+import requests
 
 if __name__ == '__main__':
     import logging.config
@@ -38,10 +39,9 @@ def read_config(path):
 
 def process_config(config):
     # If running on AWS, fetch the account number
-    # TODO: fix this shell code and move it somewhere sane
     try:
-        worker_account = subprocess.check_output('curl --connect-timeout 5 --silent http://169.254.169.254/latest/meta-data/iam/info/ | grep "ProfileArn" | grep -E -o "iam::([0-9]+)" | grep -E -o "[0-9]+"', shell=True)[:-1]
-        config['account'] = 'aws:' + worker_account
+        account_id = requests.get('http://169.254.169.254/latest/meta-data/iam/info/', timeout=3).json()['InstanceProfileArn'].split(':')[4]
+        config['account'] = 'aws:' + account_id
     except:
         config['account'] = 'aws:error-during-startup'
 

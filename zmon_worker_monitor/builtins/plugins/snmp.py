@@ -172,44 +172,6 @@ class SnmpWrapper(object):
             results[name][tname] = result_all[oid]
         return results
 
-    def logmatch(self):
-        # logmatch_table = '.1.3.6.1.4.1.2021.16'
-        base = '1.3.6.1.4.1.2021.16.2.1'
-        base_idx = base + '.1.'
-        base_name = base + '.2.'
-        results = {}
-        idx2name = {}
-        result_all = self._get_walk(base)
-        for oid in sorted(result_all.keys()):
-            if base_idx in oid:
-                val = str(result_all[oid])
-                idx2name[val] = None
-            elif base_name in oid:
-                idx = oid.split('.')[-1]
-                val = result_all[oid]
-                idx2name[idx] = val
-        for oid in sorted(result_all.keys()):
-            if oid in base_idx or oid in base_name:
-                continue
-            idx = oid.split('.')[-1]
-            name = str(idx2name[idx])
-            results[name] = results.get(name, {})
-            tname = oid
-            kind = oid.split('.')[-2]
-            if kind == '3':
-                tname = 'file'  # file name
-            elif kind == '4':
-                tname = 'regex'  # regex string
-            elif kind == '5':
-                tname = 'global_count'  # counter32
-            elif kind == '7':
-                tname = 'current_count'  # counter32 since last logrotation
-            elif kind == '9':
-                tname = 'last_count'  # counter32 since last read
-            else:
-                continue
-            results[name][tname] = result_all[oid]
-        return results
 
     def interfaces(self):
         # IF-MIB::interfaces_table = '1.3.6.1.2.1.2.'

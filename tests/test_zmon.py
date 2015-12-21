@@ -5,7 +5,7 @@ from mock import Mock, patch, PropertyMock
 
 import datetime
 import json
-import zmon_worker_monitor.zmon_worker.functions.zmon as zmon
+import zmon_worker_monitor.builtins.plugins.zmon_ as zmon
 import time
 import unittest
 
