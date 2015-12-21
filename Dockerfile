@@ -21,6 +21,6 @@ ADD app.py /app/app.py
 
 RUN cd /app && python setup.py install
 
-CMD ["python", "/app/app.py"]
+CMD ["zmon-worker", "-c", "/app/config.yaml"]
 
 COPY scm-source.json /

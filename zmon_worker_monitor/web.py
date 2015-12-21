@@ -36,6 +36,16 @@ def read_config(path):
     return config
 
 
+def process_config(config):
+    # If running on AWS, fetch the account number
+    # TODO: fix this shell code and move it somewhere sane
+    try:
+        worker_account = subprocess.check_output('curl --connect-timeout 5 --silent http://169.254.169.254/latest/meta-data/iam/info/ | grep "ProfileArn" | grep -E -o "iam::([0-9]+)" | grep -E -o "[0-9]+"', shell=True)[:-1]
+        config['account'] = 'aws:' + worker_account
+    except:
+        config['account'] = 'aws:error-during-startup'
+
+
 def main(args=None):
     args = parse_args(args)
 
@@ -49,12 +59,14 @@ def main(args=None):
             config = read_config(path)
             break
 
+    process_config(config)
+
     # allow overwritting any configuration setting via env vars
     for k, v in os.environ.items():
         if k.startswith('WORKER_'):
             config[k.replace("WORKER_", "").replace("_", ".").lower()] = v
 
-    # save config in owr settings module
+    # save config in our settings module
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))
     settings.set_external_config(config)
     settings.set_rpc_server_port('2{}'.format('3500'))
