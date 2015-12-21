@@ -1761,8 +1761,8 @@ class NotaZmonTask(object):
                     #do not send notifications for downtimed alerts
                     if not downtimes:
                         if changed:
-                            if not 'notifications' in alert:
-                               alert['notifications'] = ['send_push()']
+                            if 'notifications' not in alert:
+                                alert['notifications'] = ['send_push()']
 
                             # do not overwrite custom push notification
                             if len(filter(lambda x: x.startswith('send_push'), alert['notifications'])) <= 0:
