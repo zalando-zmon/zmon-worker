@@ -1,4 +1,4 @@
-redis_servers: 'redis://example.org:6379/0'
+redis.servers: 'redis://example.org:6379/0'
 loglevel: 'INFO'
 notifications.mail.on: true
 notifications.mail.host: 'localhost'

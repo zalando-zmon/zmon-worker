@@ -90,7 +90,7 @@ class RedisConnHandler(object):
         # estimate the reties_per_server from the wait_time_per_server
         cls.reties_per_server = cls.calculate_reties_per_server(cls.t_wait_per_server, cls.t_wait0)
 
-        servers = config.get('redis_servers')
+        servers = config.get('redis.servers')
         if servers:
             if isinstance(servers, basestring):
                 servers = [s.strip() for s in servers.split(',')]
