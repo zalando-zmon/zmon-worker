@@ -353,7 +353,7 @@ class SnmpWrapper(object):
         real_fun = getattr(self.generator, 'getCmd')  # SNMPGET
         res = errorIndication, errorStatus, errorIndex, varBinds = real_fun(self.comm_data, self.transport, mib)
 
-        if not errorIndication is None or errorStatus is True:
+        if errorIndication is not None or errorStatus is True:
             msg = 'Error: %s %s %s %s' % res
             raise SnmpError(msg)
         else:
@@ -374,7 +374,7 @@ class SnmpWrapper(object):
         res = errorIndication, errorStatus, errorIndex, varBinds = real_fun(self.comm_data, self.transport, 0, 50, mib,
                 max_rows=100, ignore_non_increasing_oid=True)
 
-        if not errorIndication is None or errorStatus is True:
+        if errorIndication is not None or errorStatus is True:
             msg = 'Error: %s %s %s %s' % res
             raise SnmpError(msg)
         else:
@@ -393,7 +393,7 @@ class SnmpWrapper(object):
 
         real_fun = getattr(self.generator, 'nextCmd')  # SNMPWALK
         res = errorIndication, errorStatus, errorIndex, varBinds = real_fun(self.comm_data, self.transport, oid)
-        if not errorIndication is None or errorStatus is True:
+        if errorIndication is not None or errorStatus is True:
             msg = 'Error: %s %s %s %s' % res
             raise SnmpError(msg)
         else:
@@ -411,7 +411,7 @@ class SnmpWrapper(object):
         real_fun = getattr(self.generator, 'getCmd')  # SNMPGET
         res = errorIndication, errorStatus, errorIndex, varBinds = real_fun(self.comm_data, self.transport, oid)
 
-        if not errorIndication is None or errorStatus is True:
+        if errorIndication is not None or errorStatus is True:
             msg = 'Error: %s %s %s %s' % res
             raise SnmpError(msg)
         else:

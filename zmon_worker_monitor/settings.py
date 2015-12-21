@@ -20,12 +20,7 @@ RPC_SERVER_CONF['LOGGING']['loggers']['']['level'] = 'INFO'
 
 EXTERNAL_CONFIG = {}
 
-
-try:
-    from settings_local import *
-except ImportError:
-    # no settings_local.py found, falling back to settings_pro.py
-    from settings_pro import *
+from settings_pro import LOGGING, RPC_SERVER_CONF, data_dir
 
 
 def set_workers_log_level(level):

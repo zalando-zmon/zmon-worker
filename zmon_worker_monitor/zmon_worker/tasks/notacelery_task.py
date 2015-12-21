@@ -257,8 +257,7 @@ def _get_shards(entity):
         return entity['shards']
     if 'service_name' in entity:
         return {entity['service_name']: ('{service_name}:{port}/postgres'.format(**entity) if 'port' in entity
-                and not entity['service_name'].endswith(':{}'.format(entity['port'
-                ])) else '{}/postgres'.format(entity['service_name']))}
+                and not entity['service_name'].endswith(':{}'.format(entity['port'])) else '{}/postgres'.format(entity['service_name']))}
     return None
 
 
@@ -1466,7 +1465,7 @@ class NotaZmonTask(object):
         def get_host_data(entity):
             d = {"entity": normalize_kairos_id(entity["id"])}
 
-            if not ( entity["type"] in ["host","zomcat","zompy"] ):
+            if entity["type"] not in ["host", "zomcat", "zompy"]:
                 return d
 
             id = entity["id"].replace('itr-','').replace('gth-', '')
@@ -1475,7 +1474,7 @@ class NotaZmonTask(object):
             if None != m:
                 d["hg"]=m.group(0)
 
-            if not 'ports' in entity:
+            if 'ports' not in entity:
                 m = INSTANCE_PORT_SUFFIX.search(id)
                 if None != m:
                     d["port"]=m.group(1)
@@ -1546,7 +1545,7 @@ class NotaZmonTask(object):
             try:
                 r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
                                   json.dumps(values), timeout=2)
-                if not r.status_code in [200, 204]:
+                if r.status_code not in [200, 204]:
                     self.logger.error(r.text)
                     self.logger.error(json.dumps(values))
             except Exception, e:
@@ -1762,7 +1761,7 @@ class NotaZmonTask(object):
                     #do not send notifications for downtimed alerts
                     if not downtimes:
                         if changed:
-                           for notification in alert['notifications']:
+                            for notification in alert['notifications']:
                                 self.send_notification(notification, notification_context)
                         else:
                             previous_times = self.con.hgetall(notifications_key)
@@ -1860,7 +1859,7 @@ class NotaZmonTask(object):
                     'captures': captures,
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                    }
+                }
                 result_json = json.dumps(result, cls=JsonDataEncoder)
             except TypeError, e:
                 result = {
@@ -1869,7 +1868,7 @@ class NotaZmonTask(object):
                     'captures': {},
                     'is_alert': is_alert,
                     'in_period': is_in_period,
-                    }
+                }
                 result_json = json.dumps(result, cls=JsonDataEncoder)
 
             self.con.hset(redis_key, req['entity']['id'], result_json)

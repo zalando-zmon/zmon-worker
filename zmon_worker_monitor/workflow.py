@@ -178,7 +178,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
         except Exception as e:
             logger.exception('Exception in redis loop. Details: ', e)
-            time.sleep(5) # avoid heavy log spam here
+            time.sleep(5)  # avoid heavy log spam here
             # some exit condition on failure: maybe when number of consecutive failures > n ?
 
     # TODO: Clean redis connection... very important!!!!

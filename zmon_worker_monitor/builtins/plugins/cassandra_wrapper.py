@@ -58,6 +58,6 @@ class CassandraWrapper(object):
             return result
 
         finally:
-            cl.shutdown();
+            cl.shutdown()
 
         return {}

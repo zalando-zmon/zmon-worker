@@ -77,7 +77,7 @@ class CloudwatchWrapper(object):
             data_points = response['Datapoints']
             if data_points:
                 for [dim_name, dim_val] in metric_dimensions.items():
-                    if not dim_name in data['dimensions']:
+                    if dim_name not in data['dimensions']:
                         data['dimensions'][dim_name] = collections.defaultdict(int)
                     data['dimensions'][dim_name][dim_val] += data_points[-1][statistics]
                 data[metric['MetricName']] += data_points[-1][statistics]

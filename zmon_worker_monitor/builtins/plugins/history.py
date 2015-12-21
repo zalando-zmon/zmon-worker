@@ -143,8 +143,7 @@ class HistoryWrapper(object):
 
         # read the list of results
         query_result = requests.post(self.url, get_request_json(self.check_id, self.entities, int(time_from),
-                                     int(time_to), aggregator, int(time_from - time_to))).json()['queries'][0]['results'
-                ]
+                                     int(time_to), aggregator, int(time_from - time_to))).json()['queries'][0]['results']
 
         # filter for the key we are interested in
         filtered_for_key = filter(lambda x: x['tags'].get('key', [''])[0] == key, query_result)

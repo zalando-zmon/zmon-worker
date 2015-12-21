@@ -41,7 +41,7 @@ class SqlOracleFactory(IFunctionFactoryPlugin):
 
 def _check_oracle_env():
     if 'ORACLE_HOME' not in os.environ or 'LD_LIBRARY_PATH' not in os.environ or os.environ['ORACLE_HOME'] \
-        not in os.environ['LD_LIBRARY_PATH'] or not os.path.isdir(os.environ['ORACLE_HOME']):
+            not in os.environ['LD_LIBRARY_PATH'] or not os.path.isdir(os.environ['ORACLE_HOME']):
         raise Exception('Environmet variables ORACLE_HOME and LD_LIBRARY_PATH are not correctly set')
 
 

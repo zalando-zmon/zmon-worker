@@ -179,13 +179,13 @@ class HttpWrapper(object):
                     method = ks[1]
                     ep = '.'.join(ks[2:])
 
-                    if not ep in r:
+                    if ep not in r:
                         r[ep]={}
 
-                    if not method in r[ep]:
+                    if method not in r[ep]:
                         r[ep][method]={}
 
-                    if not status in r[ep][method]:
+                    if status not in r[ep][method]:
                         r[ep][method][status]={}
 
                     for (mn, mv) in v.iteritems():
@@ -205,7 +205,7 @@ class HttpWrapper(object):
                 else:
                     ep = '.'.join(ks[4:-1])
 
-                if not ep in r:
+                if ep not in r:
                     r[ep] = {}
 
                 # zmon.response. 200 . GET . EP .

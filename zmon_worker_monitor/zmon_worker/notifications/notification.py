@@ -39,8 +39,7 @@ class BaseNotification(object):
         name = cls._get_expanded_alert_name(alert, custom_message)
 
         if not custom_message:
-            return ('{}: {} on {} for {}'.format(event, name, alert['entity']['id'], str(alert['duration'
-                    ])[:7]) if alert.get('duration') else '{}: {} on {}'.format(event, name, alert['entity']['id']))
+            return ('{}: {} on {} for {}'.format(event, name, alert['entity']['id'], str(alert['duration'])[:7]) if alert.get('duration') else '{}: {} on {}'.format(event, name, alert['entity']['id']))
         else:
             return '{}: {}'.format(event, name)
 
@@ -65,7 +64,7 @@ class BaseNotification(object):
         new_targets = []
         for target in targets:
             prefix = target[0:target.find(':')+1]
-            if not prefix in ['group:', 'active:']:
+            if prefix not in ['group:', 'active:']:
                 new_targets.append(target)
                 continue
 
