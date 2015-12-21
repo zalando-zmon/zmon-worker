@@ -23,6 +23,15 @@ def build_redis_queue_item(check_command):
 def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     data = {}
 
+    def get_data():
+        try:
+            with open(str(tmpdir) + 'data.json') as fd:
+                data = json.load(fd)
+        except:
+            data = None
+        return data
+
+
     def blpop(key, timeout):
         assert key in ('zmon:queue:default', 'zmon:queue:internal')
         if key == 'zmon:queue:default':
@@ -46,12 +55,14 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     monkeypatch.setattr('zmon_worker_monitor.workflow.logger.exception', exc)
 
     proc = main(['-c', 'tests/config-test.yaml', '--no-rpc'])
+    start = time.time()
     # make sure the worker processes get enough time to execute our check
-    time.sleep(1.5)
+    # wait up to 5 seconds
+    while not get_data() and time.time() < start + 5:
+        time.sleep(1.5)
     proc.proc_control.terminate_all_processes()
 
-    with open(str(tmpdir) + 'data.json') as fd:
-        data = json.load(fd)
+    data = get_data()
     for string in expected_strings:
         assert string in data['zmon:checks:123:77']
 

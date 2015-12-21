@@ -13,7 +13,7 @@ notifications.sms.route: 'gold'
 notifications.sms.contact_groups: {'1stlevel': []}
 notifications.sms.maxlength: 2048
 
-zmon.queues: {'local':'zmon:queue:default/2,zmon:queue:internal/1'}
+zmon.queues: {'local':'zmon:queue:default/1,zmon:queue:internal/1'}
 safe_repositories: []
 
 # zmon.actuator.checkid: 9999

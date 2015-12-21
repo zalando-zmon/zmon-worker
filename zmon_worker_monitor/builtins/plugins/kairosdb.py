@@ -69,8 +69,5 @@ class KairosdbWrapper(object):
     def tagnames(self):
         return []
 
-    def tagnames(self):
-        return []
-
     def metric_tags(self):
         return {}

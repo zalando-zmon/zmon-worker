@@ -6,7 +6,6 @@ import collections
 import datetime
 import fnmatch
 import json
-import sys
 import logging
 import requests
 import sys
