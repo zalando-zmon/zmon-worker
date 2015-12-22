@@ -7,9 +7,7 @@ Project settings for development:
 
 import os
 
-app_home = os.path.abspath(os.environ['APP_HOME'] if 'APP_HOME' in os.environ else './')
-
-data_dir = os.path.abspath(os.path.join(app_home, 'zmon_worker_data'))
+data_dir = os.path.abspath(os.path.join('./', 'zmon_worker_data'))
 
 # application data folder needs to be created by the application itself
 for d in (data_dir, ):
@@ -20,29 +18,24 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,
     'formatters': {
-        'verbose': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(process)d - %(thread)d - %(message)s'
-        },
         'custom': {
-            'format': '%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s'
+            'format': '%(levelname)s [worker-%(process)d] %(name)s/%(funcName)s: %(message)s'
         },
     },
 
     'handlers': {
-
         'console': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'custom'
         },
-
     },
 
     'loggers': {
         '': {
             'handlers': ['console'],
             'propagate': True,
-            'level': 'DEBUG',
+            'level': 'INFO',
         },
     }
 }
@@ -60,27 +53,22 @@ RPC_SERVER_CONF = dict(
         'version': 1,
         'disable_existing_loggers': True,
         'formatters': {
-            'verbose': {
-                'format': '%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(process)d - %(thread)d - %(message)s'
-            },
             'custom': {
-                'format': '%(asctime)s - %(levelname)s - %(name)s - %(funcName)s - %(message)s'
+                'format': '%(levelname)s [server-%(process)d] %(name)s/%(funcName)s: %(message)s'
             },
         },
         'handlers': {
-
             'console': {
-                'level': 'INFO',
+                'level': 'DEBUG',
                 'class': 'logging.StreamHandler',
                 'formatter': 'custom'
             },
-
         },
         'loggers': {
             '': {
                 'handlers': ['console'],
                 'propagate': True,
-                'level': 'DEBUG',
+                'level': 'INFO',
             },
         }
     }

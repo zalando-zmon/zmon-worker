@@ -6,7 +6,6 @@ import redis
 import os
 import logging
 import time
-from threading import current_thread
 from threading import local as thread_local
 import collections
 import math
@@ -52,7 +51,7 @@ class RedisConnHandler(object):
 
     t_wait0 = WAIT_RECONNECT_MIN
 
-    reties_per_server = 5
+    retries_per_server = 5
 
     t_wait_per_server = 30  # if 30 seconds pass and we have connection errors we switch server
 
@@ -87,8 +86,8 @@ class RedisConnHandler(object):
 
         cls.t_wait_per_server = float(config.get('t_wait_per_server', cls.t_wait_per_server))
 
-        # estimate the reties_per_server from the wait_time_per_server
-        cls.reties_per_server = cls.calculate_reties_per_server(cls.t_wait_per_server, cls.t_wait0)
+        # estimate the retries_per_server from the wait_time_per_server
+        cls.retries_per_server = cls.calculate_retries_per_server(cls.t_wait_per_server, cls.t_wait0)
 
         servers = config.get('redis.servers')
         if servers:
@@ -100,8 +99,8 @@ class RedisConnHandler(object):
             # parse all server urls to detect config errors beforehand
             [parse_redis_conn(s) for s in cls.servers]
 
-        logger.warn('Pid=%s ==> RedisConnHandler  configured with reties_per_server(estimated)=%s, t_wait_per_server=%s, '
-                    't_wait_no_tasks=%s, servers=%s', cls._pid, cls.reties_per_server, cls.t_wait_per_server,
+        logger.info('Configured RedisConnHandler with retries_per_server(estimated)=%s, t_wait_per_server=%s, '
+                    't_wait_no_tasks=%s, servers=%s', cls.retries_per_server, cls.t_wait_per_server,
                     cls.t_wait_no_tasks, cls.servers)
 
     def __init__(self):
@@ -130,8 +129,8 @@ class RedisConnHandler(object):
         if exc_type is not None:
             if issubclass(exc_type, redis.ConnectionError):
                 self.mark(self.STATUS_ERROR)
-                logger.error('Pid=%s, thread_id=%s ==> Lost connection to redis server: %s. Waiting %s seconds. '
-                             'Exception detail follows:\n%s', self._pid, current_thread().name,
+                logger.error('Lost connection to Redis server: %s. Waiting %s seconds. '
+                             'Exception detail follows:\n%s',
                              self.get_active_server(), self.get_wait_time(),
                              ''.join(format_exception(exc_type, exc_val, exc_tb)))
                 self.wait_on_error()
@@ -139,18 +138,18 @@ class RedisConnHandler(object):
 
             if issubclass(exc_type, self.IdleLoopException):
                 self.mark(self.STATUS_IDLE)
-                logger.info("IdleLoop: %s... pid=%s, count: %s", exc_val, self._pid, self.get_message_count())
+                logger.debug("IdleLoop: %s... pid=%s, count: %s", exc_val, self._pid, self.get_message_count())
                 return self.__CONS_SUPPRESS_EXCEPTION
 
         self.mark(self.STATUS_OK)
         return self.__CONS_PROPAGATE_EXCEPTION
 
     @staticmethod
-    def calculate_wait_time_per_server(reties_per_server, t_wait0):
-        return t_wait0 * (2**(reties_per_server + 1) - 1)
+    def calculate_wait_time_per_server(retries_per_server, t_wait0):
+        return t_wait0 * (2**(retries_per_server + 1) - 1)
 
     @staticmethod
-    def calculate_reties_per_server(wait_time_per_server, t_wait0):
+    def calculate_retries_per_server(wait_time_per_server, t_wait0):
         return int(round(math.log(wait_time_per_server * 1.0 / t_wait0 + 1, 2) - 1))
 
     def get_active_server(self):
@@ -182,8 +181,7 @@ class RedisConnHandler(object):
 
         self.mark(self.STATUS_OK)  # mark a fresh status OK for the new server
 
-        logger.warn('Pid=%s, thread_id=%s ==> Redis Active server switched to %s, force_master=%s', self._pid,
-                    current_thread().name, self.servers[self._active_index], force_master)
+        logger.warn('Switched active Redis server to %s, force_master=%s', self.servers[self._active_index], force_master)
 
     def get_wait_time(self):
         return min(self.t_wait0 * (2 ** self._retries_count) if self._retries_count >= 0 and not
@@ -227,7 +225,6 @@ class RedisConnHandler(object):
             self._conn = None
             active_server = self.get_active_server()
             c = parse_redis_conn(active_server)
-            logger.warn('Pid=%s, thread_id=%s ==> Opening new redis connection to host=%s, port=%s, db=%s', self._pid,
-                        current_thread().name, c.hostname, c.port, c.virtual_host)
+            logger.info('Opening new Redis connection to %s:%s/%s..', c.hostname, c.port, c.virtual_host)
             self._conn = redis.StrictRedis(host=c.hostname, port=c.port, db=c.virtual_host)
             return self._conn

@@ -1011,7 +1011,7 @@ class NotaZmonTask(object):
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
-        cls.perload_stash_commands()
+        cls.preload_stash_commands()
 
         cls._is_secure_worker = config.get('worker.is_secure')
 
@@ -1042,7 +1042,7 @@ class NotaZmonTask(object):
 
 
     @classmethod
-    def perload_stash_commands(cls):
+    def preload_stash_commands(cls):
         cls._stash = StashAccessor(cls.get_configured_logger())
         if cls.is_secure_worker():
             try:

@@ -115,7 +115,7 @@ def init_plugin_manager(category_filter=None, info_ext=PLUGIN_INFO_EXT, builtins
     # default category_filter is PLUGIN_CATEGORIES_FILTER (dict)
     category_filter = PLUGIN_CATEGORIES_FILTER if category_filter is None else category_filter
 
-    logger.info('init plugin manager')
+    logger.debug('Initializing plugin manager..')
 
     manager = PluginManagerSingleton.get()
 

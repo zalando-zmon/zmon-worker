@@ -11,7 +11,6 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer
 from SimpleXMLRPCServer import SimpleXMLRPCRequestHandler
 
 import logging
-logger = logging.getLogger(__name__)
 
 
 class RpcProxy(object):
@@ -28,6 +27,7 @@ class RpcProxy(object):
     def __init__(self, exposed_obj):
         assert type(exposed_obj) is self.exposed_obj_class, "Error in RpcProxy: exposed_obj is not declared class"
         self.exposed_obj = exposed_obj
+        self.logger = logging.getLogger(__name__)
 
     def _listMethods(self):
         # this method must be present for system.listMethods to work
@@ -70,8 +70,8 @@ class RpcProxy(object):
 
                 return getattr(obj, method)(*params, **kw)
             except Exception:
-                logger.exception("Exception encountered in rpc_server while attempting to call: %s with params: %s ",
-                                 method, params)
+                self.logger.exception("Exception encountered in rpc_server while attempting to call: %s with params: %s ",
+                                      method, params)
                 raise
         else:
             raise Exception('method "%s" is not supported' % method)
@@ -100,7 +100,8 @@ def start_RPC_server(host, port, rpc_path, rpc_proxy):
         # default path was "RPC2"
         rpc_paths = ('/' + rpc_path.lstrip('/'), )
 
-    # Create server
+    logger = logging.getLogger(__name__)
+    logger.info('Starting RPC server on http://%s:%d%s ..', host, port,rpc_path)
     server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True)
     server.register_introspection_functions()
 

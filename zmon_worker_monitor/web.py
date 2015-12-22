@@ -7,13 +7,8 @@ import argparse
 import settings
 import yaml
 import logging
+import logging.config
 import requests
-
-if __name__ == '__main__':
-    import logging.config
-    logging.config.dictConfig(settings.RPC_SERVER_CONF['LOGGING'])
-
-logger = logging.getLogger(__name__)
 
 # env vars get droped via zompy startup
 os.environ["ORACLE_HOME"] = "/opt/oracle/instantclient_12_1/"
@@ -70,6 +65,8 @@ def main(args=None):
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))
     settings.set_external_config(config)
     settings.set_rpc_server_port('2{}'.format('3500'))
+
+    logging.config.dictConfig(settings.RPC_SERVER_CONF['LOGGING'])
 
     # start the process controller
     main_proc.start_proc_control()

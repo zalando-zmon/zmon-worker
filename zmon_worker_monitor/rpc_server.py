@@ -84,25 +84,3 @@ class MainProcess(object):
                                    settings.RPC_SERVER_CONF['PORT'],
                                    settings.RPC_SERVER_CONF['RPC_PATH'],
                                    rpc_proxy)
-
-
-def main(config=None):
-
-    save_pid(abort_pidfile=True)
-
-    signal.signal(signal.SIGTERM, sigterm_handler)
-
-    proc_control = ProcessController(default_target=worker.start_worker,
-                                     action_policy='report', always_add_kwargs={'external_config': config})
-
-    rpc_proxy = ProcessControllerProxy(proc_control)
-
-    rpc_utils.start_RPC_server(settings.RPC_SERVER_CONF['HOST'],
-                               settings.RPC_SERVER_CONF['PORT'],
-                               settings.RPC_SERVER_CONF['RPC_PATH'],
-                               rpc_proxy)
-
-
-if __name__ == '__main__':
-
-    main()
