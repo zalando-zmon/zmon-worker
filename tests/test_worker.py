@@ -73,3 +73,9 @@ def test_check_failure(tmpdir, monkeypatch):
 def test_check_success(tmpdir, monkeypatch):
     execute_check(tmpdir, monkeypatch, '"test-result"', ['"value": "test-result"'])
 
+def test_check_http(tmpdir, monkeypatch):
+    response = MagicMock()
+    response.json.return_value = {'foo': 'bar'}
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.http.requests.get', lambda *args, **kwargs: response)
+    execute_check(tmpdir, monkeypatch, 'http("https://example.org/").json()', ['"value": {"foo": "bar"}'])
+
