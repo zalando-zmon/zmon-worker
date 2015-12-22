@@ -3,7 +3,6 @@
 
 from emu_kombu import parse_redis_conn
 import redis
-import os
 import logging
 import time
 from threading import local as thread_local
@@ -57,13 +56,12 @@ class RedisConnHandler(object):
 
     t_wait_no_tasks = 5 * 60  # if 5 minutes pass without getting any message we switch server
 
-    _pid = None
-
     _max_wait_step = 15  # a top value for our exponential increase in waiting time
 
     _thread_local = _ThreadLocal()
 
     # Counters and dates markers for connection errors
+    _status = None
     _active_index = 0
     _retries_count = -1
     _idle_count = -1
@@ -77,8 +75,6 @@ class RedisConnHandler(object):
 
     @classmethod
     def configure(cls, **config):
-
-        cls._pid = os.getpid()
 
         cls.t_wait0 = float(config.get('t_wait0', cls.t_wait0))
 
@@ -109,7 +105,6 @@ class RedisConnHandler(object):
             raise AssertionError('You must use get_instance() to get an instance')
 
         assert len(self.servers) > 0, 'Fatal Error: No servers have been configured'
-        self._pid = os.getpid() if not self._pid else self._pid
         self._conn = None
         self._parsed_redis = parse_redis_conn(self.servers[self._active_index])
 
@@ -138,7 +133,7 @@ class RedisConnHandler(object):
 
             if issubclass(exc_type, self.IdleLoopException):
                 self.mark(self.STATUS_IDLE)
-                logger.debug("IdleLoop: %s... pid=%s, count: %s", exc_val, self._pid, self.get_message_count())
+                logger.debug("Idle: %s, message_count: %s", exc_val, self.get_message_count())
                 return self.__CONS_SUPPRESS_EXCEPTION
 
         self.mark(self.STATUS_OK)
@@ -179,9 +174,10 @@ class RedisConnHandler(object):
                               self._active_index + 1)
         self._parsed_redis = parse_redis_conn(self.servers[self._active_index])
 
+        prev_status = self._status
         self.mark(self.STATUS_OK)  # mark a fresh status OK for the new server
 
-        logger.warn('Switched active Redis server to %s, force_master=%s', self.servers[self._active_index], force_master)
+        logger.warn('Switched active Redis server to %s, prev_status=%s, force_master=%s', self.servers[self._active_index], prev_status, force_master)
 
     def get_wait_time(self):
         return min(self.t_wait0 * (2 ** self._retries_count) if self._retries_count >= 0 and not
@@ -194,7 +190,7 @@ class RedisConnHandler(object):
         time.sleep(self.get_wait_time())
 
     def mark(self, status):
-
+        self._status = status
         if status == self.STATUS_ERROR:
             self._retries_count += 1
             self._last_failure_tstamp = time.time()

@@ -64,7 +64,7 @@ def main(args=None):
     # save config in our settings module
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))
     settings.set_external_config(config)
-    settings.set_rpc_server_port('2{}'.format('3500'))
+    settings.set_rpc_server_port(config.get('server.port'))
 
     logging.config.dictConfig(settings.RPC_SERVER_CONF['LOGGING'])
 
