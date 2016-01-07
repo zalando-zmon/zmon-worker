@@ -1028,8 +1028,8 @@ class NotaZmonTask(object):
         if cls._dataservice_url:
             # start action loop for sending reports to dataservice
             cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
-
             if cls._dataservice_url and cls._dataservice_oauth2:
+                cls._logger.info("Enabling OAUTH2 for data service")
                 tokens.configure()
                 tokens.manage('uid', ['uid'])
                 tokens.start()
