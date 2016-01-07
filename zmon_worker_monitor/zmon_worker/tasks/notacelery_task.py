@@ -29,6 +29,7 @@ import urllib
 import pytz
 import threading
 import Queue
+
 from collections import defaultdict
 
 from bisect import bisect_left
@@ -51,6 +52,7 @@ from zmon_worker_monitor.zmon_worker.common import mathfun
 
 from zmon_worker_monitor import plugin_manager
 
+import tokens
 
 logger = logging.getLogger(__name__)
 
@@ -1021,10 +1023,17 @@ class NotaZmonTask(object):
         cls._team = config.get('team')
 
         cls._dataservice_url = config.get('dataservice.url')
+        cls._dataservice_oauth2 = config.get('dataservice.oauth2', True)
 
         if cls._dataservice_url:
             # start action loop for sending reports to dataservice
             cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
+
+            if cls._dataservice_url and cls._dataservice_oauth2:
+                tokens.configure()
+                tokens.manage('uid', ['uid'])
+                tokens.start()
+
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
             cls._dataservice_poster.start()
 
@@ -1107,6 +1116,9 @@ class NotaZmonTask(object):
 
         http_req = {'PUT': requests.put, 'POST': requests.post, 'GET': requests.get}
         headers = {'content-type': 'application/json'}
+
+        if cls._dataservice_oauth2:
+            headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
 
         team = cls._team if cls._team is not None else ''
         account = cls._account if cls._account is not None else ''
