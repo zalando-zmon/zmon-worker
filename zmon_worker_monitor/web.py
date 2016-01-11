@@ -56,16 +56,16 @@ def main(args=None):
 
     process_config(config)
 
-    # make zmon worker compatible with old redis config vars
-    if 'WORKER_REDIS_HOST' in config:
-        port = config.get('WORKER_REDIS_PORT', 6379)
-        if not 'WORKER_REDIS_SERVERS' in config:
-            config.update({"WORKER_REDIS_SERVERS":'{}:{}'.format(config["WORKER_REDIS_HOST"], port)})
-
     # allow overwritting any configuration setting via env vars
     for k, v in os.environ.items():
         if k.startswith('WORKER_'):
             config[k.replace("WORKER_", "").replace("_", ".").lower()] = v
+
+    # make zmon worker compatible with old redis config vars
+    if 'redis.host' in config:
+        port = config.get('redis.port', 6379)
+        if not 'redis.servers' in config:
+            config.update({"redis.servers":'{}:{}'.format(config["redis.host"], port)})
 
     # save config in our settings module
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))
