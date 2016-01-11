@@ -30,7 +30,7 @@ class NotifyPush(BaseNotification):
         url = url + '/api/v1/publish'
 
         try:
-            logger.info("Sending push notification to %s %s", url, message)
+            # logger.info("Sending push notification to %s %s", url, message)
             r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type':'application/json'}, data=json.dumps(message))
             r.raise_for_status()
         except Exception as ex:

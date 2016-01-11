@@ -1109,7 +1109,7 @@ class NotaZmonTask(object):
             p.execute()
             self._counter.clear()
             self._last_metrics_sent = now
-            self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
+            # self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
 
     @classmethod
     def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
