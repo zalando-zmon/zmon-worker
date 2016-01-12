@@ -64,8 +64,7 @@ def main(args=None):
     # make zmon worker compatible with old redis config vars
     if 'redis.host' in config:
         port = config.get('redis.port', 6379)
-        if not 'redis.servers' in config:
-            config.update({"redis.servers":'{}:{}'.format(config["redis.host"], port)})
+        config.update({"redis.servers":'{}:{}'.format(config["redis.host"], port)})
 
     # save config in our settings module
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))
