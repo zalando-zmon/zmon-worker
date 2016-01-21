@@ -15,10 +15,11 @@ class NotifyHipchat(BaseNotification):
         url = cls._config.get('notifications.hipchat.url')
         token = kwargs.get('token', cls._config.get('notifications.hipchat.token'))
         repeat = kwargs.get('repeat', 0)
+        notify = kwargs.get('notify', False)
 
         color = 'green' if alert and not alert.get('is_alert') else kwargs.get("color", "red")
 
-        message = {"message": kwargs.get("message", cls._get_subject(alert)), "color": color}
+        message = {"message": kwargs.get("message", cls._get_subject(alert)), "color": color, "notify": notify}
 
         try:
             logger.info("Sending to: " + '{}/v2/room/{}/notification?auth_token={}'.format(url, urllib.quote(kwargs['room']), token) + " " + json.dumps(message))
