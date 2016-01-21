@@ -100,8 +100,8 @@ class JoblocksWrapper(object):
             'created': r['created'],
             'expected_duration': JoblocksWrapper._get_expected_duration(r, expected_duration),
             'flow_id': r.get('flowId') or '',
-            'expired': time.time() - time.mktime(time.strptime(r['created'], '%Y-%m-%dT%H:%M:%S'))
-                > JoblocksWrapper._get_expected_duration(r, expected_duration) / 1000,
+            'expired': time.time() - time.mktime(time.strptime(r['created'], '%Y-%m-%dT%H:%M:%S')) >
+                       JoblocksWrapper._get_expected_duration(r, expected_duration) / 1000,
         }) for r in results)
 
 

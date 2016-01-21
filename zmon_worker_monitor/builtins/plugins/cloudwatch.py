@@ -10,9 +10,10 @@ import logging
 import requests
 import sys
 
+from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
+
 logging.getLogger('botocore').setLevel(logging.WARN)
 
-from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):

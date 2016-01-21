@@ -9,12 +9,11 @@ import yaml
 import logging
 import logging.config
 import requests
+import rpc_server
 
 # env vars get droped via zompy startup
 os.environ["ORACLE_HOME"] = "/opt/oracle/instantclient_12_1/"
 os.environ["LD_LIBRARY_PATH"] = os.environ.get("LD_LIBRARY_PATH", '') + ":/opt/oracle/instantclient_12_1/"
-
-import rpc_server
 
 DEFAULT_NUM_PROC = 16
 

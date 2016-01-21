@@ -10,17 +10,13 @@ import signal
 import settings
 import logging
 
-if __name__ == '__main__':
-    import logging.config
-    logging.config.dictConfig(settings.RPC_SERVER_CONF['LOGGING'])
-
-logger = logging.getLogger(__name__)
-
 from pprint import pformat
 
 from process_controller import ProcessController
 import worker
 import rpc_utils
+
+logger = logging.getLogger(__name__)
 
 
 def save_pid(abort_pidfile=False):

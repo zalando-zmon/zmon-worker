@@ -258,8 +258,9 @@ def _get_shards(entity):
     if 'shards' in entity:
         return entity['shards']
     if 'service_name' in entity:
-        return {entity['service_name']: ('{service_name}:{port}/postgres'.format(**entity) if 'port' in entity
-                and not entity['service_name'].endswith(':{}'.format(entity['port'])) else '{}/postgres'.format(entity['service_name']))}
+        return {entity['service_name']: ('{service_name}:{port}/postgres'.format(**entity)
+                if 'port' in entity and not entity['service_name'].endswith(':{}'.format(entity['port']))
+                else '{}/postgres'.format(entity['service_name']))}
     return None
 
 
@@ -1483,13 +1484,13 @@ class NotaZmonTask(object):
             id = entity["id"].replace('itr-','').replace('gth-', '')
 
             m = HOST_GROUP_PREFIX.search(id)
-            if None != m:
-                d["hg"]=m.group(0)
+            if m:
+                d["hg"] = m.group(0)
 
             if 'ports' not in entity:
                 m = INSTANCE_PORT_SUFFIX.search(id)
-                if None != m:
-                    d["port"]=m.group(1)
+                if m:
+                    d["port"] = m.group(1)
             else:
                 d["port"] = str(entity['ports'].items()[-1:][0][1])
 
@@ -1526,7 +1527,7 @@ class NotaZmonTask(object):
 
                 key_split = tags['key'].split('.')
                 metric_tag = key_split[-1]
-                if None == metric_tag or '' == metric_tag:
+                if not metric_tag:
                     #should only happen for key ending with a "." and as it is a dict there then exists a -2
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
@@ -1639,7 +1640,8 @@ class NotaZmonTask(object):
             A list of alert definitions matching given entity.
         '''
 
-        ts_serialize = lambda ts: datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
+        def ts_serialize(ts):
+            return datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
 
         result = []
         entity_id = req['entity']['id']
@@ -1737,8 +1739,8 @@ class NotaZmonTask(object):
                 if is_in_period:
 
                     self._counter.update({'alerts.{}.count'.format(alert_id): 1,
-                                         'alerts.{}.evaluation_duration'.format(alert_id): int(round(1000.0 * (time.time()
-                                         - start)))})
+                                         'alerts.{}.evaluation_duration'.format(alert_id):
+                                         int(round(1000.0 * (time.time() - start)))})
 
                     # Always evaluate downtimes, so that we don't miss downtime_ended event in case the downtime ends when
                     # the alert is no longer active.
@@ -1788,8 +1790,8 @@ class NotaZmonTask(object):
                                 if notification in previous_times and time.time() > float(previous_times[notification]):
                                     self.send_notification(notification, notification_context)
 
-                    self._counter.update({'alerts.{}.notification_duration'.format(alert_id): int(round(1000.0
-                                         * (time.time() - start)))})
+                    self._counter.update({'alerts.{}.notification_duration'.format(alert_id):
+                                         int(round(1000.0 * (time.time() - start)))})
                     setp(req['check_id'], entity_id, 'notify loop - send metrics')
                     self.send_metrics()
                     setp(req['check_id'], entity_id, 'notify loop end')
