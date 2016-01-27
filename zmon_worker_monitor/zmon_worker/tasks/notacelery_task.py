@@ -132,7 +132,6 @@ class ProtectedPartial(object):
         return self.__func(*self.__partial_args + args, **new_kwargs)
 
 
-
 def propartial(func, *args, **kwargs):
     '''
     >>> propartial(int, base=2)('100')
@@ -181,6 +180,7 @@ def flatten(structure, key='', path='', flattened=None):
         for new_key, value in structure.items():
             flatten(value, new_key, '.'.join(filter(None, [path, key])), flattened)
     return flattened
+
 
 def timed(f):
     '''Decorator to "time" a function execution. Wraps the function's result in a new dict.
@@ -361,6 +361,7 @@ def _inject_alert_parameters(alert_parameters, ctx):
         if params_name not in ctx:
             ctx[params_name] = params
 
+
 def alert_series(f, n, con, check_id, entity_id):
     """ evaluate given function on the last n check results and return true if the "alert" function f returns true for all values"""
 
@@ -386,6 +387,7 @@ def alert_series(f, n, con, check_id, entity_id):
 
     # activating alert if not enough value found (this should only affect starting period)
     return n == active_count or len(vs)<n
+
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
@@ -691,8 +693,10 @@ class Try(Callable):
         except self.exc_cls, e:
             return self.except_call(e)
 
+
 def get_results_user(count=1, con=None, check_id=None, entity_id=None):
     return map(lambda x: x["value"], get_results(con, check_id, entity_id, count))
+
 
 def get_results(con, check_id, entity_id, count=1):
     r = map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
@@ -831,7 +835,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     it will not be called.
 
     As access to the hidden attributes is protected by check_ast_node_is_safe() method
-    we should not have any problem with valnarabilites defined here:
+    we should not have any problem with vulnerabilites defined here:
     Link: http://nedbatchelder.com/blog/201206/eval_really_is_dangerous.html
 
     TODO: implement compile object cache
@@ -1014,6 +1018,7 @@ class NotaZmonTask(object):
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
+        # TODO: remove Stash specific code
         cls.preload_stash_commands()
 
         cls._is_secure_worker = config.get('worker.is_secure')
@@ -1032,6 +1037,7 @@ class NotaZmonTask(object):
             if cls._dataservice_url and cls._dataservice_oauth2:
                 cls._logger.info("Enabling OAUTH2 for data service")
                 tokens.configure()
+                # TODO: configure proper OAuth scopes
                 tokens.manage('uid', ['uid'])
                 tokens.start()
 
@@ -1049,7 +1055,6 @@ class NotaZmonTask(object):
     @classmethod
     def is_secure_worker(cls):
         return cls._is_secure_worker
-
 
     @classmethod
     def preload_stash_commands(cls):
@@ -1146,7 +1151,7 @@ class NotaZmonTask(object):
                 try:
                     serialized_data = json.dumps(worker_result, cls=JsonDataEncoder)
                 except Exception as ex:
-                    logger.exception("Failed to serizalize data for check {} {}: {}".format(check_id, ex, results))
+                    logger.exception("Failed to serialize data for check {} {}: {}".format(check_id, ex, results))
 
                 if serialized_data is not None:
                     r = http_req[method](url, data=serialized_data, timeout=timeout, headers=headers)
@@ -1486,9 +1491,11 @@ class NotaZmonTask(object):
         def get_host_data(entity):
             d = {"entity": normalize_kairos_id(entity["id"])}
 
+            # FIXME; hardcoded list of entity types :-(
             if entity["type"] not in ["host", "zomcat", "zompy"]:
                 return d
 
+            # FIXME: hardcoded DC prefix
             id = entity["id"].replace('itr-','').replace('gth-', '')
 
             m = HOST_GROUP_PREFIX.search(id)
