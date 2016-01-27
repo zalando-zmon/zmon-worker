@@ -8,8 +8,6 @@ import __future__
 from collections import Callable, Counter
 import socket
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
-from stashacc import StashAccessor
-from zmon_worker_monitor.zmon_worker.common.utils import async_memory_cache, with_retries
 from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
 
 import eventlog
@@ -59,7 +57,6 @@ logger = logging.getLogger(__name__)
 
 # interval in seconds for sending metrics to graphite
 METRICS_INTERVAL = 15
-STASH_CACHE_EXPIRATION_TIME = 3600
 
 DEFAULT_CHECK_RESULTS_HISTORY_LENGTH = 20
 
@@ -983,8 +980,6 @@ class NotaZmonTask(object):
     _zmon_url = None
     _worker_name = None
     _queues = None
-    _stash = None
-    _stash_cmds = None
     _safe_repositories = []
 
     _is_secure_worker = True
@@ -1021,8 +1016,6 @@ class NotaZmonTask(object):
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
-        # TODO: remove Stash specific code
-        cls.preload_stash_commands()
 
         cls._is_secure_worker = config.get('worker.is_secure')
 
@@ -1058,26 +1051,6 @@ class NotaZmonTask(object):
     @classmethod
     def is_secure_worker(cls):
         return cls._is_secure_worker
-
-    @classmethod
-    def preload_stash_commands(cls):
-        cls._stash = StashAccessor(cls.get_configured_logger())
-        if cls.is_secure_worker():
-            try:
-                cls._stash_cmds = cls._stash.get_stash_commands(*cls._safe_repositories)
-                cls._logger.info('Loaded %d commands from stash secure repos', len(cls._stash_cmds))
-            except Exception:
-                cls._logger.exception('Error loading stash commands: ')
-
-    @async_memory_cache.cache_on_arguments(namespace='zmon-worker', expiration_time=STASH_CACHE_EXPIRATION_TIME)
-    @with_retries(max_retries=3, delay=10)
-    def load_stash_commands(self, repositories):
-        if not self._cmds_first_accessed:
-            # ugly but needed to stop celery from refreshing the cache when task process is forked
-            self._cmds_first_accessed = True
-            return self._stash_cmds
-        else:
-            return self._stash.get_stash_commands(*repositories)
 
     @classmethod
     def get_configured_logger(cls):
@@ -1416,19 +1389,20 @@ class NotaZmonTask(object):
 
     def _enforce_security(self, req):
         '''
-        Check tasks from the secure queue to asert the command to run is specified in stash check definition
+        Check tasks from the secure queue to asert the command to run is specified in scm check definition
         Side effect: modifies req to address unique security concerns
         Raises SecurityError on check failure
         '''
 
         if self.is_secure_worker() or self.task_context['delivery_info'].get('routing_key') == 'secure':
             try:
-                stash_commands = self.load_stash_commands(self._safe_repositories)
+                # TODO: either implement SCM command loading or remove all related code
+                scm_commands = []  # self.load_scm_commands(self._safe_repositories)
             except Exception, e:
                 traceback = sys.exc_info()[2]
                 raise SecurityError('Unexpected Internal error: {}'.format(e)), None, traceback
 
-            if req['command'] not in stash_commands:
+            if req['command'] not in scm_commands:
                 raise SecurityError('Security violation: Non-authorized command received in secure environment')
 
             # transformations of entities: hostname "pp-whatever" needs to become "whatever.pp"
