@@ -1141,12 +1141,19 @@ class NotaZmonTask(object):
                     'results': results,
                 }
 
-                r = http_req[method](url, data=json.dumps(worker_result), timeout=timeout, headers=headers)
-                if r.status_code != requests.codes.ok:
-                    raise Exception('http request to {} got status_code={}'.format(url, r.status_code))
+                serialized_data = None
+                try:
+                    serialized_data = json.dumps(worker_result)
+                except Exceptions as ex:
+                    logger.exception("Failed to serizalize data for check {} {}: {}".format(check_id, ex, results))
+
+                if serialized_data is not None:
+                    r = http_req[method](url, data=serialized_data, timeout=timeout, headers=headers)
+                    if r.status_code != requests.codes.ok:
+                        raise Exception('http request to {} got status code={}'.format(url, r.status_code))
 
         except Exception:
-            logger.exception('Error in dataservice post: ')
+            logger.exception("Unexpected error in data service post")
             raise
 
 
