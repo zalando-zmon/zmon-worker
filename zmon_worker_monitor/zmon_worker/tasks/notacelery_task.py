@@ -1141,10 +1141,11 @@ class NotaZmonTask(object):
                     'results': results,
                 }
 
+                # we can skip this data, this problem will never fix itself
                 serialized_data = None
                 try:
                     serialized_data = json.dumps(worker_result)
-                except Exceptions as ex:
+                except Exception as ex:
                     logger.exception("Failed to serizalize data for check {} {}: {}".format(check_id, ex, results))
 
                 if serialized_data is not None:
