@@ -5,18 +5,10 @@ from dogpile.cache import make_region
 import threading
 from functools import wraps
 import sys
-import os
 import time
 import random
 
 DEFAULT_CACHE_EXPIRATION_TIME = 3600
-
-
-def get_cache_file_path():
-    cache_filename = 'worker_cache.dbm'
-    app_folder = (os.environ['APP_HOME'] if 'APP_HOME' in os.environ else os.getcwd())
-    cache_dir = (os.path.join(app_folder, 'temp') if os.path.isdir(os.path.join(app_folder, 'temp')) else app_folder)
-    return os.path.join(cache_dir, cache_filename)
 
 
 def async_creation_runner(cache, somekey, creator, mutex):

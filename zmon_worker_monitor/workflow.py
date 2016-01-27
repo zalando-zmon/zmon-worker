@@ -17,7 +17,7 @@ import snappy
 
 import plugin_manager
 from redis_context_manager import RedisConnHandler
-from tasks import load_config_from_file, configure_tasks
+from tasks import configure_tasks
 from tasks import check_and_notify, trial_run, cleanup
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ __config = None
 def get_config():
     global __config
     if __config is None:
-        __config = settings.get_external_config() or load_config_from_file()
+        __config = settings.get_external_config()
     return __config
 
 
@@ -183,30 +183,6 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
     # TODO: Clean redis connection... very important!!!!
     # disconnect_all()
-
-
-def flow_forked_child(queue='', **kwargs):
-    """
-    Implement forking a work horse process per message as seen in python_rq
-    """
-    #TODO: implement
-    pass
-
-
-def flow_forked_childs(queue='', **kwargs):
-    """
-    Implement forking several work horses process per message?
-    """
-    #TODO: implement
-    pass
-
-
-def flow_multiprocessing_pool(queue='', **kwargs):
-    """
-    Implement spawning a pool of workers of multiprocessing process
-    """
-    #TODO: implement
-    pass
 
 
 class FlowControlReactor(object):

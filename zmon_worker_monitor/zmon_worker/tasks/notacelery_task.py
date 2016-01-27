@@ -207,6 +207,9 @@ def _get_entity_url(entity):
 
     >>> _get_entity_url({'host': 'fesn01'})
     'http://fesn01'
+
+    >>> _get_entity_url({'url': 'https://example.org'})
+    'https://example.org'
     '''
 
     if 'url' in entity:
