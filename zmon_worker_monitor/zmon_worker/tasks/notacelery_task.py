@@ -1521,10 +1521,11 @@ class NotaZmonTask(object):
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
 
-                if req['check_id']==2115:
+                # FIXME: hardcoded check ID :-(
+                if req['check_id'] == 2115:
                     status_code = key_split[-2]
-                    tags['sc']=status_code
-                    tags['sg']=status_code[:1]
+                    tags['sc'] = status_code
+                    tags['sg'] = status_code[:1]
 
                 tags.update(host_tags)
 
