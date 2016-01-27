@@ -144,18 +144,9 @@ def propartial(func, *args, **kwargs):
 
 normalize_kairos_id = propartial(KAIROS_ID_FORBIDDEN_RE.sub, '_')
 
-orig_process_title = None
-
 
 def setp(check_id, entity, msg):
-    global orig_process_title
-    if not orig_process_title:
-        try:
-            orig_process_title = setproctitle.getproctitle().split(' ')[2].split(':')[0].split('.')[0]
-        except:
-            orig_process_title = 'p34XX'
-
-    setproctitle.setproctitle('zmon-worker.{} check {} on {} {} {}'.format(orig_process_title, check_id, entity, msg,
+    setproctitle.setproctitle('zmon-worker check {} on {} {} {}'.format(check_id, entity, msg,
                               datetime.now().strftime('%H:%M:%S.%f')))
 
 
@@ -164,15 +155,21 @@ def get_kairosdb_value(name, points, tags):
 
 
 def flatten(structure, key='', path='', flattened=None):
+    '''
+    >>> flatten({})
+    {}
+    >>> flatten({'a': {'b': {'c': ['d', 'e']}}})
+    {'a.b.c': ['d', 'e']}
+    >>> sorted(flatten({'a': {'b': 'c'}, 'd': 'e'}).items())
+    [('a.b', 'c'), ('d', 'e')]
+    '''
     path = str(path)
     key = str(key)
 
     if flattened is None:
         flattened = {}
-    if type(structure) not in (dict, list):
+    if not isinstance(structure, dict):
         flattened[((path + '.' if path else '')) + key] = structure
-    elif isinstance(structure, list):
-        pass
     else:
         for new_key, value in structure.items():
             flatten(value, new_key, '.'.join(filter(None, [path, key])), flattened)
