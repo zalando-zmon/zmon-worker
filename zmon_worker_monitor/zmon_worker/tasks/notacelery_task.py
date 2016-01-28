@@ -479,6 +479,8 @@ def _apply_aggregate_function_for_time(
 
 def _build_notify_context(alert):
     return {
+            'True': True,
+            'False': False,
             'send_mail': functools.partial(Mail.send, alert),
             'send_email': functools.partial(Mail.send, alert),
             'send_sms': functools.partial(Sms.send, alert),
