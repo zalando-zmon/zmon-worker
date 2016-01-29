@@ -1842,8 +1842,12 @@ class NotaZmonTask(object):
                 'result': result
             }
 
+            headers = {"Content-Type":"application/json"}
+            if self._dataservice_oauth2:
+                headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
+
             try:
-                requests.put(self._dataservice_url+"trial-run/", data=json.dumps(val, cls=JsonDataEncoder), headers={"Content-Type":"application/json"})
+                requests.put(self._dataservice_url+"trial-run/", data=json.dumps(val, cls=JsonDataEncoder), headers=headers)
             except Exception as ex:
                 self.logger.exception(ex)
 
