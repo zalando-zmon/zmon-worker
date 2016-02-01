@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 thisdir = os.path.join(os.path.dirname(__file__))
 
-logger.info('setting template base dir to: {}../templates/mail'.format(thisdir))
-
 template_dir = os.path.join(thisdir, '../templates/mail')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
 
@@ -68,7 +66,7 @@ class Mail(BaseNotification):
             mail_host = cls._config.get('notifications.mail.host', 'localhost')
             mail_port = cls._config.get('notifications.mail.port', '25')
 
-            logger.info("Relaying via %s %s", mail_host, mail_port)
+            # logger.info("Relaying via %s %s", mail_host, mail_port)
 
             if cls._config.get('notifications.mail.on', True):
                 try:
