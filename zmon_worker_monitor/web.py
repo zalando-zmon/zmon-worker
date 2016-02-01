@@ -76,7 +76,7 @@ def main(args=None):
     main_proc.start_proc_control()
 
     # start some processes per queue according to the config
-    queues = config['zmon.queues']['local']
+    queues = config['zmon.queues']
     for qn in queues.split(','):
         queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
         main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"})
