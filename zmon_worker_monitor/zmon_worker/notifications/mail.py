@@ -21,7 +21,9 @@ class Mail(BaseNotification):
 
     @classmethod
     def send(cls, alert, *args, **kwargs):
-        logger.info("Sending email for alert: {}".format(alert['alert_def']['id']))
+
+        alert_def = alert['alert_def']
+        logger.info("Sending email for alert: {}".format(alert_def['id']))
 
         sender = cls._config.get('notifications.mail.sender')
         subject = cls._get_subject(alert, custom_message=kwargs.get('subject'))
@@ -35,7 +37,7 @@ class Mail(BaseNotification):
             tmpl = jinja_env.get_template('alert.txt')
             body_plain = tmpl.render(expanded_alert_name=expanded_alert_name, **alert)
         except Exception:
-            logger.exception('Error parsing email template for alert %s with id %s', alert['name'], alert['id'])
+            logger.exception('Error parsing email template for alert %s with id %s', alert_def['name'], alert_def['id'])
         else:
             if html:
                 msg = MIMEMultipart('alternative')
@@ -74,7 +76,7 @@ class Mail(BaseNotification):
 
                 except Exception:
                     logger.exception('Error connecting to SMTP server %s for alert %s with id %s',
-                                     mail_host, alert['name'], alert['id'])
+                                     mail_host, alert_def['name'], alert_def['id'])
                 else:
                     try:
                         mail_user = cls._config.get('notifications.mail.user', None)
@@ -83,9 +85,9 @@ class Mail(BaseNotification):
 
                         s.sendmail(sender, list(args) + cc, msg.as_string())
                     except SMTPAuthenticationError:
-                        logger.exception('Error sending email for alert %s with id %s: authentication failed for %s', alert['name'], alert['id'], mail_user)
+                        logger.exception('Error sending email for alert %s with id %s: authentication failed for %s', alert_def['name'], alert_def['id'], mail_user)
                     except Exception:
-                        logger.exception('Error sending email for alert %s with id %s', alert['name'], alert['id'])
+                        logger.exception('Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
                     finally:
                         s.quit()
         finally:
