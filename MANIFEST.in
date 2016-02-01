@@ -1,0 +1,6 @@
+include *.txt
+include *.rst
+recursive-include zmon_worker_monitor *.py
+recursive-include zmon_worker_monitor *.txt
+recursive-include zmon_worker_monitor *.html
+recursive-include zmon_worker_monitor *.worker_plugin

@@ -71,11 +71,6 @@ if __name__ == '__main__':
                 ]
             },
 
-            package_data={
-                'zmon_worker_monitor': ['data/*', 'builtins/plugins/*.worker_plugin'],
-
-            },
-
             # more metadata for upload to PyPI
             author="Henning Jacobs",
             author_email="henning.jacobs@zalando.de",
