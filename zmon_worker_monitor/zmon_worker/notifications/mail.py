@@ -13,6 +13,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 thisdir = os.path.join(os.path.dirname(__file__))
+
+logger.info('setting template base dir to: {}../templates/mail'.format(thisdir))
+
 template_dir = os.path.join(thisdir, '../templates/mail')
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
 
