@@ -21,6 +21,8 @@ class Mail(BaseNotification):
 
     @classmethod
     def send(cls, alert, *args, **kwargs):
+        logger.info("Sending email for alert: {}".format(alert['id']))
+        
         sender = cls._config.get('notifications.mail.sender')
         subject = cls._get_subject(alert, custom_message=kwargs.get('subject'))
         html = kwargs.get('html', False)
