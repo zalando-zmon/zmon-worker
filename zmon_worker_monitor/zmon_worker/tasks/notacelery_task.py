@@ -1010,7 +1010,7 @@ class NotaZmonTask(object):
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
         cls._zmon_url = config.get('zmon.url')
-        cls._queues = config.get('zmon.queues', {}).get('local')
+        cls._queues = config.get('zmon.queues', "zmon:queue:default/16")
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
         cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
