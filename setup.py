@@ -70,6 +70,7 @@ if __name__ == '__main__':
                     'zmon-worker = zmon_worker_monitor.web:main',
                 ]
             },
+            include_package_data=True,  # needed to include templates (see MANIFEST.in)
 
             # more metadata for upload to PyPI
             author="Henning Jacobs",
