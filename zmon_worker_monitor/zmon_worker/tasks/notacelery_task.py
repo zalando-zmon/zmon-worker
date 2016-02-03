@@ -785,7 +785,7 @@ def build_default_context():
     }
 
 
-def check_ast_node_is_safe(node):
+def check_ast_node_is_safe(node, source):
     '''
     Check that the ast node does not contain any system attribute calls
     as well as exec call (not to construct the system attribute names with strings).
@@ -794,29 +794,28 @@ def check_ast_node_is_safe(node):
     in the globals and __builtins__
 
     >>> node = ast.parse('def __call__(): return 1')
-    >>> node == check_ast_node_is_safe(node)
+    >>> node == check_ast_node_is_safe(node, '<source>')
     True
 
-    >>> check_ast_node_is_safe(ast.parse('def m(): return ().__class__'))
+    >>> check_ast_node_is_safe(ast.parse('def m(): return ().__class__'), '<hidden>')
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition should not try to access hidden attributes (for example '__class__')
+    InvalidEvalExpression: <hidden> should not try to access hidden attributes (for example '__class__')
 
 
-    >>> check_ast_node_is_safe(ast.parse('def horror(g): exec "exploit = ().__" + "class" + "__" in g'))
+    >>> check_ast_node_is_safe(ast.parse('def horror(g): exec "exploit = ().__" + "class" + "__" in g'), '<horror>')
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition should not try to execute arbitrary code
+    InvalidEvalExpression: <horror> should not try to execute arbitrary code
 
     '''
 
     for n in ast.walk(node):
         if isinstance(n, ast.Attribute):
             if n.attr.startswith('__'):
-                raise InvalidEvalExpression("alert definition should not try to access hidden attributes (for example '__class__')"
-                                            )
+                raise InvalidEvalExpression("{} should not try to access hidden attributes (for example '__class__')".format(source))
         elif isinstance(n, ast.Exec):
-            raise InvalidEvalExpression('alert definition should not try to execute arbitrary code')
+            raise InvalidEvalExpression('{} should not try to execute arbitrary code'.format(source))
     return node
 
 
@@ -866,15 +865,15 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     >>> safe_eval('def m(): return lambda: value', value=10) #doctest: +ELLIPSIS
     <function <lambda> at ...>
 
-    >>> safe_eval('error = value', value=10)
+    >>> safe_eval('error = value', value=10, eval_source='<alert-condition>')
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition can contain a python expression, a function call or a callable class definition
+    InvalidEvalExpression: <alert-condition> can contain a python expression, a function call or a callable class definition
 
     >>> safe_eval('def m(): return value.__class__', value=10)
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition should not try to access hidden attributes (for example '__class__')
+    InvalidEvalExpression: <string> should not try to access hidden attributes (for example '__class__')
 
     >>> safe_eval("""
     ... class CallableClass(object):
@@ -898,7 +897,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     ... """, value=10)
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition should contain a callable class definition (missing __call__ method?)
+    InvalidEvalExpression: <string> should contain a callable class definition (missing __call__ method?)
 
 
     >>> safe_eval("""
@@ -910,7 +909,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     ... """, value=10)
     Traceback (most recent call last):
         ...
-    InvalidEvalExpression: alert definition should contain only one python expression, a function call or a callable class definition
+    InvalidEvalExpression: <string> should contain only one python expression, a function call or a callable class definition
 
     '''
 
@@ -921,7 +920,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     g.update(kwargs)
 
     node = compile(expr, eval_source, 'exec', ast.PyCF_ONLY_AST | __future__.CO_FUTURE_PRINT_FUNCTION)
-    node = check_ast_node_is_safe(node)
+    node = check_ast_node_is_safe(node, eval_source)
     body = node.body
     if body and len(body) == 1:
         x = body[0]
@@ -938,11 +937,9 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
                 if callable(c):
                     return c()  # if a function will return another callable, we will not call it
                 else:
-                    raise InvalidEvalExpression('alert definition should contain a callable class definition (missing __call__ method?)'
-                                                )
+                    raise InvalidEvalExpression('{} should contain a callable class definition (missing __call__ method?)'.format(eval_source))
             else:
-                raise InvalidEvalExpression('alert definition should contain only one function or one callable class definition'
-                                            )
+                raise InvalidEvalExpression('{} should contain only one function or one callable class definition'.format(eval_source))
         elif isinstance(x, ast.Expr):
             cc = compile(expr, eval_source, 'eval', __future__.CO_FUTURE_PRINT_FUNCTION)  # can be nicely cached
             r = eval(cc, g)
@@ -952,11 +949,10 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
             else:
                 return r
         else:
-            raise InvalidEvalExpression('alert definition can contain a python expression, a function call or a callable class definition'
-                                        )
+            raise InvalidEvalExpression('{} can contain a python expression, a function call or a callable class definition'.format(eval_source))
     else:
-        raise InvalidEvalExpression('alert definition should contain only one python expression, a function call or a callable class definition'
-                                    )
+        raise InvalidEvalExpression('{} should contain only one python expression, a function call or a callable class definition'.format(eval_source))
+
 
 class NotaZmonTask(object):
 
