@@ -30,6 +30,8 @@ import Queue
 
 from collections import defaultdict
 
+import jsonpath_rw
+
 from bisect import bisect_left
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 
@@ -730,6 +732,10 @@ def empty(v):
 
     return not bool(v)
 
+def jsonpath_flat_filter(obj, path):
+    expr = jsonpath_rw.parse(path)
+    match = expr.find(obj)
+    return dict([(str(m.full_path), m.value) for m in match])
 
 def build_default_context():
     return {
@@ -782,8 +788,9 @@ def build_default_context():
         'unicode': unicode,
         'xrange': xrange,
         'zip': zip,
+        'jsonpath_parse': jsonpath_rw.parse
+        'jsonpath_flat_filter': jsonpath_flat_filter
     }
-
 
 def check_ast_node_is_safe(node):
     '''
