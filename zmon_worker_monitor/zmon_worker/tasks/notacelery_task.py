@@ -788,7 +788,7 @@ def build_default_context():
         'unicode': unicode,
         'xrange': xrange,
         'zip': zip,
-        'jsonpath_parse': jsonpath_rw.parse
+        'jsonpath_parse': jsonpath_rw.parse,
         'jsonpath_flat_filter': jsonpath_flat_filter
     }
 
