@@ -23,7 +23,7 @@ python-ldap==2.4.19
 Yapsy>=1.10.423
 python-snappy
 boto3
-stups-tokens>=1.0.13
+stups-tokens>=1.0.14
 prometheus_client
 cassandra-driver==2.7.2
 pymongo==3.0.3

@@ -1036,7 +1036,7 @@ class NotaZmonTask(object):
                 cls._logger.info("Enabling OAUTH2 for data service")
                 tokens.configure()
                 # TODO: configure proper OAuth scopes
-                tokens.manage('uid', ['uid'])
+                tokens.manage('uid', ['uid'], ignore_expiration=True)
                 tokens.start()
 
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
