@@ -1042,6 +1042,9 @@ class NotaZmonTask(object):
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
             cls._dataservice_poster.start()
 
+        cls._metric_cache_check_ids = config.get('metriccache.check_ids', [])
+        cls._metric_cache_url = config.get('metriccache.url', '')
+
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
         # store function factories from plugins in a dict by name
         cls._function_factories = {p.name: p.plugin_object for p in cls._plugins}
@@ -1358,6 +1361,14 @@ class NotaZmonTask(object):
             self._store_check_result_to_kairosdb(req, res)
         except:
             pass
+
+        # assume metric cache is not proteced as not user exposed
+        if int(req['check_id']) in self.metric_cache_check_ids:
+            try:
+                requests.post(self._metric_cache_url,
+                              data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id":req["entity"]["id"], "application_id": req["entity"]["application_id"], "application_version": req["entity"]["application_version"]}, 'check_result': res}], cls=JsonDataEncoder))
+            except:
+                pass
 
         setp(req['check_id'], req['entity']['id'], 'stored')
 

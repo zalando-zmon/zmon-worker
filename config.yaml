@@ -24,6 +24,10 @@ kairosdb.enabled: True
 kairosdb.host: 'localhost'
 kairosdb.port: 8083
 
+
+metriccache.url: 'http://localhost:8086'
+metriccache.check_ids: []
+
 ## plugin configuration: these values override those set in local plugin config files
 
 plugin.eventlog.eventlog_url: 'https://eventlog.example.com/'
