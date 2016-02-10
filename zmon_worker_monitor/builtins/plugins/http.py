@@ -16,6 +16,7 @@ from requests.adapters import HTTPAdapter
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 import tokens
+import zmon_worker_monitor
 
 # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
 # will try to read application credentials from CREDENTIALS_DIR
@@ -105,15 +106,17 @@ class HttpWrapper(object):
         self.clean_url = base_url
 
         if self.oauth2:
-            self.headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
+            self.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+
+        self.headers.update({'User-Agent': 'zmon-worker/{}'.format(zmon_worker_monitor.__version__)})
 
         try:
             if post_data is None:
                 self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                                 headers=self.headers, auth = basic_auth)
+                                 headers=self.headers, auth=basic_auth)
             else:
                 self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                                  headers=self.headers, auth = basic_auth, data=json.dumps(post_data))
+                                  headers=self.headers, auth=basic_auth, data=json.dumps(post_data))
         except requests.Timeout, e:
             raise HttpError('timeout', self.clean_url), None, sys.exc_info()[2]
         except requests.ConnectionError, e:
