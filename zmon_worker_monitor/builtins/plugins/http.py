@@ -11,12 +11,12 @@ from prometheus_client.parser import text_string_to_metric_families
 from collections import defaultdict
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 from requests.adapters import HTTPAdapter
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 import tokens
-import zmon_worker_monitor
 
 # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
 # will try to read application credentials from CREDENTIALS_DIR
@@ -108,7 +108,7 @@ class HttpWrapper(object):
         if self.oauth2:
             self.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-        self.headers.update({'User-Agent': 'zmon-worker/{}'.format(zmon_worker_monitor.__version__)})
+        self.headers.update({'User-Agent': get_user_agent()})
 
         try:
             if post_data is None:

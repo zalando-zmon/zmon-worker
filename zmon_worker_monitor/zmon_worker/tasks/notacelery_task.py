@@ -34,6 +34,7 @@ import jsonpath_rw
 
 from bisect import bisect_left
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
@@ -1099,10 +1100,9 @@ class NotaZmonTask(object):
             # self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
 
     @classmethod
-    def send_to_dataservice(cls, check_results, timeout=10, method='PUT'):
+    def send_to_dataservice(cls, check_results, timeout=10):
 
-        http_req = {'PUT': requests.put, 'POST': requests.post, 'GET': requests.get}
-        headers = {'content-type': 'application/json'}
+        headers = {'Content-Type': 'application/json', 'User-Agent': get_user_agent()}
 
         if cls._dataservice_oauth2:
             headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
@@ -1135,7 +1135,7 @@ class NotaZmonTask(object):
                     logger.exception("Failed to serialize data for check {} {}: {}".format(check_id, ex, results))
 
                 if serialized_data is not None:
-                    r = http_req[method](url, data=serialized_data, timeout=timeout, headers=headers)
+                    r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
                     if r.status_code != requests.codes.ok:
                         raise Exception('http request to {} got status code={}'.format(url, r.status_code))
 
