@@ -3,7 +3,7 @@ functional
 numpy
 pysnmp
 redis
-requests
+requests>=2.7.0
 subprocess32
 dnspython
 psycopg2
