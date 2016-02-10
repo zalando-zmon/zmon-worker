@@ -61,6 +61,12 @@ Running Unit Tests
     $ sudo pip2 install -r test_requirements.txt
     $ python2 setup.py test
 
+Alternative way of running unit tests within Docker (to avoid installing all dependencies):
+
+.. code-block:: bash
+
+    $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir registry.opensource.zalan.do/stups/zmon-worker:cd80 python setup.py test
+
 
 Building the Docker Image
 =========================

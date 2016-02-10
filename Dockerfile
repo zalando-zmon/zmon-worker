@@ -2,7 +2,8 @@ FROM zalando/python:15.01.03
 
 #making this a cachable point as compile takes forever without -j
 
-RUN apt-get install -y libsnappy-dev libev4 libev-dev
+RUN apt-get install -y libsnappy-dev libev4 libev-dev && \
+    pip install -U pip setuptools
 
 RUN mkdir -p /app/zmon_worker_data
 RUN chmod 777 /app/zmon_worker_data
