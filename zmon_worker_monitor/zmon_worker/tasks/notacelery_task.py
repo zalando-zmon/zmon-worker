@@ -1358,7 +1358,7 @@ class NotaZmonTask(object):
             pass
 
         # assume metric cache is not protected as not user exposed
-        if int(req['check_id']) in self.metric_cache_check_ids:
+        if int(req['check_id']) in self._metric_cache_check_ids:
             try:
                 requests.post(self._metric_cache_url,
                               data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id":req["entity"]["id"], "application_id": req["entity"]["application_id"], "application_version": req["entity"]["application_version"]}, 'check_result': res}], cls=JsonDataEncoder))
