@@ -996,7 +996,6 @@ class NotaZmonTask(object):
     _plugin_category = 'Function'
     _plugins = []
     _function_factories = {}
-    _zmon_actuator_checkid = None
 
     @classmethod
     def configure(cls, config):
@@ -1007,14 +1006,12 @@ class NotaZmonTask(object):
             logger.exception('Error creating connection: ')
             raise
         #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
-        cls._soap_config = {k: v for k, v in config.items() if k.startswith('soap.service')}
         cls._kairosdb_enabled = config.get('kairosdb.enabled')
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
         cls._zmon_url = config.get('zmon.url')
         cls._queues = config.get('zmon.queues', "zmon:queue:default/16")
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
-        cls._zmon_actuator_checkid = config.get('zmon.actuator.checkid', None)
 
         cls._logger = cls.get_configured_logger()
 
@@ -1360,12 +1357,13 @@ class NotaZmonTask(object):
         except:
             pass
 
-        # assume metric cache is not proteced as not user exposed
+        # assume metric cache is not protected as not user exposed
         if int(req['check_id']) in self.metric_cache_check_ids:
             try:
                 requests.post(self._metric_cache_url,
                               data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id":req["entity"]["id"], "application_id": req["entity"]["application_id"], "application_version": req["entity"]["application_version"]}, 'check_result': res}], cls=JsonDataEncoder))
             except:
+                # TODO: really just silently ignore everything?
                 pass
 
         setp(req['check_id'], req['entity']['id'], 'stored')
