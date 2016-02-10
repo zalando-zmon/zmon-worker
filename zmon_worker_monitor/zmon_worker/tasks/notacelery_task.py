@@ -10,7 +10,6 @@ import socket
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
 
-import eventlog
 import functools
 import itertools
 import json
@@ -78,34 +77,32 @@ KAIROS_ID_FORBIDDEN_RE = re.compile(r'[^a-zA-Z0-9\-_\.]')
 HOST_GROUP_PREFIX = re.compile(r'^([a-z]+)')
 INSTANCE_PORT_SUFFIX = re.compile(r':([0-9]+)$')
 
-EVENTS = {
-    'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
-    'ALERT_ENDED': eventlog.Event(0x34002, ['checkId', 'alertId', 'value']),
-    'ALERT_ENTITY_STARTED': eventlog.Event(0x34003, ['checkId', 'alertId', 'value', 'entity']),
-    'ALERT_ENTITY_ENDED': eventlog.Event(0x34004, ['checkId', 'alertId', 'value', 'entity']),
-    'DOWNTIME_STARTED': eventlog.Event(0x34005, [
-        'alertId',
-        'entity',
-        'startTime',
-        'endTime',
-        'userName',
-        'comment',
-    ]),
-    'DOWNTIME_ENDED': eventlog.Event(0x34006, [
-        'alertId',
-        'entity',
-        'startTime',
-        'endTime',
-        'userName',
-        'comment',
-    ]),
-    'SMS_SENT': eventlog.Event(0x34007, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
-    'ACCESS_DENIED': eventlog.Event(0x34008, ['userName', 'entity']),
-}
-
-eventlog.register_all(EVENTS)
-
-Sms.register_eventlog_events(EVENTS)
+# EVENTS = {
+#     'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
+#     'ALERT_ENDED': eventlog.Event(0x34002, ['checkId', 'alertId', 'value']),
+#     'ALERT_ENTITY_STARTED': eventlog.Event(0x34003, ['checkId', 'alertId', 'value', 'entity']),
+#     'ALERT_ENTITY_ENDED': eventlog.Event(0x34004, ['checkId', 'alertId', 'value', 'entity']),
+#     'DOWNTIME_STARTED': eventlog.Event(0x34005, [
+#         'alertId',
+#         'entity',
+#         'startTime',
+#         'endTime',
+#         'userName',
+#         'comment',
+#     ]),
+#     'DOWNTIME_ENDED': eventlog.Event(0x34006, [
+#         'alertId',
+#         'entity',
+#         'startTime',
+#         'endTime',
+#         'userName',
+#         'comment',
+#     ]),
+#     'SMS_SENT': eventlog.Event(0x34007, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
+#     'ACCESS_DENIED': eventlog.Event(0x34008, ['userName', 'entity']),
+# }
+#
+# eventlog.register_all(EVENTS)
 
 get_value = itemgetter('value')
 
@@ -603,7 +600,8 @@ def _log_event(event_name, alert, result, entity=None):
     if entity:
         params['entity'] = entity
 
-    eventlog.log(EVENTS[event_name].id, **params)
+    # TODO: file-based eventlog will not work anymore
+    # eventlog.log(EVENTS[event_name].id, **params)
 
 
 def _convert_captures(worker_name, alert_id, entity_id, timestamp, captures):
@@ -1199,7 +1197,7 @@ class NotaZmonTask(object):
         #                          force_alert=True)
         except InsufficientPermissionsError, e:
             self.logger.info('Access denied for user %s to run check on %s', req['created_by'], entity_id)
-            eventlog.log(EVENTS['ACCESS_DENIED'].id, userName=req['created_by'], entity=entity_id)
+            # eventlog.log(EVENTS['ACCESS_DENIED'].id, userName=req['created_by'], entity=entity_id)
             self.notify_for_trial_run({'ts': start_time, 'td': time.time() - start_time, 'value': str(e)}, req,
                                  alerts, force_alert=True)
         except CheckError, e:
@@ -1950,14 +1948,15 @@ class NotaZmonTask(object):
                 # Check whether the downtime changed state: active -> inactive or inactive -> active.
                 changed = getattr(self.con, func)('zmon:active_downtimes', '{}:{}:{}'.format(alert_id, entity_id, uuid))
                 if changed:
-                    eventlog.log(EVENTS[('DOWNTIME_ENDED' if func == 'srem' else 'DOWNTIME_STARTED')].id, **{
-                        'alertId': alert_id,
-                        'entity': entity_id,
-                        'startTime': d['start_time'],
-                        'endTime': d['end_time'],
-                        'userName': d['created_by'],
-                        'comment': d['comment'],
-                    })
+                    pass
+                    # eventlog.log(EVENTS[('DOWNTIME_ENDED' if func == 'srem' else 'DOWNTIME_STARTED')].id, **{
+                    #     'alertId': alert_id,
+                    #     'entity': entity_id,
+                    #     'startTime': d['start_time'],
+                    #     'endTime': d['end_time'],
+                    #     'userName': d['created_by'],
+                    #     'comment': d['comment'],
+                    # })
 
                 # If downtime is over, we can remove its definition from redis.
                 if func == 'srem':

@@ -3,7 +3,6 @@
 
 import requests
 from notification import BaseNotification
-import zmon_worker_monitor.eventloghttp as eventlog
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,8 +43,8 @@ class Sms(BaseNotification):
             'message_id': 1,
         }
 
-        alert_id = alert.get('alert_def', {}).get('id', 0)
-        entity = alert.get('entity', {}).get('id', 0)
+        # alert_id = alert.get('alert_def', {}).get('id', 0)
+        # entity = alert.get('entity', {}).get('id', 0)
 
         try:
             if cls._config.get('notifications.sms.on', True):
@@ -56,8 +55,8 @@ class Sms(BaseNotification):
                     logger.info('SMS sent: request to %s --> status: %s, response headers: %s, response body: %s',
                                 url_secured, r.status_code, r.headers, r.text)
                     r.raise_for_status()
-                    eventlog.log(cls._EVENTS['SMS_SENT'].id, alertId=alert_id, entity=entity, phoneNumber=phone,
-                                 httpStatus=r.status_code)
+                    # eventlog.log(cls._EVENTS['SMS_SENT'].id, alertId=alert_id, entity=entity, phoneNumber=phone,
+                    #              httpStatus=r.status_code)
         except Exception:
             logger.exception('Failed to send sms for alert %s with id %s to: %s', alert['name'], alert['id'],
                              list(phone_numbers))
