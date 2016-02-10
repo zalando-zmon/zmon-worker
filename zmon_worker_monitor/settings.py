@@ -20,7 +20,7 @@ RPC_SERVER_CONF['LOGGING']['loggers']['']['level'] = 'INFO'
 
 EXTERNAL_CONFIG = {}
 
-from settings_pro import LOGGING, RPC_SERVER_CONF, data_dir  # noqa
+from settings_pro import LOGGING, RPC_SERVER_CONF  # noqa
 
 
 def set_workers_log_level(level):

@@ -5,15 +5,6 @@ Project settings for development:
  there the values you want, they will override the ones in this file
 """
 
-import os
-
-data_dir = os.path.abspath(os.path.join('./', 'zmon_worker_data'))
-
-# application data folder needs to be created by the application itself
-for d in (data_dir, ):
-    if not os.path.isdir(d):
-        os.mkdir(d)
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,

@@ -4,7 +4,6 @@
 Server module for exposing an rpc interface for clients to remotely control a local ProcessManager
 """
 
-import os
 import sys
 import signal
 import settings
@@ -17,16 +16,6 @@ import worker
 import rpc_utils
 
 logger = logging.getLogger(__name__)
-
-
-def save_pid(abort_pidfile=False):
-    pid = os.getpid()
-    pid_file = os.path.join(settings.data_dir, 'rpc_server.pid')
-    if abort_pidfile and os.path.isfile(pid_file):
-        print >>sys.stderr, 'pid file {} already exists. Is another process running? Aborting!'.format(pid_file)
-        sys.exit(1)
-    with open(pid_file, 'w') as f:
-        f.write(str(pid))
 
 
 def sigterm_handler(signum, frame):
@@ -66,7 +55,6 @@ class ProcessControllerProxy(rpc_utils.RpcProxy):
 class MainProcess(object):
 
     def __init__(self):
-        save_pid()
         signal.signal(signal.SIGTERM, sigterm_handler)
 
     def start_proc_control(self):

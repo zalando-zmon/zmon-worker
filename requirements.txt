@@ -5,7 +5,6 @@ pysnmp
 redis
 requests
 subprocess32
-suds
 dnspython
 psycopg2
 Jinja2
