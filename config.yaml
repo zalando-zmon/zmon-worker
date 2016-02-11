@@ -18,8 +18,6 @@ notifications.sms.maxlength: 2048
 zmon.queues: "zmon:queue:default/16,zmon:queue:internal/2"
 safe_repositories: []
 
-# zmon.actuator.checkid: 9999
-
 kairosdb.enabled: True
 kairosdb.host: 'localhost'
 kairosdb.port: 8083

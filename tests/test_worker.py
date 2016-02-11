@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import json
-import redis
 import time
 import traceback
 from zmon_worker_monitor.web import main
@@ -31,7 +30,6 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
             data = None
         return data
 
-
     def blpop(key, timeout):
         assert key in ('zmon:queue:default', 'zmon:queue:internal')
         if key == 'zmon:queue:default':
@@ -59,10 +57,14 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     # make sure the worker processes get enough time to execute our check
     # wait up to 5 seconds
     while not get_data() and time.time() < start + 5:
-        time.sleep(1.5)
+        time.sleep(0.2)
+    # print('Executed check in {:.2f}s'.format(time.time() - start))
     proc.proc_control.terminate_all_processes()
+    # print('Check + Terminate in {:.2f}s'.format(time.time() - start))
 
     data = get_data()
+    assert data is not None
+    # print(data)
     for string in expected_strings:
         assert string in data['zmon:checks:123:77']
 

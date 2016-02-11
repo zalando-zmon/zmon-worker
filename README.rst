@@ -65,7 +65,9 @@ Alternative way of running unit tests within Docker (to avoid installing all dep
 
 .. code-block:: bash
 
-    $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir registry.opensource.zalan.do/stups/zmon-worker:cd89 python setup.py test
+    $ export WORKER_IMAGE=registry.opensource.zalan.do/stups/zmon-worker:cd89
+    $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir $WORKER_IMAGE python setup.py flake8
+    $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir $WORKER_IMAGE python setup.py test
 
 
 Building the Docker Image

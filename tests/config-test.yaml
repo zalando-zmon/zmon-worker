@@ -1,11 +1,11 @@
 redis.servers: 'redis://example.org:6379/0'
 loglevel: 'INFO'
-notifications.mail.on: true
+notifications.mail.on: false
 notifications.mail.host: 'localhost'
 notifications.mail.port: 25
 notifications.mail.sender: 'zmon@example.com'
 
-notifications.sms.on: true
+notifications.sms.on: false
 notifications.sms.provider_url: 'https://gateway.smstrade.de'
 notifications.sms.apikey: '--secret--'
 notifications.sms.sender: 'zmon'
@@ -16,9 +16,7 @@ notifications.sms.maxlength: 2048
 zmon.queues: 'zmon:queue:default/1,zmon:queue:internal/1'
 safe_repositories: []
 
-# zmon.actuator.checkid: 9999
-
-kairosdb.enabled: True
+kairosdb.enabled: false
 kairosdb.host: 'localhost'
 kairosdb.port: 8083
 
