@@ -7,23 +7,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 SMS_PROVIDER_URL = 'https://gateway.smstrade.de'
 SMS_SENDER = 'zmon2'
 SMS_API_KEY = ''
 SMS_ROUTE = 'gold'
 SMS_MAXLENGTH = 2048
 
-#logger = get_task_logger('zmon-worker')
-
 
 class SmsException(Exception):
-
     pass
 
 
 class Sms(BaseNotification):
-
     @classmethod
     def send(cls, alert, *args, **kwargs):
         provider_url = cls._config.get('notifications.sms.provider_url', SMS_PROVIDER_URL)
@@ -65,7 +60,6 @@ class Sms(BaseNotification):
 
 
 if __name__ == '__main__':
-
     Sms.update_config({
         'notifications.sms.on': True,
         'notifications.sms.apikey': '--secret--',

@@ -7,8 +7,8 @@ from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta, parse_
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-class TimeFactory(IFunctionFactoryPlugin):
 
+class TimeFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(TimeFactory, self).__init__()
 
@@ -27,8 +27,8 @@ class TimeFactory(IFunctionFactoryPlugin):
         """
         return propartial(TimeWrapper)
 
-class TimeWrapper(object):
 
+class TimeWrapper(object):
     def __init__(self, spec='now', utc=False):
         now = (datetime.utcnow() if utc else datetime.now())
         delta = parse_timedelta(spec)

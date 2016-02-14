@@ -21,7 +21,6 @@ memory_cache = make_region().configure('dogpile.cache.memory', expiration_time=H
 
 
 class JoblocksFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(JoblocksFactory, self).__init__()
         # fields from configuration
@@ -44,7 +43,6 @@ class JoblocksFactory(IFunctionFactoryPlugin):
 
 
 class JoblocksWrapper(object):
-
     LOCKING_NODE_ROLE_ID = 118
     ALLOCATED_STATUS_ID = 6000
     DEFAULT_EXPECTED_DURATION = 60000  # [ms]
@@ -72,7 +70,12 @@ class JoblocksWrapper(object):
         '''
 
         return float((check_param if check_param else redis_value.get('expectedMaximumDuration',
-                     JoblocksWrapper.DEFAULT_EXPECTED_DURATION)))
+                                                                      JoblocksWrapper.DEFAULT_EXPECTED_DURATION)))
+
+    @staticmethod
+    def _is_expired(r, expected_duration):
+        age = time.time() - time.mktime(time.strptime(r['created'], '%Y-%m-%dT%H:%M:%S'))
+        return age > JoblocksWrapper._get_expected_duration(r, expected_duration) / 1000
 
     def results(self, expected_duration=None):
         hosts = self._get_hosts(JoblocksWrapper.LOCKING_NODE_ROLE_ID, JoblocksWrapper.ALLOCATED_STATUS_ID)
@@ -100,8 +103,7 @@ class JoblocksWrapper(object):
             'created': r['created'],
             'expected_duration': JoblocksWrapper._get_expected_duration(r, expected_duration),
             'flow_id': r.get('flowId') or '',
-            'expired': time.time() - time.mktime(time.strptime(r['created'], '%Y-%m-%dT%H:%M:%S')) >
-                       JoblocksWrapper._get_expected_duration(r, expected_duration) / 1000,
+            'expired': JoblocksWrapper._is_expired(r, expected_duration),
         }) for r in results)
 
 

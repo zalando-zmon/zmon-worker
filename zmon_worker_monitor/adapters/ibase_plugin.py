@@ -36,4 +36,3 @@ class IBasePlugin(object):
         :param conf: configuration dictionary
         """
         raise NotImplementedError
-

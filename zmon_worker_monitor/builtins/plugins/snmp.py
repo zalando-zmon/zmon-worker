@@ -11,7 +11,6 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 
 class SnmpFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(SnmpFactory, self).__init__()
 
@@ -32,7 +31,6 @@ class SnmpFactory(IFunctionFactoryPlugin):
 
 
 class SnmpWrapper(object):
-
     def __init__(self, host, community='public', version='v2c', timeout=5):
         if re.match(r'^[0-9]+$', str(timeout)):
             self.timeout = timeout
@@ -124,7 +122,7 @@ class SnmpWrapper(object):
         '''
 
         # disk_table = '.1.3.6.1.4.1.2021.9'
-#        base = '1.3.6.1.4.1.2021.13.15.1.1'
+        #        base = '1.3.6.1.4.1.2021.13.15.1.1'
         base = '1.3.6.1.4.1.2021.9.1'
         base_idx = base + '.1.'
         base_name = base + '.2.'
@@ -171,7 +169,6 @@ class SnmpWrapper(object):
                 continue
             results[name][tname] = result_all[oid]
         return results
-
 
     def interfaces(self):
         # IF-MIB::interfaces_table = '1.3.6.1.2.1.2.'
@@ -253,7 +250,8 @@ class SnmpWrapper(object):
         # res = self.parse(OctetString, str, val)
         # Workaround for a too large check response from the script(too large udp packets are blocked by the fw, so we use tcp)
         cmd = \
-            '/usr/bin/snmpget -v2c -c public -t {timeout} tcp:{host} \'NET-SNMP-EXTEND-MIB::nsExtendOutputFull."check_postgres_backup"\''.format(timeout=self.timeout,
+            '/usr/bin/snmpget -v2c -c public -t {timeout} tcp:{host} \'NET-SNMP-EXTEND-MIB::nsExtendOutputFull."check_postgres_backup"\''.format(
+                timeout=self.timeout,
                 host=self.host)
         try:
             output = subprocess32.check_output(cmd, shell=True, timeout=self.timeout, stderr=subprocess32.STDOUT)
@@ -281,15 +279,13 @@ class SnmpWrapper(object):
         output = str(self._get_mib('public', 'NET-SNMP-EXTEND-MIB', 'disk_pgxlog'))
         output = [i for i in re.split('\s{1,}|\t|\n', output) if i.isdigit() or i.startswith('/')]
         output = [output[i:i + 7] for i in range(0, len(output), 7)]
-        output = [[
-            i[1],
-            int(int(i[0]) / 1024),
-            i[2],
-            int(i[3]),
-            int(i[4]),
-            int(i[5]),
-            i[6],
-        ] for i in output]
+        output = [[i[1], int(int(i[0]) / 1024),
+                   i[2],
+                   int(i[3]),
+                   int(i[4]),
+                   int(i[5]),
+                   i[6],
+                   ] for i in output]
         for i in output:
             name = str(i[0])
             result[name] = {}
@@ -372,7 +368,8 @@ class SnmpWrapper(object):
             mib = cmdgen.MibVariable(prefix, table)
         real_fun = getattr(self.generator, 'bulkCmd')  # SNMPBULKWALK
         res = errorIndication, errorStatus, errorIndex, varBinds = real_fun(self.comm_data, self.transport, 0, 50, mib,
-                max_rows=100, ignore_non_increasing_oid=True)
+                                                                            max_rows=100,
+                                                                            ignore_non_increasing_oid=True)
 
         if errorIndication is not None or errorStatus is True:
             msg = 'Error: %s %s %s %s' % res
@@ -427,5 +424,3 @@ class SnmpWrapper(object):
         if isinstance(val, clazz):
             return convert(val)
         raise SnmpError('Could not convert [{}] with {} into {}'.format(val, convert, clazz))
-
-

@@ -7,7 +7,6 @@ from zmon_worker_monitor.zmon_worker.errors import DbError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-
 logger = logging.getLogger(__name__)
 
 # requires:
@@ -20,7 +19,6 @@ MAX_RESULTS = 100
 
 
 class MsSqlFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(MsSqlFactory, self).__init__()
         # fields from config
@@ -55,7 +53,6 @@ def _import_db_driver():
 
 
 class MsSqlWrapper(object):
-
     # Note: Timeout must be in seconds
     def __init__(self, host, port, database, user='robot_zmon', password='', enabled=True, timeout=60):
         self.__stmt = None

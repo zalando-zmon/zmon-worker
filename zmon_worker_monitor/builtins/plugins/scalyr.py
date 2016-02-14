@@ -9,6 +9,7 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 logger = logging.getLogger('zmon-worker.scalyr-function')
 
+
 class ScalyrWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(ScalyrWrapperFactory, self).__init__()
@@ -27,7 +28,6 @@ class ScalyrWrapperFactory(IFunctionFactoryPlugin):
 
 
 class ScalyrWrapper(object):
-
     def __init__(self, read_key):
         self.numeric_url = 'https://www.scalyr.com/api/numericQuery'
         self.timeseries_url = 'https://www.scalyr.com/api/timeseriesQuery'
@@ -41,7 +41,7 @@ class ScalyrWrapper(object):
             'queryType': 'numeric',
             'filter': query,
             'function': 'count',
-            'startTime': str(minutes)+'m',
+            'startTime': str(minutes) + 'm',
             'priority': 'low',
             'buckets': 1
         }
@@ -60,7 +60,7 @@ class ScalyrWrapper(object):
             'queryType': 'numeric',
             'filter': query,
             'function': function,
-            'startTime': str(minutes)+'m',
+            'startTime': str(minutes) + 'm',
             'priority': 'low',
             'buckets': 1
         }
@@ -80,14 +80,13 @@ class ScalyrWrapper(object):
             'filter': filter,
             'field': field,
             'maxCount': max_count,
-            "startTime": str(minutes)+"m",
+            "startTime": str(minutes) + "m",
             "priority": prio
         }
 
         r = requests.post(self.facet_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
         j = r.json()
         return j
-
 
     def timeseries(self, filter, function="count", minutes=30, buckets=1, prio="low"):
 
@@ -97,7 +96,7 @@ class ScalyrWrapper(object):
                 {
                     "filter": filter,
                     "function": function,
-                    "startTime": str(minutes)+"m",
+                    "startTime": str(minutes) + "m",
                     "buckets": buckets,
                     "priority": prio
                 }
@@ -107,7 +106,7 @@ class ScalyrWrapper(object):
         r = requests.post(self.timeseries_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
         j = r.json()
         if j['status'] == 'success':
-            if len(j['results'][0]['values'])==1:
+            if len(j['results'][0]['values']) == 1:
                 return j['results'][0]['values'][0]
             return map(lambda x: x * minutes / buckets, j['results'][0]['values'])
         return j
@@ -115,6 +114,6 @@ class ScalyrWrapper(object):
 
 if __name__ == '__main__':
     import os
+
     s = ScalyrWrapper(read_key=os.getenv('SCALYR_READ_KEY'))
     print s.count(query="$application_id='zmon-scheduler'")
-

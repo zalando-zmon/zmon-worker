@@ -5,14 +5,13 @@ Zalando-specific function to query EventLog
 """
 
 from zmon_worker_monitor.zmon_worker.errors import CheckError
-#from http import HttpWrapper  # FIXME: watch out for this!!!
+# from http import HttpWrapper  # FIXME: watch out for this!!!
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
 
 class EventlogFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(EventlogFactory, self).__init__()
         # fields from configuration
@@ -44,7 +43,6 @@ class EventlogFactory(IFunctionFactoryPlugin):
 
 
 class EventLogWrapper(object):
-
     '''Convenience wrapper to access EventLog counts'''
 
     def __init__(self, http_wrapper, url):
@@ -92,9 +90,9 @@ class EventLogWrapper(object):
 
 
 if __name__ == '__main__':
-
     import sys
     import logging
+
     logging.basicConfig(level=logging.DEBUG)
 
     # init plugin manager and collect plugins, as done by Zmon when worker is starting
@@ -106,7 +104,7 @@ if __name__ == '__main__':
 
     http = plugin_manager.get_plugin_obj_by_name('http', 'Function').create(factory_ctx)
 
-    #eventlog = EventLogWrapper()
+    # eventlog = EventLogWrapper()
     eventlog = EventLogWrapper(http_wrapper=http, url=eventlog_url)
 
     print eventlog.count(0x96001, time_from='-1m')

@@ -3,15 +3,15 @@
 
 import logging
 
-#from cassandra.io.libevreactor import LibevConnection
+# from cassandra.io.libevreactor import LibevConnection
 from cassandra.cluster import Cluster
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.cassandra-function')
 
-class CassandraFactory(IFunctionFactoryPlugin):
 
+class CassandraFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(CassandraFactory, self).__init__()
 
@@ -30,8 +30,8 @@ class CassandraFactory(IFunctionFactoryPlugin):
         """
         return propartial(CassandraWrapper, node=factory_ctx.get('host'))
 
-class CassandraWrapper(object):
 
+class CassandraWrapper(object):
     def __init__(self, node, keyspace, port=9042, connect_timeout=1):
         # for now using a single host / node should be seed nodes or at least available nodes
         self.node = node
@@ -41,7 +41,7 @@ class CassandraWrapper(object):
 
     def execute(self, stmt):
         cl = Cluster([self.node], connect_timeout=self.connect_timeout)
-        #cl.connection_class = LibevConnection
+        # cl.connection_class = LibevConnection
 
         session = None
         try:

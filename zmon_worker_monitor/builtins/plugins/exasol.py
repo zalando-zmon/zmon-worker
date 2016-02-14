@@ -12,7 +12,6 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 
 class ExaplusFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(ExaplusFactory, self).__init__()
         # fields from config
@@ -40,7 +39,6 @@ class ExaplusFactory(IFunctionFactoryPlugin):
 
 
 class ExaplusWrapper(object):
-
     def __init__(self, cluster, user='ZALANDO_NAGIOS', password='', schema=False):
         self._err = None
         self._out = None
@@ -92,10 +90,3 @@ class ExaplusWrapper(object):
 
     def result(self):
         return self._out.split('\n'), self._err.split('\n')
-
-
-if __name__ == '__main__':
-    import sys
-    exaplus = ExaplusWrapper(sys.argv[1], sys.argv[2], sys.argv[3])
-    print exaplus.query('''select table_name, case when hours_between(systimestamp,last_export_success_time) < 24 then 'EXPORTED YESTERDAY (within 24 HOURS) - OK' else 'NOT EXPORTED within LAST 24 HOURS' end status, last_export_success_time LAST_EXPORT_TIME from STG.TARGET_LOADING_STATUS where table_name not in ('D_SHOP','F_CUSTOMER_SALES','F_PRODUCT_AVAILABILITY','F_UMS_CAMPAIGN_RESPONSE') order by 1 ;'''
-                        ).result()

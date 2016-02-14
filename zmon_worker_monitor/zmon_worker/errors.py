@@ -3,17 +3,14 @@
 
 
 class CheckError(Exception):
-
     pass
 
 
 class SecurityError(Exception):
-
     pass
 
 
 class NagiosError(CheckError):
-
     def __init__(self, output):
         self.output = output
         super(NagiosError, self).__init__()
@@ -23,7 +20,6 @@ class NagiosError(CheckError):
 
 
 class InsufficientPermissionsError(CheckError):
-
     def __init__(self, user, entity):
         self.user = user
         self.entity = entity
@@ -33,7 +29,6 @@ class InsufficientPermissionsError(CheckError):
 
 
 class SnmpError(CheckError):
-
     def __init__(self, message):
         self.message = message
         super(SnmpError, self).__init__()
@@ -43,7 +38,6 @@ class SnmpError(CheckError):
 
 
 class JmxQueryError(CheckError):
-
     def __init__(self, message):
         self.message = message
         super(JmxQueryError, self).__init__()
@@ -53,7 +47,6 @@ class JmxQueryError(CheckError):
 
 
 class HttpError(CheckError):
-
     def __init__(self, message, url=None):
         self.message = message
         self.url = url
@@ -64,7 +57,6 @@ class HttpError(CheckError):
 
 
 class DbError(CheckError):
-
     def __init__(self, message, operation=None):
         self.message = message
         self.operation = operation
@@ -72,5 +64,3 @@ class DbError(CheckError):
 
     def __str__(self):
         return 'DB operation {} failed: {}'.format(self.operation, self.message)
-
-

@@ -130,5 +130,3 @@ def _max(results):
     '''
 
     return (max(results) if results else None)
-
-

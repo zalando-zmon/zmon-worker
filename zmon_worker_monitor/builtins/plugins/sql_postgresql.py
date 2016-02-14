@@ -17,11 +17,11 @@ CONNECTION_RE = \
 (:(?P<port>\d+))?       # port - integer, optional
 /(?P<dbname>\w+)        # database name
 $
-'''
-               , re.X)
+''', re.X)
 
 ABSOLUTE_MAX_RESULTS = 1000000
 
+# TODO: get rid of hardcoded Zalando stuff
 REQUIRED_GROUP = 'zalandos'
 PERMISSIONS_STMT = \
     '''
@@ -38,7 +38,6 @@ NON_SAFE_CHARS = re.compile(r'[^a-zA-Z_0-9-]')
 
 
 class SqlFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(SqlFactory, self).__init__()
         # fields from config
@@ -81,20 +80,19 @@ def make_safe(s):
 
 
 class SqlWrapper(object):
-
     '''Shard-aware SQL adapter
     sql().execute('SELECT 1').result()
     '''
 
     def __init__(
-        self,
-        shards,
-        user='zmon',
-        password='',
-        timeout=60000,
-        shard=None,
-        created_by=None,
-        check_id=None,
+            self,
+            shards,
+            user='zmon',
+            password='',
+            timeout=60000,
+            shard=None,
+            created_by=None,
+            check_id=None,
     ):
         '''
         Parameters
@@ -129,15 +127,15 @@ class SqlWrapper(object):
                 raise CheckError('Invalid shard connection: {}'.format(shard_def))
             connection_str = \
                 "host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' connect_timeout=5 options='-c statement_timeout={timeout}' application_name='ZMON Check {check_id} (created by {created_by})' ".format(
-                host=m.group('host'),
-                port=int(m.group('port') or DEFAULT_PORT),
-                dbname=m.group('dbname'),
-                user=user,
-                password=password,
-                timeout=timeout,
-                check_id=check_id,
-                created_by=make_safe(created_by),
-            )
+                    host=m.group('host'),
+                    port=int(m.group('port') or DEFAULT_PORT),
+                    dbname=m.group('dbname'),
+                    user=user,
+                    password=password,
+                    timeout=timeout,
+                    check_id=check_id,
+                    created_by=make_safe(created_by),
+                )
             try:
                 conn = psycopg2.connect(connection_str)
                 conn.set_session(readonly=True, autocommit=True)
@@ -203,8 +201,10 @@ class SqlWrapper(object):
                     if raise_if_limit_exceeded:
                         rows = cur.fetchmany(max_results + 1)
                         if len(rows) > max_results:
-                            raise DbError('Too many results, result set was limited to {}. Try setting max_results to a higher value.'.format(max_results),
-                                          operation=self._stmt)
+                            raise DbError(
+                                'Too many results, result set was limited to {}. Try setting max_results to a higher value.'.format(
+                                    max_results),
+                                operation=self._stmt)
                     else:
                         rows = cur.fetchmany(max_results)
                     for row in rows:

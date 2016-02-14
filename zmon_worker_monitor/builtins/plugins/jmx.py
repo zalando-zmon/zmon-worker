@@ -11,7 +11,6 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 
 class JmxFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(JmxFactory, self).__init__()
         self._jmxquery_host = None
@@ -39,9 +38,8 @@ class JmxFactory(IFunctionFactoryPlugin):
 
 
 class JmxWrapper(object):
-
     def __init__(self, jmxqueryhost, jmxqueryport, host, port, timeout=5):
-        #jmxquery running where?
+        # jmxquery running where?
         self.jmxquery_host = jmxqueryhost
         self.jmxquery_port = jmxqueryport
 
@@ -100,15 +98,17 @@ class JmxWrapper(object):
             raise ValueError('No query to execute')
 
         try:
-            r = requests.get('http://{}:{}'.format(self.jmxquery_host, self.jmxquery_port), params={'host': self.host, 'port': self.port,
-                             'query': self._jmxquery_queries()}, timeout=2)
+            r = requests.get('http://{}:{}'.format(self.jmxquery_host, self.jmxquery_port),
+                             params={'host': self.host, 'port': self.port,
+                                     'query': self._jmxquery_queries()}, timeout=2)
 
             if r.status_code == 500:
                 raise Exception('-do-one-try-')
         except:
             time.sleep(1)
-            r = requests.get('http://{}:{}'.format(self.jmxquery_host, self.jmxquery_port), params={'host': self.host, 'port': self.port,
-                                                                                                    'query': self._jmxquery_queries()}, timeout=2)
+            r = requests.get('http://{}:{}'.format(self.jmxquery_host, self.jmxquery_port),
+                             params={'host': self.host, 'port': self.port,
+                                     'query': self._jmxquery_queries()}, timeout=2)
 
         output = r.text
 
@@ -117,7 +117,6 @@ class JmxWrapper(object):
         except:
             raise JmxQueryError(output)
 
-
         return self._transform_results(data)
 
 
@@ -125,5 +124,6 @@ if __name__ == '__main__':
     # example call:
     # JAVA_HOME=/opt/jdk1.7.0_21/ python jmx.py restsn03 49600 jmxremote.password java.lang:type=Memory HeapMemoryUsage
     import sys
+
     jmx = JmxWrapper(*sys.argv[1:4])
     print jmx.query(*sys.argv[4:]).results()

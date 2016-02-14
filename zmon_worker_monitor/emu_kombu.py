@@ -11,6 +11,7 @@ from collections import namedtuple
 
 Connection = namedtuple('Connection', 'hostname port virtual_host')
 
+
 def parse_redis_conn(conn_str):
     '''
     Emulates kombu.connection.Connection that we were using only to parse redis connection string

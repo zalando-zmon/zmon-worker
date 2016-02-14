@@ -40,34 +40,34 @@ class ProcessController(object):
         self.default_kwargs = default_kwargs if isinstance(default_kwargs, dict) else {}
         self.always_add_kwargs = always_add_kwargs if isinstance(always_add_kwargs, dict) else {}
 
-        self.proc_dict = {}    # { proc_name : proc}
+        self.proc_dict = {}  # { proc_name : proc}
 
-        self.proc_rebel = {}   # { proc_name : proc} -> for processes that refuse to die
-        self.proc_stats = {}   # { proc_name : {'begin_time':T0, 'end_time': T1, 'alive' : bool1, ... } }
+        self.proc_rebel = {}  # { proc_name : proc} -> for processes that refuse to die
+        self.proc_stats = {}  # { proc_name : {'begin_time':T0, 'end_time': T1, 'alive' : bool1, ... } }
 
-        self.proc_args = {}    # { proc_name : {'target':None, 'args':[...], 'kwargs'={...} }}
+        self.proc_args = {}  # { proc_name : {'target':None, 'args':[...], 'kwargs'={...} }}
 
-        self.pid_to_pname = {}   # {pid: proc_name}
+        self.pid_to_pname = {}  # {pid: proc_name}
 
         self.pids_for_termination = []  # [ pid1, pid2, ....]
 
-        self.limbo_proc_dict = {}       # {proc_name : proc}
+        self.limbo_proc_dict = {}  # {proc_name : proc}
 
-        self.max_killed_stats = 5000         # max number of dead proc stats to keep around in memory
+        self.max_killed_stats = 5000  # max number of dead proc stats to keep around in memory
         self.min_processes = min_processes
         self.max_processes = max_processes
-        self.count_stop_condition = 0        # counter of consecutive stop conditions found
-        self.consecutive_stop_condition = 5        # counter of consecutive stop conditions found
-        self.gracetime_stop_condition = 60   # number of seconds to wait before a final stop condition check
+        self.count_stop_condition = 0  # counter of consecutive stop conditions found
+        self.consecutive_stop_condition = 5  # counter of consecutive stop conditions found
+        self.gracetime_stop_condition = 60  # number of seconds to wait before a final stop condition check
 
         self._thread_action_loop = None
         self.stop_action = True
-        self.action_loop_interval = 2      # seconds between each actions pass
+        self.action_loop_interval = 2  # seconds between each actions pass
         self.set_action_policy(action_policy)
         self.set_dynamic_num_processes(5)  # number of process to maintain alive when action_policy == 'dynamic_num'
 
-        self._tstamp_clean_old_proc_stats = -1    # timestamp of the last execution of _clean_old_proc_stats()
-        self._tdelta_clean_old_proc_stats = 300   # frequency of __clean_old_proc_stats()
+        self._tstamp_clean_old_proc_stats = -1  # timestamp of the last execution of _clean_old_proc_stats()
+        self._tdelta_clean_old_proc_stats = 300  # frequency of __clean_old_proc_stats()
 
         if start_action_loop:
             self.start_action_loop()
@@ -103,7 +103,7 @@ class ProcessController(object):
             self.proc_stats[pname] = dict(self.proc_stat_element)
             self.proc_stats[pname]['pid'] = proc.pid
             self.proc_stats[pname]['alive'] = proc.is_alive()
-            self.proc_stats[pname]['begin_time'] = time.time()    # use self._format_time() to get datetime format
+            self.proc_stats[pname]['begin_time'] = time.time()  # use self._format_time() to get datetime format
 
         except Exception:
             logger.exception("Spawn of process failed. Caught exception with details: ")
@@ -158,7 +158,7 @@ class ProcessController(object):
 
     def terminate_all_processes(self):
 
-        self.stop_action_loop()   # very important: stop action loop before starting to terminate child processes
+        self.stop_action_loop()  # very important: stop action loop before starting to terminate child processes
 
         all_pnames = list(self.proc_dict.keys())
 
@@ -220,8 +220,8 @@ class ProcessController(object):
 
     def set_dynamic_num_processes(self, dynamic_num_processes):
         try:
-            assert type(dynamic_num_processes) is int and \
-                self.min_processes <= dynamic_num_processes <= self.max_processes
+            assert type(dynamic_num_processes) is int
+            assert self.min_processes <= dynamic_num_processes <= self.max_processes
         except AssertionError:
             raise Exception('dynamic_num_processes passed is not in correct range')
         self.dynamic_num_processes = dynamic_num_processes
@@ -230,8 +230,9 @@ class ProcessController(object):
         """ Remove old stats from dead processes to avoid high memory usage """
         if time.time() - self._tstamp_clean_old_proc_stats > self._tdelta_clean_old_proc_stats:
             self._tstamp_clean_old_proc_stats = time.time()
-            et_pn = sorted([(stats['end_time'], pn) for pn, stats in self.proc_stats.copy().items() if stats['end_time'] > 0])
-            del_et_pn = et_pn[:len(et_pn)-self.max_killed_stats] if len(et_pn) > self.max_killed_stats else []
+            et_pn = sorted(
+                [(stats['end_time'], pn) for pn, stats in self.proc_stats.copy().items() if stats['end_time'] > 0])
+            del_et_pn = et_pn[:len(et_pn) - self.max_killed_stats] if len(et_pn) > self.max_killed_stats else []
             for end_time, pn in del_et_pn:
                 stats = self.proc_stats.pop(pn, None)
                 logger.warn('Deleting stats of killed process %s to preserve memory: %s', pn, stats)
@@ -262,7 +263,8 @@ class ProcessController(object):
         proc_name2 = self.spawn_process(**pargs)
         proc2 = self.proc_dict.get(proc_name2)
         pid2 = proc2.pid if proc2 else '???'
-        logger.warn('Respawned process: proc_name=%s, pid=%s, was_alive=%s --> proc_name=%s, pid=%s, args=%s', proc_name, pid, was_alive, proc_name2, pid2, pargs)
+        logger.warn('Respawned process: proc_name=%s, pid=%s, was_alive=%s --> proc_name=%s, pid=%s, args=%s',
+                    proc_name, pid, was_alive, proc_name2, pid2, pargs)
 
     def _action_loop(self):
         """

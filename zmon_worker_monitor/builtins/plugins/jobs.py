@@ -12,7 +12,6 @@ from zmon_worker_monitor import plugin_manager
 
 
 class JobsFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(JobsFactory, self).__init__()
         # fields from dependencies: plugin depends 1 other plugin
@@ -42,7 +41,6 @@ class JobsFactory(IFunctionFactoryPlugin):
 
 
 class JobsWrapper(object):
-
     def __init__(self, http_wrapper, environment, project, **kwargs):
         self.url = 'https://deployctl.example.com/jobs/history.json/{}/{}'.format(environment, project)
         self.__http = http_wrapper
@@ -56,10 +54,8 @@ class JobsWrapper(object):
         start_time = itemgetter('start_seconds_ago')
 
         return dict((job, min(runs, key=start_time)) for (job, runs) in groupby(sorted(self.__request(),
-                    key=self.name), key=self.name))
+                                                                                       key=self.name), key=self.name))
 
     def history(self):
         return dict((job, list(runs)) for (job, runs) in groupby(sorted(self.__request(), key=self.name),
-                    key=self.name))
-
-
+                                                                 key=self.name))

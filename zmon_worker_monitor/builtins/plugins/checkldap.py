@@ -3,6 +3,7 @@
 
 import sys
 import ldap
+
 try:
     import ldapapi
 except:
@@ -15,7 +16,6 @@ from ldap.dn import explode_dn
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
-
 
 STATISTICS_OPERATIONS_TO_MONITOR = frozenset([
     'bind',
@@ -43,7 +43,6 @@ STATISTICS_FRIENDLY_KEY_NAMES = {'statistics_entries': 'entries',
 
 
 class LdapFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(LdapFactory, self).__init__()
         # fields from config
@@ -74,27 +73,24 @@ class LdapFactory(IFunctionFactoryPlugin):
 
 
 class UnsupportedMethodException(Exception):
-
     pass
 
 
 class DuplicateBindException(Exception):
-
     pass
 
 
 class LdapWrapper(object):
-
     def __init__(
-        self,
-        host=None,
-        tls=True,
-        krb5=False,
-        user='uid=nagios,ou=robots,ou=users,dc=example,dc=com',
-        password='',
-        timeout=60,
-        logger=None,
-        counter=None,
+            self,
+            host=None,
+            tls=True,
+            krb5=False,
+            user='uid=nagios,ou=robots,ou=users,dc=example,dc=com',
+            password='',
+            timeout=60,
+            logger=None,
+            counter=None,
     ):
         '''expects ready to use "partial" for counter (CounterWrapper)'''
 
@@ -189,7 +185,12 @@ class LdapWrapper(object):
 
     def sync(self):
         '''Example:
-        checkldap().sync() => [{'newest': 20140516151002, 'elapsed': 0.14442706108093262, 'ok': True, 'diff': 0, 'server': 'myserv'}, {'newest': 20140516151002, 'elapsed': 0.19423580169677734, 'ok': True, 'diff': 0, 'server': 'myserver'}, {'newest': 20140516151002, 'elapsed': 0.2617530822753906, 'ok': True, 'diff': 0, 'server': 'z-auth123.example'}, {'newest': 20140516151002, 'elapsed': 0.15635299682617188, 'ok': True, 'diff': 0, 'server': 'myserver'}, {'newest': 20140516151002, 'elapsed': 0.20283913612365723, 'ok': True, 'diff': 0, 'server': 'myserver'}]
+        checkldap().sync() => [
+        {'newest': 20140516151002, 'elapsed': 0.14442706108093262, 'ok': True, 'diff': 0,'server': 'myserv'},
+        {'newest': 20140516151002, 'elapsed': 0.19423580169677734, 'ok': True, 'diff': 0, 'server': 'myserver'},
+        {'newest': 20140516151002, 'elapsed': 0.2617530822753906, 'ok': True, 'diff': 0, 'server': 'z-auth123.example'},
+        {'newest': 20140516151002, 'elapsed': 0.15635299682617188, 'ok': True, 'diff': 0, 'server': 'myserver'},
+        {'newest': 20140516151002, 'elapsed': 0.20283913612365723, 'ok': True, 'diff': 0, 'server': 'myserver'}]
         '''
 
         try:
@@ -202,7 +203,9 @@ class LdapWrapper(object):
             raise CheckError('{}'.format(e)), None, sys.exc_info()[2]
 
     def _sync(self, ldapservers):
-        '''Returns a list of dict, where 'diff' is the difference to the 'newest' of the full list, 'newest' is the newest timestamp for the given 'server', 'ok' means LDAP state for current 'server' and 'elapsed' the runtime of that ldap request.
+        '''Returns a list of dict, where 'diff' is the difference to the 'newest' of the full list,
+        'newest' is the newest timestamp for the given 'server',
+        'ok' means LDAP state for current 'server' and 'elapsed' the runtime of that ldap request.
         Example dict:
         {'diff': 0,
         'elapsed': 0.2969970703125,
@@ -341,7 +344,7 @@ class LdapWrapper(object):
 
             result = self.session.conn.search_s('cn=Operations,cn=Monitor', ldap.SCOPE_SUBTREE,
                                                 '(objectClass=monitorOperation)', ['monitorOpInitiated',
-                                                'monitorOpCompleted'])
+                                                                                   'monitorOpCompleted'])
             for dn, attr in result:
                 category, op = self._split_monitor_dn(dn)
                 if op in STATISTICS_OPERATIONS_TO_MONITOR:
@@ -390,5 +393,3 @@ class LdapWrapper(object):
 
         # gc_count = round(self._counter.key('gcCount').per_second(gc_count), 2)
         return data
-
-

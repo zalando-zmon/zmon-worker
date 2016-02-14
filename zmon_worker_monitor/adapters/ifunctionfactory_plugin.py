@@ -26,7 +26,6 @@ class IFunctionFactoryPlugin(IBasePlugin):
 
 
 class ProtectedPartial(object):
-
     '''
     Provides functools.partial functionality with one additional feature: if keyword arguments contain '__protected'
     key with list of arguments as value, the appropriate values will not be overwritten when calling the partial. This

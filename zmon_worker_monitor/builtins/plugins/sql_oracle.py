@@ -7,14 +7,12 @@ from zmon_worker_monitor.zmon_worker.errors import DbError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-
 # default port Oracle Net Listener port
 DEFAULT_PORT = 1521
 MAX_RESULTS = 100
 
 
 class SqlOracleFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(SqlOracleFactory, self).__init__()
         # fields from config
@@ -56,7 +54,6 @@ def _import_db_driver():
 
 
 class SqlOracleWrapper(object):
-
     '''Oracle SQL adapter
     sql().execute('SELECT 1').result()
     '''
@@ -143,4 +140,3 @@ if __name__ == '__main__':
         print '>>> many results:\n', check.execute(sql_stmt).results()
     else:
         print '{} <host> <port> <sid> [sql_stmt]'.format(sys.argv[0])
-

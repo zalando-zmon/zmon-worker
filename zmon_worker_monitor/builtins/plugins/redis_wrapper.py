@@ -6,7 +6,6 @@ import redis
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
-
 STATISTIC_GAUGE_KEYS = frozenset([
     'blocked_clients',
     'connected_clients',
@@ -26,7 +25,6 @@ STATISTIC_COUNTER_KEYS = frozenset([
 
 
 class RedisFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(RedisFactory, self).__init__()
         # fields to store dependencies: plugin depends on 1 other plugin
@@ -53,7 +51,6 @@ class RedisFactory(IFunctionFactoryPlugin):
 
 
 class RedisWrapper(object):
-
     '''Class to allow only readonly access to underlying redis connection'''
 
     def __init__(self, counter, host, port=6379, db=0, socket_connect_timeout=1):
@@ -123,4 +120,3 @@ if __name__ == '__main__':
     counter = plugin_manager.get_plugin_obj_by_name('counter', 'Function').create(factory_ctx)
     wrapper = RedisWrapper(counter, sys.argv[1])
     print json.dumps(wrapper.statistics(), indent=4, sort_keys=True)
-

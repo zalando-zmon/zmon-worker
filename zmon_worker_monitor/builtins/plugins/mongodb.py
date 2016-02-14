@@ -8,8 +8,8 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 logger = logging.getLogger('zmon-worker.mongodb-function')
 
-class MongoDBFactory(IFunctionFactoryPlugin):
 
+class MongoDBFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(MongoDBFactory, self).__init__()
 
@@ -28,8 +28,8 @@ class MongoDBFactory(IFunctionFactoryPlugin):
         """
         return propartial(MongoDBWrapper, host=factory_ctx.get('host'))
 
-class MongoDBWrapper(object):
 
+class MongoDBWrapper(object):
     def __init__(self, host, port=27017):
         self.host = host
         self.port = port

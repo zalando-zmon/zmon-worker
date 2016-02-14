@@ -34,7 +34,8 @@ def read_config(path):
 def process_config(config):
     # If running on AWS, fetch the account number
     try:
-        account_id = requests.get('http://169.254.169.254/latest/meta-data/iam/info/', timeout=3).json()['InstanceProfileArn'].split(':')[4]
+        iam_info = requests.get('http://169.254.169.254/latest/meta-data/iam/info/', timeout=3).json()
+        account_id = iam_info['InstanceProfileArn'].split(':')[4]
         config['account'] = 'aws:' + account_id
     except:
         config['account'] = 'aws:error-during-startup'
@@ -63,7 +64,7 @@ def main(args=None):
     # make zmon worker compatible with old redis config vars
     if 'redis.host' in config:
         port = config.get('redis.port', 6379)
-        config.update({"redis.servers":'{}:{}'.format(config["redis.host"], port)})
+        config.update({"redis.servers": '{}:{}'.format(config["redis.host"], port)})
 
     # save config in our settings module
     settings.set_workers_log_level(config.get('loglevel', 'INFO'))

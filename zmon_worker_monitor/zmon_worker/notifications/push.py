@@ -6,8 +6,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class NotifyPush(BaseNotification):
 
+class NotifyPush(BaseNotification):
     @classmethod
     def send(cls, alert, *args, **kwargs):
         url = kwargs.get('url', cls._config.get('notifications.push.url'))
@@ -31,7 +31,8 @@ class NotifyPush(BaseNotification):
 
         try:
             # logger.info("Sending push notification to %s %s", url, message)
-            r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type':'application/json'}, data=json.dumps(message))
+            r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type': 'application/json'},
+                              data=json.dumps(message))
             r.raise_for_status()
         except Exception as ex:
             logger.exception("Push write failed %s", ex)
@@ -41,5 +42,8 @@ class NotifyPush(BaseNotification):
 
 if __name__ == '__main__':
     import sys
+
     logging.basicConfig(level=logging.INFO)
-    NotifyPush.send(alert={"id":1048,"changed": True,"is_alert": True, "alert_def":{"name":"Database master connection"}, "entity":{"id":"test-entity"}}, url=sys.argv[1], key=sys.argv[2])
+    NotifyPush.send(
+        alert={"id": 1048, "changed": True, "is_alert": True, "alert_def": {"name": "Database master connection"},
+               "entity": {"id": "test-entity"}}, url=sys.argv[1], key=sys.argv[2])

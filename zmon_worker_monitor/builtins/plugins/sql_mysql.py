@@ -7,7 +7,6 @@ from zmon_worker_monitor.zmon_worker.errors import DbError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-
 DEFAULT_PORT = 3306
 MAX_RESULTS = 100
 
@@ -17,12 +16,10 @@ CONNECTION_RE = \
 (:(?P<port>\d+))?       # port - integer, optional
 /(?P<dbname>\w+)        # database name
 $
-'''
-               , re.X)
+''', re.X)
 
 
 class MySqlFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(MySqlFactory, self).__init__()
         # fields from config
@@ -61,7 +58,6 @@ def _import_db_driver():
 
 
 class MySqlWrapper(object):
-
     '''Shard-aware SQL adapter
     sql().execute('SELECT 1').result()
     '''

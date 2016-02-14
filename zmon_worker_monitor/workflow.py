@@ -22,9 +22,7 @@ from tasks import check_and_notify, trial_run, cleanup
 
 logger = logging.getLogger(__name__)
 
-
 TASK_POP_TIMEOUT = 5
-
 
 __config = None
 
@@ -86,7 +84,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
     known_tasks = {'check_and_notify': check_and_notify, 'trial_run': trial_run, 'cleanup': cleanup}
 
-    #get configuration and configure tasks
+    # get configuration and configure tasks
     config = get_config()
     configure_tasks(config)
 
@@ -94,7 +92,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
     RedisConnHandler.configure(**dict(config))
 
-    eventloghttp.set_target_host(config.get('eventlog.host','localhost'), config.get('eventlog.port', 8081))
+    eventloghttp.set_target_host(config.get('eventlog.host', 'localhost'), config.get('eventlog.port', 8081))
     eventloghttp.enable_http(config.get('eventlog.http', True))
 
     reactor = FlowControlReactor.get_instance()
@@ -153,24 +151,30 @@ def flow_simple_queue_processor(queue='', **execution_context):
                         'task': taskname,
                         'id': msg_body.get('id', ''),
                         'expires': msg_body.get('expires'),  # '2014-09-04T10:27:32.919152+00:00'
-                        'timelimit': timelimit,              # [90, 60]
+                        'timelimit': timelimit,  # [90, 60]
                         'utc': msg_body.get('utc', True)
                     },
                 }
 
                 # discard tasks that are expired if expire metadata comes with the message
                 cur_time = datetime.utcnow() if task_context['task_properties']['utc'] else datetime.now()
-                expire_time = datetime.strptime(msg_body.get('expires').replace("Z", "").rsplit('+', 1)[0], '%Y-%m-%dT%H:%M:%S.%f') \
+                expire_time = datetime.strptime(msg_body.get('expires').replace("Z", "").rsplit('+', 1)[0],
+                                                '%Y-%m-%dT%H:%M:%S.%f') \
                     if msg_body.get('expires') else cur_time + timedelta(seconds=10)
 
-                check_id = (msg_body['args'][0].get('check_id', 'xx') if len(msg_body['args']) > 0 and isinstance(msg_body['args'][0], dict) else 'XX')
-                logger.debug('task loop analyzing time: check_id=%s, cur_time: %s , expire_time: %s, msg_body["expires"]=%s', check_id, cur_time, expire_time, msg_body.get('expires'))
+                check_id = (msg_body['args'][0].get('check_id', 'xx') if len(msg_body['args']) > 0 and isinstance(
+                    msg_body['args'][0], dict) else 'XX')
+                logger.debug(
+                    'task loop analyzing time: check_id=%s, cur_time: %s , expire_time: %s, msg_body["expires"]=%s',
+                    check_id, cur_time, expire_time, msg_body.get('expires'))
 
                 if cur_time < expire_time:
                     with reactor.enter_task_context(taskname, t_hard, t_soft):
                         known_tasks[taskname](*func_args, task_context=task_context, **func_kwargs)
                 else:
-                    logger.warn('Discarding task due to time expiration. cur_time: %s , expire_time: %s, msg_body["expires"]=%s  ----  msg_body=%s', cur_time, expire_time, msg_body.get('expires'), msg_body)
+                    logger.warn(
+                        'Discarding task due to time expiration. cur_time: %s , expire_time: %s, msg_body["expires"]=%s  ----  msg_body=%s',
+                        cur_time, expire_time, msg_body.get('expires'), msg_body)
                     expired_count += 1
                     if expired_count % 500 == 0:
                         logger.warning("expired tasks count: %s", expired_count)
@@ -181,8 +185,8 @@ def flow_simple_queue_processor(queue='', **execution_context):
             time.sleep(5)  # avoid heavy log spam here
             # some exit condition on failure: maybe when number of consecutive failures > n ?
 
-    # TODO: Clean redis connection... very important!!!!
-    # disconnect_all()
+            # TODO: Clean redis connection... very important!!!!
+            # disconnect_all()
 
 
 class FlowControlReactor(object):
@@ -202,13 +206,13 @@ class FlowControlReactor(object):
     t_wait = 0.2
 
     def __init__(self):
-        #self.task_agg_info = {}  # we could aggregate some info about how tasks are running in this worker
+        # self.task_agg_info = {}  # we could aggregate some info about how tasks are running in this worker
         assert not self._initialized and self._can_init, 'Call get_instance() to instantiate'
         self._initialized = True
         self._pid = os.getpid()
         self._rpc_client = get_rpc_client('http://{}:{}{}'.format(settings.RPC_SERVER_CONF['HOST'],
-                                                                   settings.RPC_SERVER_CONF['PORT'],
-                                                                   settings.RPC_SERVER_CONF['RPC_PATH']))
+                                                                  settings.RPC_SERVER_CONF['PORT'],
+                                                                  settings.RPC_SERVER_CONF['RPC_PATH']))
         self._current_task_by_thread = {}  # {thread_id: (taskname, t_hard, t_soft, tstart)}
         self.action_on = False
         self._thread = threading.Thread(target=self.action_loop)
@@ -300,4 +304,3 @@ def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:defa
     finally:
         FlowControlReactor.get_instance().stop()
         sys.exit(exit_code)
-

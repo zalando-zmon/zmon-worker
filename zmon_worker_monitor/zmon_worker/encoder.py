@@ -8,8 +8,8 @@ import numpy
 from collections import Set
 from decimal import Decimal
 
-class JsonDataEncoder(json.JSONEncoder):
 
+class JsonDataEncoder(json.JSONEncoder):
     def default(self, o):
         '''
         >>> JsonDataEncoder().encode(datetime.datetime.now())[:3]

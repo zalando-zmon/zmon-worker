@@ -12,8 +12,8 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 logger = logging.getLogger('zmon-worker.kairosdb-function')
 
-class KairosdbFactory(IFunctionFactoryPlugin):
 
+class KairosdbFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(KairosdbFactory, self).__init__()
 
@@ -32,12 +32,12 @@ class KairosdbFactory(IFunctionFactoryPlugin):
         """
         return propartial(KairosdbWrapper, url=factory_ctx.get('entity_url'))
 
-class KairosdbWrapper(object):
 
+class KairosdbWrapper(object):
     def __init__(self, url):
         self.url = url
 
-    def query(self, name, group_by = [], tags = None, start = -5, end = 0, time_unit='seconds', aggregators = None):
+    def query(self, name, group_by=[], tags=None, start=-5, end=0, time_unit='seconds', aggregators=None):
         url = self.url + '/api/v1/datapoints/query'
         q = {
             "start_relative": {

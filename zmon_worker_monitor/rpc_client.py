@@ -20,7 +20,6 @@ _cmd_struct = {
 
 
 def parse_cmd_line(args):
-
     admitted_types = ('int', 'float', 'str')
 
     cmd_parts = dict(_cmd_struct)
@@ -32,7 +31,7 @@ def parse_cmd_line(args):
 
     for raw_arg in raw_method_args:
 
-        #arg_parts = raw_arg.strip('"\'').split(':')
+        # arg_parts = raw_arg.strip('"\'').split(':')
         arg_parts = raw_arg.split(':')
 
         if len(arg_parts) == 1 or arg_parts[0] not in admitted_types:
@@ -67,8 +66,8 @@ def get_rpc_client(endpoint):
 if __name__ == '__main__':
 
     if len(sys.argv) <= 2:
-        print >>sys.stderr, 'usage: {0} http://<host>:<port>/<rpc_path> <method_name> [ [int|float|str]:arg1 ' \
-                            '[int|float|str]:arg2 ...[int|float|str]:argN ...]'.format(sys.argv[0])
+        print >> sys.stderr, 'usage: {0} http://<host>:<port>/<rpc_path> <method_name> [ [int|float|str]:arg1 ' \
+                             '[int|float|str]:arg2 ...[int|float|str]:argN ...]'.format(sys.argv[0])
         sys.exit(1)
 
     cmd_line = parse_cmd_line(sys.argv[:])
@@ -78,7 +77,7 @@ if __name__ == '__main__':
 
     client = get_rpc_client(cmd_line['endpoint'])
 
-    #Executing now the remote method
+    # Executing now the remote method
     result = getattr(client, cmd_line['method_name'])(*cmd_line['args'])
     if result is not None:
         print ">>Result:\n", result

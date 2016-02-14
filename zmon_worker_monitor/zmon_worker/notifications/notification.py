@@ -3,8 +3,8 @@
 
 import logging
 
-class BaseNotification(object):
 
+class BaseNotification(object):
     _config = {}
 
     _EVENTS = None
@@ -39,7 +39,10 @@ class BaseNotification(object):
         name = cls._get_expanded_alert_name(alert, custom_message)
 
         if not custom_message:
-            return ('{}: {} on {} for {}'.format(event, name, alert['entity']['id'], str(alert['duration'])[:7]) if alert.get('duration') else '{}: {} on {}'.format(event, name, alert['entity']['id']))
+            if alert.get('duration'):
+                return '{}: {} on {} for {}'.format(event, name, alert['entity']['id'], str(alert['duration'])[:7])
+            else:
+                return '{}: {} on {}'.format(event, name, alert['entity']['id'])
         else:
             return '{}: {}'.format(event, name)
 
@@ -63,14 +66,14 @@ class BaseNotification(object):
     def resolve_group(cls, targets, phone=False):
         new_targets = []
         for target in targets:
-            prefix = target[0:target.find(':')+1]
+            prefix = target[0:target.find(':') + 1]
             if prefix not in ['group:', 'active:']:
                 new_targets.append(target)
                 continue
 
-            group_id = target[target.find(':')+1:]
+            group_id = target[target.find(':') + 1:]
 
-            key = 'zmon:group:'+group_id + (':members' if prefix == 'group:' else ':active')
+            key = 'zmon:group:' + group_id + (':members' if prefix == 'group:' else ':active')
             team = cls.__redis_conn.smembers(key)
 
             if not team:
@@ -81,7 +84,7 @@ class BaseNotification(object):
                 new_targets.extend(team)
             else:
                 for m in team:
-                    phone_numbers = cls.__redis_conn.smembers('zmon:member:'+m+':phone')
+                    phone_numbers = cls.__redis_conn.smembers('zmon:member:' + m + ':phone')
                     new_targets.extend(phone_numbers)
 
         logging.info("Redirect notifications: from %s to %s", targets, new_targets)

@@ -56,7 +56,6 @@ import tokens
 
 logger = logging.getLogger(__name__)
 
-
 # interval in seconds for sending metrics to graphite
 METRICS_INTERVAL = 15
 
@@ -108,7 +107,6 @@ get_value = itemgetter('value')
 
 
 class ProtectedPartial(object):
-
     '''
     Provides functools.partial functionality with one additional feature: if keyword arguments contain '__protected'
     key with list of arguments as value, the appropriate values will not be overwritten when calling the partial. This
@@ -147,7 +145,7 @@ normalize_kairos_id = propartial(KAIROS_ID_FORBIDDEN_RE.sub, '_')
 
 def setp(check_id, entity, msg):
     setproctitle.setproctitle('zmon-worker check {} on {} {} {}'.format(check_id, entity, msg,
-                              datetime.now().strftime('%H:%M:%S.%f')))
+                                                                        datetime.now().strftime('%H:%M:%S.%f')))
 
 
 def get_kairosdb_value(name, points, tags):
@@ -255,13 +253,14 @@ def _get_shards(entity):
     if 'shards' in entity:
         return entity['shards']
     if 'service_name' in entity:
-        return {entity['service_name']: ('{service_name}:{port}/postgres'.format(**entity)
-                if 'port' in entity and not entity['service_name'].endswith(':{}'.format(entity['port']))
-                else '{}/postgres'.format(entity['service_name']))}
+        if 'port' in entity and not entity['service_name'].endswith(':{}'.format(entity['port'])):
+            return {entity['service_name']: '{service_name}:{port}/postgres'.format(**entity)}
+        else:
+            return {entity['service_name']: '{}/postgres'.format(entity['service_name'])}
     return None
 
 
-def entity_values(con, check_id, alert_id,count=1):
+def entity_values(con, check_id, alert_id, count=1):
     return map(get_value, entity_results(con, check_id, alert_id, count))
 
 
@@ -371,7 +370,7 @@ def alert_series(f, n, con, check_id, entity_id):
         try:
             v = v["value"]
             r = 1 if f(v) else 0
-            x =0
+            x = 0
         except:
             r = 1
             x = 1
@@ -383,7 +382,7 @@ def alert_series(f, n, con, check_id, entity_id):
         raise Exception("All alert evaluations failed!")
 
     # activating alert if not enough value found (this should only affect starting period)
-    return n == active_count or len(vs)<n
+    return n == active_count or len(vs) < n
 
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
@@ -401,27 +400,29 @@ def build_condition_context(con, check_id, alert_id, entity, captures, alert_par
     ctx['entity_results'] = functools.partial(entity_results, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity_values'] = functools.partial(entity_values, con=con, check_id=check_id, alert_id=alert_id)
     ctx['entity'] = dict(entity)
-    ctx['history'] = history_factory.create({ 'check_id': check_id, 'entity_id_for_kairos': normalize_kairos_id(entity['id']) })
+    ctx['history'] = history_factory.create(
+        {'check_id': check_id, 'entity_id_for_kairos': normalize_kairos_id(entity['id'])})
     ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
     ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
 
     _inject_alert_parameters(alert_parameters, ctx)
 
     for f in (
-        mathfun.avg,
-        mathfun.delta,
-        mathfun.median,
-        mathfun.percentile,
-        mathfun.first,
-        mathfun._min,
-        mathfun._max,
-        sum,
+            mathfun.avg,
+            mathfun.delta,
+            mathfun.median,
+            mathfun.percentile,
+            mathfun.first,
+            mathfun._min,
+            mathfun._max,
+            sum,
     ):
         name = f.__name__
         if name.startswith('_'):
             name = name[1:]
-        ctx['timeseries_' + name] = functools.partial(_apply_aggregate_function_for_time, con=con, func=f, check_id=check_id,
-                                            entity_id=entity['id'], captures=captures)
+        ctx['timeseries_' + name] = functools.partial(_apply_aggregate_function_for_time, con=con, func=f,
+                                                      check_id=check_id,
+                                                      entity_id=entity['id'], captures=captures)
     return ctx
 
 
@@ -459,16 +460,15 @@ def _get_results_for_time(con, check_id, entity_id, time_spec):
 
 
 def _apply_aggregate_function_for_time(
-    time_spec,
-    con,
-    func,
-    check_id,
-    entity_id,
-    captures,
-    key=functional.id,
-    **args
+        time_spec,
+        con,
+        func,
+        check_id,
+        entity_id,
+        captures,
+        key=functional.id,
+        **args
 ):
-
     results = _get_results_for_time(con, check_id, entity_id, time_spec)
     ret = mathfun.apply_aggregate_function(results, func, key=functional.compose(key, get_value), **args)
     # put function result in our capture dict for debugging
@@ -479,16 +479,16 @@ def _apply_aggregate_function_for_time(
 
 def _build_notify_context(alert):
     return {
-            'True': True,
-            'False': False,
-            'send_mail': functools.partial(Mail.send, alert),
-            'send_email': functools.partial(Mail.send, alert),
-            'send_sms': functools.partial(Sms.send, alert),
-            'notify_hubot': functools.partial(Hubot.notify, alert),
-            'send_hipchat': functools.partial(NotifyHipchat.send, alert),
-            'send_slack': functools.partial(NotifySlack.send, alert),
-            'send_push': functools.partial(NotifyPush.send, alert)
-           }
+        'True': True,
+        'False': False,
+        'send_mail': functools.partial(Mail.send, alert),
+        'send_email': functools.partial(Mail.send, alert),
+        'send_sms': functools.partial(Sms.send, alert),
+        'notify_hubot': functools.partial(Hubot.notify, alert),
+        'send_hipchat': functools.partial(NotifyHipchat.send, alert),
+        'send_slack': functools.partial(NotifySlack.send, alert),
+        'send_push': functools.partial(NotifyPush.send, alert)
+    }
 
 
 def _prepare_condition(condition):
@@ -519,7 +519,6 @@ def _prepare_condition(condition):
 
 
 class PeriodicBufferedAction(object):
-
     def __init__(self, action, action_name=None, retries=5, t_wait=10, t_random_fraction=0.5):
 
         self._stop = True
@@ -583,7 +582,7 @@ class PeriodicBufferedAction(object):
                     logger.error('Error executing action %s: %s', self.action_name, e)
                     for elem in elem_list:
                         if elem['count'] < self.retries:
-                            self.enqueue(elem['data'], count=elem['count']+1)
+                            self.enqueue(elem['data'], count=elem['count'] + 1)
                         else:
                             logger.error('Error: Maximum retries reached for action %s. Dropping data: %s ',
                                          self.action_name, elem['data'])
@@ -600,8 +599,8 @@ def _log_event(event_name, alert, result, entity=None):
     if entity:
         params['entity'] = entity
 
-    # TODO: file-based eventlog will not work anymore
-    # eventlog.log(EVENTS[event_name].id, **params)
+        # TODO: file-based eventlog will not work anymore
+        # eventlog.log(EVENTS[event_name].id, **params)
 
 
 def _convert_captures(worker_name, alert_id, entity_id, timestamp, captures):
@@ -638,17 +637,17 @@ def _convert_captures(worker_name, alert_id, entity_id, timestamp, captures):
                     continue
                 safe_inner_capture = GRAPHITE_REPLACE_KEYCHARS.sub('_', inner_capture)
                 result.append(('{}.{}'.format(key.format(worker_name=safe_worker_name, alert_id=alert_id,
-                              entity_id=safe_entity_id, capture=safe_capture), safe_inner_capture), v, timestamp))
+                                                         entity_id=safe_entity_id, capture=safe_capture),
+                                              safe_inner_capture), v, timestamp))
         else:
             try:
                 v = float(value)
             except (ValueError, TypeError):
                 continue
             result.append((key.format(worker_name=safe_worker_name, alert_id=alert_id, entity_id=safe_entity_id,
-                          capture=safe_capture), v, timestamp))
+                                      capture=safe_capture), v, timestamp))
 
     return result
-
 
 
 def evaluate_condition(val, condition, **ctx):
@@ -675,13 +674,11 @@ class InvalidEvalExpression(Exception):
 
 
 class MalformedCheckResult(Exception):
-
     def __init__(self, msg):
         Exception.__init__(self, msg)
 
 
 class Try(Callable):
-
     def __init__(self, try_call, except_call, exc_cls=Exception):
         self.try_call = try_call
         self.except_call = except_call
@@ -731,10 +728,12 @@ def empty(v):
 
     return not bool(v)
 
+
 def jsonpath_flat_filter(obj, path):
     expr = jsonpath_rw.parse(path)
     match = expr.find(obj)
     return dict([(str(m.full_path), m.value) for m in match])
+
 
 def build_default_context():
     return {
@@ -791,6 +790,7 @@ def build_default_context():
         'jsonpath_flat_filter': jsonpath_flat_filter
     }
 
+
 def check_ast_node_is_safe(node, source):
     '''
     Check that the ast node does not contain any system attribute calls
@@ -819,7 +819,8 @@ def check_ast_node_is_safe(node, source):
     for n in ast.walk(node):
         if isinstance(n, ast.Attribute):
             if n.attr.startswith('__'):
-                raise InvalidEvalExpression("{} should not try to access hidden attributes (for example '__class__')".format(source))
+                raise InvalidEvalExpression(
+                    "{} should not try to access hidden attributes (for example '__class__')".format(source))
         elif isinstance(n, ast.Exec):
             raise InvalidEvalExpression('{} should not try to execute arbitrary code'.format(source))
     return node
@@ -943,9 +944,11 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
                 if callable(c):
                     return c()  # if a function will return another callable, we will not call it
                 else:
-                    raise InvalidEvalExpression('{} should contain a callable class definition (missing __call__ method?)'.format(eval_source))
+                    raise InvalidEvalExpression(
+                        '{} should contain a callable class definition (missing __call__ method?)'.format(eval_source))
             else:
-                raise InvalidEvalExpression('{} should contain only one function or one callable class definition'.format(eval_source))
+                raise InvalidEvalExpression(
+                    '{} should contain only one function or one callable class definition'.format(eval_source))
         elif isinstance(x, ast.Expr):
             cc = compile(expr, eval_source, 'eval', __future__.CO_FUTURE_PRINT_FUNCTION)  # can be nicely cached
             r = eval(cc, g)
@@ -955,13 +958,16 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
             else:
                 return r
         else:
-            raise InvalidEvalExpression('{} can contain a python expression, a function call or a callable class definition'.format(eval_source))
+            raise InvalidEvalExpression(
+                '{} can contain a python expression, a function call or a callable class definition'.format(
+                    eval_source))
     else:
-        raise InvalidEvalExpression('{} should contain only one python expression, a function call or a callable class definition'.format(eval_source))
+        raise InvalidEvalExpression(
+            '{} should contain only one python expression, a function call or a callable class definition'.format(
+                eval_source))
 
 
 class NotaZmonTask(object):
-
     abstract = True
     _host = 'localhost'
     _port = 6379
@@ -992,7 +998,6 @@ class NotaZmonTask(object):
 
     _dataservice_poster = None
 
-
     _plugin_category = 'Function'
     _plugins = []
     _function_factories = {}
@@ -1000,12 +1005,12 @@ class NotaZmonTask(object):
     @classmethod
     def configure(cls, config):
         try:
-            #configure RedisConnHandler
+            # configure RedisConnHandler
             RedisConnHandler.configure(**config)
         except KeyError:
             logger.exception('Error creating connection: ')
             raise
-        #cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
+        # cls._loglevel = (logging.getLevelName(config['loglevel']) if 'loglevel' in config else logging.INFO)
         cls._kairosdb_enabled = config.get('kairosdb.enabled')
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
@@ -1100,7 +1105,7 @@ class NotaZmonTask(object):
         headers = {'Content-Type': 'application/json', 'User-Agent': get_user_agent()}
 
         if cls._dataservice_oauth2:
-            headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
+            headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
         team = cls._team if cls._team is not None else ''
         account = cls._account if cls._account is not None else ''
@@ -1138,7 +1143,6 @@ class NotaZmonTask(object):
             logger.exception("Unexpected error in data service post")
             raise
 
-
     def check_and_notify(self, req, alerts, task_context=None):
         self.task_context = task_context
         start_time = time.time()
@@ -1148,7 +1152,7 @@ class NotaZmonTask(object):
 
         try:
             val = self.check(req)
-        #TODO: need to support soft and hard time limits soon
+        # TODO: need to support soft and hard time limits soon
         # except SoftTimeLimitExceeded, e:
         #     self.logger.info('Check request with id %s on entity %s exceeded soft time limit', check_id,
         #                                  entity_id)
@@ -1160,12 +1164,14 @@ class NotaZmonTask(object):
         #            force_alert=True)
         except CheckError, e:
             # self.logger.warn('Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
-            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
-                   force_alert=True)
+            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
+                         'exc': 1}, req, alerts,
+                        force_alert=True)
         except SecurityError, e:
             self.logger.exception('Security exception in request with id %s on entity %s', check_id, entity_id)
-            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
-                   force_alert=True)
+            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
+                         'exc': 1}, req, alerts,
+                        force_alert=True)
         except Exception, e:
             # self.logger.exception('Check request with id %s on entity %s threw an exception', check_id, entity_id)
             # PF-3685 Disconnect on unknown exceptions: we don't know what actually happened, it might be that redis
@@ -1173,8 +1179,9 @@ class NotaZmonTask(object):
             # different response than expected, the user doesn't have access to the checked entity or there's an error in
             # check's parameters.
             self.con.connection_pool.disconnect()
-            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name, 'exc': 1}, req, alerts,
-                   force_alert=True)
+            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
+                         'exc': 1}, req, alerts,
+                        force_alert=True)
         else:
             self.notify(val, req, alerts)
 
@@ -1186,7 +1193,7 @@ class NotaZmonTask(object):
 
         try:
             val = self.check_for_trial_run(req)
-        #TODO: need to support soft and hard time limits soon
+        # TODO: need to support soft and hard time limits soon
         # except SoftTimeLimitExceeded, e:
         #     trial_run.logger.info('Trial run on entity %s exceeded soft time limit', entity_id)
         #     trial_run.con.connection_pool.disconnect()
@@ -1196,19 +1203,18 @@ class NotaZmonTask(object):
             self.logger.info('Access denied for user %s to run check on %s', req['created_by'], entity_id)
             # eventlog.log(EVENTS['ACCESS_DENIED'].id, userName=req['created_by'], entity=entity_id)
             self.notify_for_trial_run({'ts': start_time, 'td': time.time() - start_time, 'value': str(e)}, req,
-                                 alerts, force_alert=True)
+                                      alerts, force_alert=True)
         except CheckError, e:
             self.logger.warn('Trial run on entity %s failed. Output: %s', entity_id, str(e))
             self.notify_for_trial_run({'ts': start_time, 'td': time.time() - start_time, 'value': str(e)}, req,
-                                 alerts, force_alert=True)
+                                      alerts, force_alert=True)
         except Exception, e:
             self.logger.exception('Trial run on entity %s threw an exception', entity_id)
             self.con.connection_pool.disconnect()
             self.notify_for_trial_run({'ts': start_time, 'td': time.time() - start_time, 'value': str(e)}, req,
-                                 alerts, force_alert=True)
+                                      alerts, force_alert=True)
         else:
             self.notify_for_trial_run(val, req, alerts)
-
 
     def cleanup(self, *args, **kwargs):
         self.task_context = kwargs.get('task_context')
@@ -1260,14 +1266,13 @@ class NotaZmonTask(object):
                     all_entities = set(self.con.hkeys('zmon:alerts:{}:entities'.format(alert_id)))
                     for entity in all_entities - alert_entities:
                         self.logger.info('Removing entity %s from hash %s', entity,
-                                            'zmon:alerts:{}:entities'.format(alert_id))
+                                         'zmon:alerts:{}:entities'.format(alert_id))
                         p.hdel('zmon:alerts:{}:entities'.format(alert_id), entity)
                         p.delete('zmon:notifications:{}:{}'.format(alert_id, entity))
             else:
                 self._cleanup_alert(p, alert_id)
 
         p.execute()
-
 
     def _cleanup_check(self, pipeline, check_id):
         self.logger.info('Removing check with id %s from zmon:checks set', check_id)
@@ -1277,7 +1282,6 @@ class NotaZmonTask(object):
             pipeline.delete('zmon:checks:{}:{}'.format(check_id, entity_id))
         self.logger.info('Removing key %s', 'zmon:checks:{}'.format(check_id))
         pipeline.delete('zmon:checks:{}'.format(check_id))
-
 
     def _cleanup_alert(self, pipeline, alert_id):
         self.logger.info('Removing alert with id %s from zmon:alerts set', alert_id)
@@ -1290,7 +1294,6 @@ class NotaZmonTask(object):
         pipeline.delete('zmon:alerts:{}'.format(alert_id))
         self.logger.info('Removing key %s', 'zmon:alert:{}:entities'.format(alert_id))
         pipeline.delete('zmon:alerts:{}:entities'.format(alert_id))
-
 
     def _cleanup_common(self, pipeline, entry_type, entry_id, entities):
         '''
@@ -1319,7 +1322,6 @@ class NotaZmonTask(object):
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
 
-
     def check(self, req):
 
         self.logger.debug(req)
@@ -1333,7 +1335,8 @@ class NotaZmonTask(object):
         except Exception, e:
             # PF-3778 Always store check results and re-raise exception which will be handled in 'check_and_notify'.
             self._store_check_result(req, {'td': round(time.time() - start, ROUND_SECONDS_DIGITS), 'ts': round(start,
-                                ROUND_SECONDS_DIGITS), 'value': str(e), 'worker': self.worker_name, 'exc': 1})
+                                                                                                               ROUND_SECONDS_DIGITS),
+                                           'value': str(e), 'worker': self.worker_name, 'exc': 1})
             raise
         finally:
             # Store duration in milliseconds as redis only supports integers for counters.
@@ -1361,7 +1364,14 @@ class NotaZmonTask(object):
         if int(req['check_id']) in self._metric_cache_check_ids:
             try:
                 requests.post(self._metric_cache_url,
-                              data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id":req["entity"]["id"], "application_id": req["entity"]["application_id"], "application_version": req["entity"]["application_version"]}, 'check_result': res}], cls=JsonDataEncoder))
+                              data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id": req["entity"]["id"],
+                                                                                             "application_id":
+                                                                                                 req["entity"][
+                                                                                                     "application_id"],
+                                                                                             "application_version":
+                                                                                                 req["entity"][
+                                                                                                     "application_version"]},
+                                                'check_result': res}], cls=JsonDataEncoder))
             except:
                 # TODO: really just silently ignore everything?
                 pass
@@ -1370,12 +1380,10 @@ class NotaZmonTask(object):
 
         return res
 
-
     def check_for_trial_run(self, req):
         # fake check ID as it is used by check context
         req['check_id'] = 'trial_run'
         return self._get_check_result(req)
-
 
     @timed
     def _get_check_result_internal(self, req):
@@ -1417,19 +1425,16 @@ class NotaZmonTask(object):
             # transformations of entities: hostname "pp-whatever" needs to become "whatever.pp"
             prefix = 'pp-'
             if 'host' in req['entity'] and str(req['entity']['host']).startswith(prefix):
-
                 self.logger.warn('secure req[entity] before pp- transformations: %s', req['entity'])
 
                 real_host = req['entity']['host']
-                #secure_host = '{}.pp'.format(req['entity']['host'][3:])
+                # secure_host = '{}.pp'.format(req['entity']['host'][3:])
                 secure_host = '{}.{}'.format(req['entity']['host'][len(prefix):], prefix[:-1])
                 # relplace all real host values occurrences with secure_host
                 req['entity'].update({k: v.replace(real_host, secure_host) for k, v in req['entity'].items() if
                                       isinstance(v, basestring) and real_host in v and k != 'id'})
 
                 self.logger.warn('secure req[entity] after pp- transformations: %s', req['entity'])
-
-
 
     def _build_check_context(self, req):
         '''Build context for check command with all necessary functions'''
@@ -1482,7 +1487,7 @@ class NotaZmonTask(object):
                 return d
 
             # FIXME: hardcoded DC prefix
-            id = entity["id"].replace('itr-','').replace('gth-', '')
+            id = entity["id"].replace('itr-', '').replace('gth-', '')
 
             m = HOST_GROUP_PREFIX.search(id)
             if m:
@@ -1529,7 +1534,7 @@ class NotaZmonTask(object):
                 key_split = tags['key'].split('.')
                 metric_tag = key_split[-1]
                 if not metric_tag:
-                    #should only happen for key ending with a "." and as it is a dict there then exists a -2
+                    # should only happen for key ending with a "." and as it is a dict there then exists a -2
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
 
@@ -1566,7 +1571,6 @@ class NotaZmonTask(object):
             except Exception, e:
                 self.logger.error("KairosDB write failed {}".format(e))
 
-
     def evaluate_alert(self, alert_def, req, result):
         '''Check if the result triggers an alert
 
@@ -1587,7 +1591,12 @@ class NotaZmonTask(object):
 
         try:
             result = evaluate_condition(result['value'], alert_def['condition'], **build_condition_context(self.con,
-                                        check_id, alert_id, req['entity'], captures, alert_parameters))
+                                                                                                           check_id,
+                                                                                                           alert_id,
+                                                                                                           req[
+                                                                                                               'entity'],
+                                                                                                           captures,
+                                                                                                           alert_parameters))
         except Exception, e:
             captures['exception'] = str(e)
             result = True
@@ -1609,11 +1618,10 @@ class NotaZmonTask(object):
 
         return is_alert, captures
 
-
     def send_notification(self, notification, context):
         ctx = _build_notify_context(context)
         try:
-            repeat = safe_eval(notification, eval_source='<check-command>' , **ctx)
+            repeat = safe_eval(notification, eval_source='<check-command>', **ctx)
         except Exception, e:
             # TODO Define what should happen if sending emails or sms fails.
             self.logger.exception(e)
@@ -1649,9 +1657,10 @@ class NotaZmonTask(object):
         entity_id = req['entity']['id']
         start = time.time()
 
+        # TODO: should be float or is it milliseconds?
         check_result = {
             'time': ts_serialize(val.get('ts')) if isinstance(val, dict) else None,
-            'run_time': val.get('td') if isinstance(val, dict) else None,  # TODO: should be float or is it milliseconds?
+            'run_time': val.get('td') if isinstance(val, dict) else None,
             'check_id': req['check_id'],
             'entity_id': req['entity']['id'],
             'check_result': val,
@@ -1700,12 +1709,11 @@ class NotaZmonTask(object):
                 elif changed and not is_alert:
                     _log_event(('ALERT_ENTITY_ENDED'), alert, val, entity_id)
 
-
                 # Always store captures for given alert-entity pair, this is also used a list of all entities matching
                 # given alert id. Captures are stored here because this way we can easily link them with check results
                 # (see PF-3146).
                 self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
-                              cls=JsonDataEncoder))
+                                                                                                cls=JsonDataEncoder))
 
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
@@ -1713,7 +1721,7 @@ class NotaZmonTask(object):
                     'captures': captures,
                     'downtimes': [],
                     'exception': True if isinstance(captures, dict) and 'exception' in captures else False,
-                    'active':  is_alert,
+                    'active': is_alert,
                     'changed': changed,
                     'in_period': is_in_period,
                     'start_time': None,
@@ -1734,15 +1742,16 @@ class NotaZmonTask(object):
                         stored_raw = self.con.get(notifications_key)
                         json.loads(stored_raw) if stored_raw else None
                     except (ValueError, TypeError):
-                        self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s', notifications_key)
+                        self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s',
+                                         notifications_key)
 
                 downtimes = None
 
                 if is_in_period:
 
                     self._counter.update({'alerts.{}.count'.format(alert_id): 1,
-                                         'alerts.{}.evaluation_duration'.format(alert_id):
-                                         int(round(1000.0 * (time.time() - start)))})
+                                          'alerts.{}.evaluation_duration'.format(alert_id):
+                                              int(round(1000.0 * (time.time() - start)))})
 
                     # Always evaluate downtimes, so that we don't miss downtime_ended event in case the downtime ends when
                     # the alert is no longer active.
@@ -1774,7 +1783,7 @@ class NotaZmonTask(object):
                         'duration': timedelta(seconds=(time.time() - start_time if is_alert and not changed else 0)),
                     }
 
-                    #do not send notifications for downtimed alerts
+                    # do not send notifications for downtimed alerts
                     if not downtimes:
                         if changed:
                             if 'notifications' not in alert:
@@ -1792,8 +1801,8 @@ class NotaZmonTask(object):
                                 if notification in previous_times and time.time() > float(previous_times[notification]):
                                     self.send_notification(notification, notification_context)
 
-                    self._counter.update({'alerts.{}.notification_duration'.format(alert_id):
-                                         int(round(1000.0 * (time.time() - start)))})
+                    duration_ms = int(round(1000.0 * (time.time() - start)))
+                    self._counter.update({'alerts.{}.notification_duration'.format(alert_id): duration_ms})
                     setp(req['check_id'], entity_id, 'notify loop - send metrics')
                     self.send_metrics()
                     setp(req['check_id'], entity_id, 'notify loop end')
@@ -1810,14 +1819,16 @@ class NotaZmonTask(object):
                             p.srem('zmon:alerts', alert_id)
                         p.execute()
 
-                        self.logger.info('Removed alert with id %s on entity %s from active alerts due to time period: %s',
-                                         alert_id, entity_id, alert.get('period', ''))
+                        self.logger.info(
+                            'Removed alert with id %s on entity %s from active alerts due to time period: %s',
+                            alert_id, entity_id, alert.get('period', ''))
 
                 # add to alert report regardless alert up/down/out of period
                 # report['results']['alerts'][alert_id]['_alert_stored'] = alert_stored
                 # report['results']['alerts'][alert_id]['_notifications_stored'] = notifications_stored
 
-                check_result['alerts'][alert_id]['start_time'] = ts_serialize(alert_stored['start_time']) if alert_stored else None
+                check_result['alerts'][alert_id]['start_time'] = ts_serialize(
+                    alert_stored['start_time']) if alert_stored else None
                 check_result['alerts'][alert_id]['start_time_ts'] = alert_stored['start_time'] if alert_stored else None
                 check_result['alerts'][alert_id]['downtimes'] = downtimes
 
@@ -1825,23 +1836,23 @@ class NotaZmonTask(object):
 
             # enqueue report to be sent via http request
             if self._dataservice_poster:
-                #'entity_id': req['entity']['id'],
+                # 'entity_id': req['entity']['id'],
                 check_result["entity"] = {"id": req['entity']['id']}
 
-                for k in ["application_id","application_version","stack_name","stack_version","team","account_alias"]:
+                for k in ["application_id", "application_version", "stack_name", "stack_version", "team",
+                          "account_alias"]:
                     if k in req["entity"]:
                         check_result["entity"][k] = req["entity"][k]
 
                 self._dataservice_poster.enqueue(check_result)
 
             return result
-        #TODO: except SoftTimeLimitExceeded:
+        # TODO: except SoftTimeLimitExceeded:
         except Exception:
             # Notifications should not exceed the time limit.
             self.logger.exception('Notification for check %s reached soft time limit', req['check_name'])
             self.con.connection_pool.disconnect()
             return None
-
 
     def post_trial_run(self, id, entity, result):
         if self._dataservice_url is not None:
@@ -1852,22 +1863,22 @@ class NotaZmonTask(object):
                 'result': result
             }
 
-            headers = {"Content-Type":"application/json"}
+            headers = {"Content-Type": "application/json"}
             if self._dataservice_oauth2:
-                headers.update({'Authorization':'Bearer {}'.format(tokens.get('uid'))})
+                headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
             try:
-                requests.put(self._dataservice_url+"trial-run/", data=json.dumps(val, cls=JsonDataEncoder), headers=headers)
+                requests.put(self._dataservice_url + "trial-run/", data=json.dumps(val, cls=JsonDataEncoder),
+                             headers=headers)
             except Exception as ex:
                 self.logger.exception(ex)
-
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
         """Like notify(), but for trial runs!"""
 
         try:
             # There must be exactly one alert in alerts.
-            alert,  = alerts
+            alert, = alerts
             redis_key = 'zmon:trial_run:{uuid}:results'.format(uuid=(alert['id'])[3:])
 
             is_alert, captures = ((True, {}) if force_alert else self.evaluate_alert(alert, req, val))
@@ -1905,18 +1916,15 @@ class NotaZmonTask(object):
 
             return ([alert['id']] if is_alert and is_in_period else [])
 
-        #TODO: except SoftTimeLimitExceeded:
+        # TODO: except SoftTimeLimitExceeded:
         except Exception:
             self.con.connection_pool.disconnect()
             return None
-
 
     def _store_captures_locally(self, alert_id, entity_id, timestamp, captures):
         metrics = _convert_captures(self.worker_name, alert_id, entity_id, timestamp, captures)
         if metrics:
             self._captures_local.extend(metrics)
-
-
 
     def _evaluate_downtimes(self, alert_id, entity_id):
         result = []

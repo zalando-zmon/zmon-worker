@@ -30,7 +30,6 @@ def flatten(structure, key='', path='', flattened=None):
 
 
 class DistanceWrapper(object):
-
     def __init__(self, history_wrapper, weeks=4, snap_to_bin=True, bin_size='1h', dict_extractor_path=''):
 
         self.history_wrapper = history_wrapper
@@ -72,8 +71,9 @@ class DistanceWrapper(object):
 
         if isinstance(value, dict):
             if self.dict_extractor_path == '':
-                raise Exception('Extractor may not be empty for dicts as value. You need to tell which part of the dict I should use.'
-                                )
+                raise Exception(
+                    'Extractor may not be empty for dicts as value. You need to tell which part of the dict I should use.'
+                )
             # throws when the key is unavailable; this is what we want
             value = flatten(value)[self.dict_extractor_path]
         return value
@@ -87,7 +87,7 @@ class DistanceWrapper(object):
         averages = []
         for time_range in time_ranges:
             averages.extend(self.history_wrapper.get_avg(self.dict_extractor_path, time_range['time_from'],
-                            time_range['time_to']))
+                                                         time_range['time_to']))
         if not averages:
             raise Exception('No history data available in bin_mean call.')
         return numpy.average(averages)
@@ -101,7 +101,7 @@ class DistanceWrapper(object):
         deviations = []
         for time_range in time_ranges:
             deviations.extend(self.history_wrapper.get_std_dev(self.dict_extractor_path, time_range['time_from'],
-                              time_range['time_to']))
+                                                               time_range['time_to']))
         if not deviations:
             raise Exception('No history data available in bin_standard_deviation call.')
 
@@ -145,9 +145,7 @@ if __name__ == '__main__':
 
     logging.info('flattened dict: %s', flatten({'a': {'b': {'c': 5}}}))
 
-
     class HistoryWrapper(object):
-
         def __init__(self, check_id, entities=[]):
             self.check_id = check_id
             self.entities = entities
@@ -159,7 +157,6 @@ if __name__ == '__main__':
         @staticmethod
         def get_std_dev(key, time_from, time_to):
             return [2]
-
 
     now = datetime.datetime.now()
     before = now.replace(minute=0, second=0, microsecond=0)

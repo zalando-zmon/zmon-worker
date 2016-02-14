@@ -11,7 +11,6 @@ from zmon_worker_monitor import plugin_manager
 
 
 class ExceptionsFactory(IFunctionFactoryPlugin):
-
     def __init__(self):
         super(ExceptionsFactory, self).__init__()
         # fields from dependencies: plugin depends 1 other plugin
@@ -45,7 +44,6 @@ class ExceptionsFactory(IFunctionFactoryPlugin):
 
 
 class ExceptionsWrapper(object):
-
     def __init__(self, http_wrapper, host=None, instance=None, project=None):
         self.__http = http_wrapper
         self.url = 'https://exceptions.example.com/'
@@ -57,19 +55,18 @@ class ExceptionsWrapper(object):
         return self.__http(path, base_url=self.url, params=params).json()
 
     def count(
-        self,
-        host=None,
-        instance=None,
-        project=None,
-        source_class=None,
-        method_name=None,
-        exception_class=None,
-        time_from='-24h',
-        time_to=None,
-        level='ERROR',
-        q=None,
+            self,
+            host=None,
+            instance=None,
+            project=None,
+            source_class=None,
+            method_name=None,
+            exception_class=None,
+            time_from='-24h',
+            time_to=None,
+            level='ERROR',
+            q=None,
     ):
-
         return self.__request(
             'count',
             host=maybe_comma_join(host or self.host),
@@ -119,5 +116,3 @@ def maybe_comma_join(s):
         return ','.join(unicode(e) for e in s)
     else:
         return s
-
-

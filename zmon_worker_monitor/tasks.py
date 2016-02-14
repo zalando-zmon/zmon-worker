@@ -7,12 +7,11 @@ from zmon_worker.tasks.notacelery_task import NotaZmonTask
 from zmon_worker.notifications.mail import Mail
 from zmon_worker.notifications.sms import Sms
 
-
 logger = logging.getLogger(__name__)
 
 
 def configure_tasks(config):
-    #Pass configuration to zmon classes
+    # Pass configuration to zmon classes
     NotaZmonTask.configure(config)
 
     Mail.update_config(config)
@@ -39,4 +38,3 @@ def cleanup(*args, **kwargs):
     logger.info('cleanup task received with args=%s, kwargs=%s', args, kwargs)
 
     zmontask.cleanup(*args, **kwargs)
-

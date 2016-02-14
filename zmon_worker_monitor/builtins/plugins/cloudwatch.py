@@ -30,9 +30,11 @@ class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
         """
         return propartial(CloudwatchWrapper, region=factory_ctx.get('entity').get('region', None))
 
+
 def get_region():
     r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
     return r.json()['region']
+
 
 def matches(dimensions, filters):
     for key, pattern in filters.items():
@@ -40,8 +42,8 @@ def matches(dimensions, filters):
             return False
     return True
 
-class CloudwatchWrapper(object):
 
+class CloudwatchWrapper(object):
     def __init__(self, region=None):
         if not region:
             region = get_region()
@@ -73,8 +75,10 @@ class CloudwatchWrapper(object):
                 continue
             if filter_dimension_pattern and not matches(metric_dimensions, filter_dimension_pattern):
                 continue
-            response = self.client.get_metric_statistics(Namespace=metric['Namespace'], MetricName=metric['MetricName'], Dimensions=metric['Dimensions'],
-                                                         StartTime=start, EndTime=end, Period=period, Statistics=[statistics])
+            response = self.client.get_metric_statistics(Namespace=metric['Namespace'], MetricName=metric['MetricName'],
+                                                         Dimensions=metric['Dimensions'],
+                                                         StartTime=start, EndTime=end, Period=period,
+                                                         Statistics=[statistics])
             data_points = response['Datapoints']
             if data_points:
                 for [dim_name, dim_val] in metric_dimensions.items():
@@ -92,5 +96,6 @@ if __name__ == '__main__':
     elb_data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average')
     print(json.dumps(elb_data))
     print "Billing result (us-east-1 only):"
-    billing_data = cloudwatch.query({'Currency': 'USD'}, 'EstimatedCharges', 'Maximum', 'AWS/Billing', None, 3600, 60*4)
+    billing_data = cloudwatch.query({'Currency': 'USD'}, 'EstimatedCharges', 'Maximum', 'AWS/Billing', None, 3600,
+                                    60 * 4)
     print(json.dumps(billing_data))
