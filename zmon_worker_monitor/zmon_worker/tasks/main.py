@@ -238,6 +238,11 @@ def capture(value=None, captures=None, **kwargs):
     >>> p = functools.partial(capture, captures={}); p(1); p(a=1)
     1
     1
+
+    >>> capture({}, a=1, b=2)
+    Traceback (most recent call last):
+        ...
+    ValueError: Only one named capture supported
     '''
 
     if kwargs:
@@ -262,6 +267,10 @@ def _parse_alert_parameter_value(data):
     >>> _parse_alert_parameter_value({'value': '2014-07-03T22:00:00.000Z', 'comment': "desc", "type": "date"})
     datetime.date(2014, 7, 3)
 
+    >>> _parse_alert_parameter_value({'value': 'x', 'type': 'int'})
+    Traceback (most recent call last):
+        ...
+    ValueError: Attempted wrong type cast <int> in alert parameters
     '''
 
     allowed_types = {
@@ -278,13 +287,16 @@ def _parse_alert_parameter_value(data):
         try:
             value = allowed_types[type_name](value)
         except Exception:
-            raise Exception('Attempted wrong type cast <{}> in alert parameters'.format(type_name))
+            raise ValueError('Attempted wrong type cast <{}> in alert parameters'.format(type_name))
     return value
 
 
 def _inject_alert_parameters(alert_parameters, ctx):
     '''
     Inject alert parameters into the execution context dict (ctx)
+
+    >>> ctx = {}; _inject_alert_parameters({'para': {'value': 1}}, ctx); sorted(ctx.items())
+    [('para', 1), ('params', {'para': 1})]
     '''
 
     params_name = 'params'
@@ -826,9 +838,7 @@ class MainTask(object):
 
                 if serialized_data is not None:
                     r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
-                    if r.status_code != requests.codes.ok:
-                        raise Exception('http request to {} got status code={}'.format(url, r.status_code))
-
+                    r.raise_for_status()
         except Exception:
             logger.exception("Unexpected error in data service post")
             raise

@@ -21,6 +21,22 @@ def test_check(monkeypatch):
     task.check(req)
 
 
+def test_send_to_dataservice(monkeypatch):
+    check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
+    expected = {'account': 'myacc', 'team': 'myteam', 'results': check_results}
+
+    put = MagicMock()
+    monkeypatch.setattr('requests.put', put)
+    monkeypatch.setattr('tokens.get', lambda x: 'mytok')
+
+    MainTask.configure({'account': expected['account'], 'team': expected['team'],
+                        'dataservice.url': 'https://example.org', 'dataservice.oauth2': True})
+    MainTask.send_to_dataservice(check_results)
+    args, kwargs = put.call_args
+    assert args[0] == 'https://example.org/myacc/123/'
+    assert expected == json.loads(kwargs['data'])
+
+
 @pytest.mark.parametrize('result,expected', [
     ({'ts': 10, 'value': {'a': {'b': 12.25}, 'non-float': 'IGNORE-ME'}},
      [{"tags": {"metric": "b", "key": "a.b", "entity": "77"}, "name": "zmon.check.123",
