@@ -170,7 +170,7 @@ class HttpWrapper(object):
 
         # for clojure projects we use the dropwizard servlet, there the json looks slightly different
         if "timers" in j:
-            metric_map = {'p99':'99th','p75':'75th','mean':'median','m1_rate':'mRate','99%':'99th','75%':'75th','1m.rate':'mRate'}
+            metric_map = {'p99':'99th','p75':'75th','p50':'median','m1_rate':'mRate','99%':'99th','75%':'75th','1m.rate':'mRate'}
             j = j["timers"]
 
             start_index = len(prefix.split('.')) - 1
@@ -194,7 +194,7 @@ class HttpWrapper(object):
                         r[ep][method][status]={}
 
                     for (mn, mv) in v.iteritems():
-                        if mn in ['count','p99','p75','m1_rate','min','max','mean','75%','99%','1m.rate','median']:
+                        if mn in ['count','p99','p75','m1_rate','min','max','mean','75%','99%','1m.rate','median', 'p50']:
                             if mn in metric_map:
                                 mn = metric_map[mn]
                             r[ep][method][status][mn]=mv
