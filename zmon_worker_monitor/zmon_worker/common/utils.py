@@ -99,4 +99,5 @@ class PeriodicBufferedAction(object):
                     t_last = time.time()
                     t_wait_last = self.get_time_randomized()
             else:
-                time.sleep(0.2)  # so loop is responsive to stop commands
+                # so loop is responsive to stop commands
+                time.sleep(0.2)
