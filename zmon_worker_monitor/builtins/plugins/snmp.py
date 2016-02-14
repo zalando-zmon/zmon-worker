@@ -5,7 +5,6 @@ from zmon_worker_monitor.zmon_worker.errors import SnmpError
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.proto.rfc1902 import Integer, OctetString, Counter32, Counter64
 import re
-import subprocess32
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -244,35 +243,6 @@ class SnmpWrapper(object):
                 continue
             results[name][tname] = result_all[oid]
         return results
-
-    def postgres_backup(self):
-        # val = self._get_mib('public', 'NET-SNMP-EXTEND-MIB', 'check_postgres_backup')
-        # res = self.parse(OctetString, str, val)
-        # Workaround for a too large check response from the script(too large udp packets are blocked by the fw, so we use tcp)
-        cmd = \
-            '/usr/bin/snmpget -v2c -c public -t {timeout} tcp:{host} \'NET-SNMP-EXTEND-MIB::nsExtendOutputFull."check_postgres_backup"\''.format(
-                timeout=self.timeout,
-                host=self.host)
-        try:
-            output = subprocess32.check_output(cmd, shell=True, timeout=self.timeout, stderr=subprocess32.STDOUT)
-        except subprocess32.CalledProcessError, e:
-            database_backup_size, warnings, check_duration = {}, [str(e.output)], 0
-        else:
-            res = output.partition(': ')[2]
-            s = res.split('|')
-            warning = s[0]
-            perfdata = s[-1]
-            database_backup_size = {}
-            check_duration = 0
-            for pd in perfdata.split(' '):
-                k, _, v = pd.partition('=')
-                v = v.split(';')[0]
-                if k == 'time':
-                    check_duration = v
-                else:
-                    database_backup_size[k] = v
-            warnings = warning.split(';')
-        return {'database_backup_size': database_backup_size, 'warnings': warnings, 'check_duration': check_duration}
 
     def disk_pgxlog(self):
         result = {}
