@@ -21,6 +21,38 @@ def test_check(monkeypatch):
     task.check(req)
 
 
+def test_evaluate_alert(monkeypatch):
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+    plugin_manager.collect_plugins()
+
+    # mock Redis
+    con = MagicMock
+    monkeypatch.setattr(MainTask, 'con', con)
+    MainTask.configure({})
+    task = MainTask()
+    task.con = MagicMock()
+    alert_def = {'id': 1, 'check_id': 123, 'condition': '>0', 'parameters': {'p1': {'value': 'x'}}}
+    req = {'check_id': 123,
+           'entity': {'id': '77', 'type': 'test'}}
+    result = {'ts': 10, 'value': 0}
+    is_alert, captures = task.evaluate_alert(alert_def, req, result)
+    assert {'p1': 'x'} == captures
+    assert not is_alert
+
+    # change value over threshold
+    result = {'ts': 10, 'value': 1}
+    is_alert, captures = task.evaluate_alert(alert_def, req, result)
+    assert {'p1': 'x'} == captures
+    assert is_alert
+
+    # produce exception
+    alert_def['condition'] = 'value["missing-key"] > 0'
+    is_alert, captures = task.evaluate_alert(alert_def, req, result)
+    assert {'p1': 'x', 'exception': "'int' object has no attribute '__getitem__'"} == captures
+    assert is_alert
+
+
 def test_send_to_dataservice(monkeypatch):
     check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
     expected = {'account': 'myacc', 'team': 'myteam', 'results': check_results}
