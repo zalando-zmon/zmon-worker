@@ -1169,58 +1169,12 @@ class MainTask(object):
         if not self._kairosdb_enabled:
             return
 
-        def get_host_data(entity):
-            d = {"entity": normalize_kairos_id(entity["id"])}
-
-            # FIXME; hardcoded list of entity types :-(
-            if entity["type"] not in ["host", "zomcat", "zompy"]:
-                return d
-
-            # FIXME: hardcoded DC prefix
-            id = entity["id"].replace('itr-', '').replace('gth-', '')
-
-            m = HOST_GROUP_PREFIX.search(id)
-            if m:
-                d["hg"] = m.group(0)
-
-            if 'ports' not in entity:
-                m = INSTANCE_PORT_SUFFIX.search(id)
-                if m:
-                    d["port"] = m.group(1)
-            else:
-                d["port"] = str(entity['ports'].items()[-1:][0][1])
-
-            return d
-
         # use tags in kairosdb to reflect top level keys in result
         # zmon.check.<checkid> as key for time series
-
-        series_name = 'zmon.check.{}'.format(req['check_id'])
-
-        values = []
-
-        host_tags = get_host_data(req["entity"])
-
-        if isinstance(result['value'], dict):
-
-            if '_use_scheduled_time' in result['value']:
-                ts = int(req['schedule_time'] * 1000)
-                del result['value']['_use_scheduled_time']
-            else:
-                ts = int(result['ts'] * 1000)
-
-            flat_result = flatten(result['value'])
-
-            for k, v in flat_result.iteritems():
-
-                try:
-                    v = float(v)
-                except (ValueError, TypeError):
-                    continue
-
-                points = [[ts, v]]
-                tags = {'key': normalize_kairos_id(str(k))}
-
+        def get_tags(entity, k):
+            tags = {'entity': normalize_kairos_id(req['entity']['id'])}
+            if k:
+                tags['key'] = normalize_kairos_id(str(k))
                 key_split = tags['key'].split('.')
                 metric_tag = key_split[-1]
                 if not metric_tag:
@@ -1233,9 +1187,30 @@ class MainTask(object):
                     status_code = key_split[-2]
                     tags['sc'] = status_code
                     tags['sg'] = status_code[:1]
+            return tags
 
-                tags.update(host_tags)
+        series_name = 'zmon.check.{}'.format(req['check_id'])
 
+        values = []
+
+        ts = int(result['ts'] * 1000)
+        if isinstance(result['value'], dict):
+
+            if '_use_scheduled_time' in result['value']:
+                ts = int(req['schedule_time'] * 1000)
+                del result['value']['_use_scheduled_time']
+
+            flat_result = flatten(result['value'])
+
+            for k, v in flat_result.iteritems():
+
+                try:
+                    v = float(v)
+                except (ValueError, TypeError):
+                    continue
+
+                points = [[ts, v]]
+                tags = get_tags(req['entity'], k)
                 values.append(get_kairosdb_value(series_name, points, tags))
         else:
             try:
@@ -1243,11 +1218,8 @@ class MainTask(object):
             except (ValueError, TypeError):
                 pass
             else:
-                points = [[int(result['ts'] * 1000), v]]
-
-                tags = {}
-                tags.update(host_tags)
-
+                points = [[ts, v]]
+                tags = get_tags(req['entity'], None)
                 values.append(get_kairosdb_value(series_name, points, tags))
 
         if len(values) > 0:
