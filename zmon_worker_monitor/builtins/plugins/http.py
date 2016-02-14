@@ -26,8 +26,8 @@ tokens.start()
 
 logger = logging.getLogger('zmon-worker.http-function')
 
-class HttpFactory(IFunctionFactoryPlugin):
 
+class HttpFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(HttpFactory, self).__init__()
 
@@ -63,17 +63,16 @@ def absolute_http_url(url):
 
 
 class HttpWrapper(object):
-
     def __init__(
-        self,
-        url,
-        params=None,
-        base_url=None,
-        timeout=10,
-        max_retries=0,
-        verify=True,
-        oauth2=False,
-        headers=None,
+            self,
+            url,
+            params=None,
+            base_url=None,
+            timeout=10,
+            max_retries=0,
+            verify=True,
+            oauth2=False,
+            headers=None,
     ):
 
         self.url = (base_url + url if not absolute_http_url(url) else url)
@@ -86,7 +85,7 @@ class HttpWrapper(object):
         self.oauth2 = oauth2
         self.__r = None
 
-    def __request(self, raise_error=True, post_data = None):
+    def __request(self, raise_error=True, post_data=None):
         if self.__r is not None:
             return self.__r
         if self.max_retries:
@@ -100,7 +99,8 @@ class HttpWrapper(object):
 
         url_parsed = urlparse.urlsplit(base_url)
         if url_parsed and url_parsed.username and url_parsed.password:
-            base_url = base_url.replace("{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
+            base_url = base_url.replace(
+                "{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
             base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
             basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
         self.clean_url = base_url
@@ -155,8 +155,7 @@ class HttpWrapper(object):
         except Exception, e:
             raise HttpError(str(e), self.url), None, sys.exc_info()[2]
 
-
-    def actuator_metrics(self, prefix = 'zmon.response.', raise_error = True):
+    def actuator_metrics(self, prefix='zmon.response.', raise_error=True):
         """
         /metric responds with keys like: zmon.response.<status>.<method>.<end-point>
 
@@ -166,16 +165,17 @@ class HttpWrapper(object):
         if not isinstance(j, dict):
             raise HttpError('Invalid actuator metrics: response must be a JSON object', self.url)
 
-        r={}
+        r = {}
 
         # for clojure projects we use the dropwizard servlet, there the json looks slightly different
         if "timers" in j:
-            metric_map = {'p99':'99th','p75':'75th','p50':'median','m1_rate':'mRate','99%':'99th','75%':'75th','1m.rate':'mRate'}
+            metric_map = {'p99': '99th', 'p75': '75th', 'p50': 'median', 'm1_rate': 'mRate', '99%': '99th',
+                          '75%': '75th', '1m.rate': 'mRate'}
             j = j["timers"]
 
             start_index = len(prefix.split('.')) - 1
 
-            for (k,v) in j.iteritems():
+            for (k, v) in j.iteritems():
                 if k.startswith(prefix):
                     ks = k.split('.')
                     ks = ks[start_index:]
@@ -185,26 +185,27 @@ class HttpWrapper(object):
                     ep = '.'.join(ks[2:])
 
                     if ep not in r:
-                        r[ep]={}
+                        r[ep] = {}
 
                     if method not in r[ep]:
-                        r[ep][method]={}
+                        r[ep][method] = {}
 
                     if status not in r[ep][method]:
-                        r[ep][method][status]={}
+                        r[ep][method][status] = {}
 
                     for (mn, mv) in v.iteritems():
-                        if mn in ['count','p99','p75','m1_rate','min','max','mean','75%','99%','1m.rate','median', 'p50']:
+                        if mn in ['count', 'p99', 'p75', 'm1_rate', 'min', 'max', 'mean', '75%', '99%', '1m.rate',
+                                  'median', 'p50']:
                             if mn in metric_map:
                                 mn = metric_map[mn]
-                            r[ep][method][status][mn]=mv
+                            r[ep][method][status][mn] = mv
             return r
 
-        for (k,v) in j.iteritems():
+        for (k, v) in j.iteritems():
             if k.startswith(prefix):
                 ks = k.split('.')
 
-                if ks[-2]=='snapshot':
+                if ks[-2] == 'snapshot':
                     ep = '.'.join(ks[4:-2])
                 else:
                     ep = '.'.join(ks[4:-1])
@@ -222,11 +223,11 @@ class HttpWrapper(object):
 
                 if not (ks[-2] == 'snapshot'):
                     if ks[-1] == 'count':
-                        r[ep][ks[3]][ks[2]]['count']=v
+                        r[ep][ks[3]][ks[2]]['count'] = v
                     if ks[-1] == 'oneMinuteRate':
-                        r[ep][ks[3]][ks[2]]['mRate']=v
+                        r[ep][ks[3]][ks[2]]['mRate'] = v
                 else:
-                    if ks[-1] in ['75thPercentile','99thPercentile','min','max','median']:
+                    if ks[-1] in ['75thPercentile', '99thPercentile', 'min', 'max', 'median']:
                         r[ep][ks[3]][ks[2]][ks[-1].replace("Percentile", "")] = v
 
         return r
@@ -241,7 +242,7 @@ class HttpWrapper(object):
 
         for l in text_string_to_metric_families(t):
             for s in l.samples:
-                samples_by_name[s[0]].append((s[1],s[2]))
+                samples_by_name[s[0]].append((s[1], s[2]))
 
         return samples_by_name
 
