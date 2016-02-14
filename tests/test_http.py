@@ -205,3 +205,21 @@ def test_http_jolokia(monkeypatch):
         "attribute": "HeapMemoryUsage",
         "path": "used",
     }])
+
+
+def test_http_prometheus(monkeypatch):
+    resp = MagicMock()
+    # see http://prometheus.io/docs/instrumenting/exposition_formats/#text-format-details
+    resp.text = '''
+# HELP api_http_request_count The total number of HTTP requests.
+# TYPE api_http_request_count counter
+http_request_count{method="post",code="200"} 1027 1395066363000
+http_request_count{method="post",code="400"}    3 1395066363000
+'''
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+    http = HttpWrapper('http://example.org/prometheus/')
+    expected = {u'http_request_count': [({u'code': u'200', u'method': u'post'}, 1027.0),
+                                        ({u'code': u'400', u'method': u'post'}, 3.0)]}
+    assert expected == http.prometheus()
