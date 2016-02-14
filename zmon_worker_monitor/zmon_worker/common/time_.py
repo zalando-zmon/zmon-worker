@@ -21,6 +21,9 @@ def parse_timedelta(s):
     >>> parse_timedelta('bla')
 
 
+    >>> parse_timedelta('1k')
+
+
     >>> parse_timedelta('1s').total_seconds()
     1.0
 

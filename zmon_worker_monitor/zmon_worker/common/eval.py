@@ -160,7 +160,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
     g = {'__builtins__': {}, 'object': object, '__name__': __name__}
     # __builtins__ should be masked away to disable builtin functions
     # object is needed if the NewStyle class is being created
-    # __name__ is needed to be able to complie a class
+    # __name__ is needed to be able to compile a class
     g.update(kwargs)
 
     node = compile(expr, eval_source, 'exec', ast.PyCF_ONLY_AST | __future__.CO_FUTURE_PRINT_FUNCTION)
