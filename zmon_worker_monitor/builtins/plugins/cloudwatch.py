@@ -77,7 +77,7 @@ class CloudwatchWrapper(object):
                                                          Dimensions=metric['Dimensions'],
                                                          StartTime=start, EndTime=end, Period=period,
                                                          Statistics=[statistics])
-            data_points = response['Datapoints']
+            data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
             if data_points:
                 for [dim_name, dim_val] in metric_dimensions.items():
                     if dim_name not in data['dimensions']:
