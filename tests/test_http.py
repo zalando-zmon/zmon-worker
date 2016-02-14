@@ -3,7 +3,9 @@ from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.http import HttpWrapper
 from zmon_worker_monitor.zmon_worker.errors import HttpError
 
+
 def get_dropwizard_metrics():
+    # see https://github.com/zalando/connexion/issues/49
     yield {
         'version': '3.0.0',
         'gauges': {},
@@ -53,24 +55,58 @@ def get_dropwizard_metrics():
     }
     # expected
     yield {'pets': {'GET': {'200': {'75th': 383,
-                                     '99th': 460,
-                                     'count': 1917,
-                                     'mRate': 3.7570008143941e-05, 'median': 383, 'min': 295, 'max': 1125,
-                                     'mean': 386.16423467091}}},
+                                    '99th': 460,
+                                    'count': 1917,
+                                    'mRate': 3.7570008143941e-05, 'median': 383, 'min': 295, 'max': 1125,
+                                    'mean': 386.16423467091}}},
            'pets.{pet_id}': {'GET': {'200': {'75th': 224,
-                                                '99th': 425,
-                                                'count': 392373,
-                                                'mRate': 0.67804789230544,
-                                                'max': 627,
-                                                'median': 218,
-                                                'min': 163,
-                                                'mean': 219.38202968217}}}}
+                                             '99th': 425,
+                                             'count': 392373,
+                                             'mRate': 0.67804789230544,
+                                             'max': 627,
+                                             'median': 218,
+                                             'min': 163,
+                                             'mean': 219.38202968217}}}}
 
+
+def get_spring_boot_metrics():
+    # see https://github.com/zalando/zmon-actuator
+    yield {
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.count": 10,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.fifteenMinuteRate": 0.18076110580284566,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.fiveMinuteRate": 0.1518180485219247,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.meanRate": 0.06792011610723951,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.oneMinuteRate": 0.10512398137982051,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.75thPercentile": 1173,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.95thPercentile": 1233,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.98thPercentile": 1282,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.999thPercentile": 1282,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.99thPercentile": 1282,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.max": 1282,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.mean": 1170,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.median": 1161,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.min": 1114,
+        "zmon.response.200.GET.rest.api.v1.checks.all-active-check-definitions.snapshot.stdDev": 42,
+    }
+    # expected
+    yield {'rest.api.v1.checks.all-active-check-definitions': {'GET': {'200': {
+        'count': 10,
+        '75th': 1173,
+        '99th': 1282,
+        'min': 1114,
+        'max': 1282,
+        'mRate': 0.10512398137982051,
+        'mean': 1170,
+        'median': 1161
+
+    }}}}
 
 
 def get_test_data():
     return [({}, {}),
-            tuple(get_dropwizard_metrics())]
+            tuple(get_dropwizard_metrics()),
+            tuple(get_spring_boot_metrics())]
+
 
 def test_http(monkeypatch):
     resp = MagicMock()
@@ -109,4 +145,3 @@ def test_http_actuator_metrics_valid(monkeypatch, metrics_response, expected):
     monkeypatch.setattr('requests.get', get)
     http = HttpWrapper('http://example.org')
     assert expected == http.actuator_metrics()
-
