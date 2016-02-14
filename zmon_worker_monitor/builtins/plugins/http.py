@@ -155,48 +155,47 @@ class HttpWrapper(object):
         self.timeout = timeout
         self.max_retries = max_retries
         self.verify = verify
-        self.headers = headers or {}
+        self._headers = headers or {}
         self.oauth2 = oauth2
         self.__r = None
 
     def __request(self, raise_error=True, post_data=None):
-        if self.__r is not None:
-            return self.__r
-        if self.max_retries:
-            s = requests.Session()
-            s.mount('', HTTPAdapter(max_retries=self.max_retries))
-        else:
-            s = requests
-
-        base_url = self.url
-        basic_auth = None
-
-        url_parsed = urlparse.urlsplit(base_url)
-        if url_parsed and url_parsed.username and url_parsed.password:
-            base_url = base_url.replace(
-                "{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
-            base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
-            basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
-        self.clean_url = base_url
-
-        if self.oauth2:
-            self.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
-
-        self.headers.update({'User-Agent': get_user_agent()})
-
-        try:
-            if post_data is None:
-                self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                                 headers=self.headers, auth=basic_auth)
+        if self.__r is None:
+            if self.max_retries:
+                s = requests.Session()
+                s.mount('', HTTPAdapter(max_retries=self.max_retries))
             else:
-                self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                                  headers=self.headers, auth=basic_auth, data=json.dumps(post_data))
-        except requests.Timeout, e:
-            raise HttpError('timeout', self.clean_url), None, sys.exc_info()[2]
-        except requests.ConnectionError, e:
-            raise HttpError('connection failed', self.clean_url), None, sys.exc_info()[2]
-        except Exception, e:
-            raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
+                s = requests
+
+            base_url = self.url
+            basic_auth = None
+
+            url_parsed = urlparse.urlsplit(base_url)
+            if url_parsed and url_parsed.username and url_parsed.password:
+                base_url = base_url.replace(
+                    "{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
+                base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
+                basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
+            self.clean_url = base_url
+
+            if self.oauth2:
+                self._headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+
+            self._headers.update({'User-Agent': get_user_agent()})
+
+            try:
+                if post_data is None:
+                    self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                     headers=self._headers, auth=basic_auth)
+                else:
+                    self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                      headers=self._headers, auth=basic_auth, data=json.dumps(post_data))
+            except requests.Timeout, e:
+                raise HttpError('timeout', self.clean_url), None, sys.exc_info()[2]
+            except requests.ConnectionError, e:
+                raise HttpError('connection failed', self.clean_url), None, sys.exc_info()[2]
+            except Exception, e:
+                raise HttpError(str(e), self.clean_url), None, sys.exc_info()[2]
         if raise_error:
             try:
                 self.__r.raise_for_status()
@@ -212,9 +211,14 @@ class HttpWrapper(object):
             raise HttpError(str(e), self.url), None, sys.exc_info()[2]
 
     def jolokia(self, read_requests, raise_error=True):
-
+        '''
+        :param read_requests: see https://jolokia.org/reference/html/protocol.html#post-request
+        :type read_requests: list
+        :param raise_error:
+        :return: Jolokia response
+        '''
         def set_read_type(x):
-            x['type'] = 'READ'
+            x['type'] = 'read'
 
         # hack quick verify
         if (not self.url.endswith('jolokia/')) or ('?' in self.url) or ('&' in self.url):

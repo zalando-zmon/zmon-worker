@@ -1,3 +1,5 @@
+import requests
+
 import pytest
 from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.http import HttpWrapper
@@ -122,6 +124,45 @@ def test_http(monkeypatch):
     assert '"foo"' == http.text()
     assert 'foo' == http.json()
     assert 5 == http.content_size()
+    resp.json.side_effect = Exception('JSON fail')
+    with pytest.raises(HttpError) as ex:
+        http.json()
+    assert 'JSON fail' == ex.value.message
+
+
+def test_http_errors(monkeypatch):
+    resp = MagicMock()
+    resp.status_code = 404
+    resp.raise_for_status.side_effect = requests.HTTPError('Not Found')
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+    http = HttpWrapper('http://example.org')
+    # the code method will not raise an exception..
+    assert 404 == http.code()
+    for meth in ('time', 'json', 'cookies', 'headers'):
+        with pytest.raises(HttpError) as ex:
+            # ..but other methods will!
+            getattr(http, meth)()
+        assert 'Not Found' == ex.value.message
+
+    get.side_effect = requests.Timeout('timed out')
+    http = HttpWrapper('http://example.org')
+    with pytest.raises(HttpError) as ex:
+        http.time()
+    assert 'timeout' == ex.value.message
+
+    get.side_effect = requests.ConnectionError('connfail')
+    http = HttpWrapper('http://example.org')
+    with pytest.raises(HttpError) as ex:
+        http.code()
+    assert 'connection failed' == ex.value.message
+
+    get.side_effect = Exception('foofail')
+    http = HttpWrapper('http://example.org')
+    with pytest.raises(HttpError) as ex:
+        http.code()
+    assert 'foofail' == ex.value.message
 
 
 def test_http_actuator_metrics_invalid(monkeypatch):
@@ -145,3 +186,22 @@ def test_http_actuator_metrics_valid(monkeypatch, metrics_response, expected):
     monkeypatch.setattr('requests.get', get)
     http = HttpWrapper('http://example.org')
     assert expected == http.actuator_metrics()
+
+
+def test_http_jolokia(monkeypatch):
+    resp = MagicMock()
+    resp.json.return_value = {'foo': 'bar'}
+    post = MagicMock()
+    post.return_value = resp
+    monkeypatch.setattr('requests.post', post)
+    with pytest.raises(HttpError) as ex:
+        http = HttpWrapper('http://example.org/foo')
+        http.jolokia([])
+    assert 'URL needs to end in jolokia/ and not contain ? and &' == ex.value.message
+
+    http = HttpWrapper('http://example.org/jolokia/')
+    assert {'foo': 'bar'} == http.jolokia([{
+        "mbean": "java.lang:type=Memory",
+        "attribute": "HeapMemoryUsage",
+        "path": "used",
+    }])
