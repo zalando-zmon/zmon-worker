@@ -3,7 +3,7 @@
 
 import logging
 
-from zmon_worker.tasks.notacelery_task import NotaZmonTask
+from zmon_worker.tasks.main import MainTask
 from zmon_worker.notifications.mail import Mail
 from zmon_worker.notifications.sms import Sms
 
@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 def configure_tasks(config):
     # Pass configuration to zmon classes
-    NotaZmonTask.configure(config)
+    MainTask.configure(config)
 
     Mail.update_config(config)
     Sms.update_config(config)
 
 
-zmontask = NotaZmonTask()
+zmontask = MainTask()
 
 
 def check_and_notify(req, alerts, task_context=None, **kwargs):

@@ -56,7 +56,7 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     start = time.time()
     # make sure the worker processes get enough time to execute our check
     # wait up to 5 seconds
-    while not get_data() and time.time() < start + 5:
+    while not get_data() and time.time() < start + 10:
         time.sleep(0.2)
     # print('Executed check in {:.2f}s'.format(time.time() - start))
     proc.proc_control.terminate_all_processes()

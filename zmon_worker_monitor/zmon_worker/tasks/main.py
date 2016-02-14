@@ -967,7 +967,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
                 eval_source))
 
 
-class NotaZmonTask(object):
+class MainTask(object):
     abstract = True
     _host = 'localhost'
     _port = 6379
@@ -1459,7 +1459,7 @@ class NotaZmonTask(object):
             'soft_time_limit': req['interval'],
             'redis_host': self.get_redis_host(),
             'redis_port': self.get_redis_port(),
-            'zmon_url': NotaZmonTask._zmon_url,
+            'zmon_url': MainTask._zmon_url,
             'entity_id_for_kairos': normalize_kairos_id(entity['id']),
             'req_created_by': req.get('created_by'),
         }
