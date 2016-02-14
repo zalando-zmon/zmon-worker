@@ -5,10 +5,8 @@ import boto3
 import collections
 import datetime
 import fnmatch
-import json
 import logging
 import requests
-import sys
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -87,15 +85,3 @@ class CloudwatchWrapper(object):
                     data['dimensions'][dim_name][dim_val] += data_points[-1][statistics]
                 data[metric['MetricName']] += data_points[-1][statistics]
         return data
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    cloudwatch = CloudwatchWrapper(sys.argv[1])
-    print "ELB result (eu-west-1 only):"
-    elb_data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average')
-    print(json.dumps(elb_data))
-    print "Billing result (us-east-1 only):"
-    billing_data = cloudwatch.query({'Currency': 'USD'}, 'EstimatedCharges', 'Maximum', 'AWS/Billing', None, 3600,
-                                    60 * 4)
-    print(json.dumps(billing_data))
