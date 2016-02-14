@@ -72,6 +72,37 @@ def test_evaluate_downtimes(monkeypatch):
     assert downtimes_active == result
 
 
+def test_notify(monkeypatch):
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+    plugin_manager.collect_plugins()
+
+    # mock Redis
+    con = MagicMock()
+    monkeypatch.setattr(MainTask, 'con', con)
+    monkeypatch.setattr(MainTask, '_evaluate_downtimes', lambda self, x, y: [])
+    MainTask.configure({})
+    task = MainTask()
+    alert_def = {'id': 42, 'check_id': 123, 'condition': '>0', 'parameters': {'p1': {'value': 'x'}}}
+    req = {'check_id': 123,
+           'check_name': 'My Check',
+           'entity': {'id': '77', 'type': 'test'}}
+    result = {'ts': 10, 'value': 0}
+    notify_result = task.notify(result, req, [alert_def])
+    assert [] == notify_result
+
+    # 1 > 0 => trigger active alert!
+    result = {'ts': 10, 'value': 1}
+    notify_result = task.notify(result, req, [alert_def])
+    assert [alert_def['id']] == notify_result
+
+    # alert is not in time period
+    alert_def['period'] = 'year {1980}'
+    result = {'ts': 10, 'value': 1}
+    notify_result = task.notify(result, req, [alert_def])
+    assert [] == notify_result
+
+
 def test_send_to_dataservice(monkeypatch):
     check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
     expected = {'account': 'myacc', 'team': 'myteam', 'results': check_results}

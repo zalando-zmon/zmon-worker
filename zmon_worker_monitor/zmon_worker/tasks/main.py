@@ -1407,15 +1407,6 @@ class MainTask(object):
                 except (ValueError, TypeError):
                     self.logger.warn('My messy Error parsing JSON alert result for key: %s', alerts_key)
 
-                if False:
-                    # get notification data stored in redis if any
-                    try:
-                        stored_raw = self.con.get(notifications_key)
-                        json.loads(stored_raw) if stored_raw else None
-                    except (ValueError, TypeError):
-                        self.logger.warn('My requete-messy Error parsing JSON alert result for key: %s',
-                                         notifications_key)
-
                 downtimes = None
 
                 if is_in_period:
