@@ -3,12 +3,33 @@ import json
 import pytest
 import time
 
-from zmon_worker_monitor.zmon_worker.tasks.main import MainTask
+from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values
 from zmon_worker_monitor import plugin_manager
 
 from mock import MagicMock
 
 ONE_DAY = 24 * 3600
+
+
+def test_entity_results():
+    con = MagicMock()
+    con.hkeys.return_value = ['foo']
+    con.lrange.return_value = ['{"value":7}']
+    assert [{'entity_id': 'foo', 'value': 7}] == entity_results(con, 1, 2)
+    assert [7] == entity_values(con, 1, 2)
+
+
+def test_alert_series():
+    con = MagicMock()
+    con.lrange.return_value = ['{"value":0}', '{"value": 1}', '{"value": 2}']
+    assert alert_series(lambda x: x>-1, 3, con, 1, "ent-1")
+    assert not alert_series(lambda x: x>0, 3, con, 1, "ent-1")
+
+    con.lrange.return_value = ['{}']
+    with pytest.raises(Exception) as ex:
+        alert_series(lambda x: x>-1, 1, con, 1, "ent-1")
+    assert str(ex.value) == 'All alert evaluations failed!'
+
 
 def test_check(monkeypatch):
     reload(plugin_manager)
