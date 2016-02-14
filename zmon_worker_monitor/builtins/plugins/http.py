@@ -163,13 +163,15 @@ class HttpWrapper(object):
         Response map is ep->method->status->metric
         """
         j = self.json(raise_error=raise_error)
+        if not isinstance(j, dict):
+            raise HttpError('Invalid actuator metrics: response must be a JSON object', self.url)
+
         r={}
 
         # for clojure projects we use the dropwizard servlet, there the json looks slightly different
         if "timers" in j:
             metric_map = {'p99':'99th','p75':'75th','mean':'median','m1_rate':'mRate','99%':'99th','75%':'75th','1m.rate':'mRate'}
             j = j["timers"]
-            j["zmon.response.200.GET.metrics"]={"mRate": 0.12345}
 
             start_index = len(prefix.split('.')) - 1
 
@@ -198,7 +200,6 @@ class HttpWrapper(object):
                             r[ep][method][status][mn]=mv
             return r
 
-        j["zmon.response.200.GET.metrics.oneMinuteRate"]=0.12345
         for (k,v) in j.iteritems():
             if k.startswith(prefix):
                 ks = k.split('.')
