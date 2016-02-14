@@ -175,7 +175,7 @@ class HttpWrapper(object):
                 base_url = base_url.replace(
                     "{0}:{1}@".format(urllib.quote(url_parsed.username), urllib.quote(url_parsed.password)), "")
                 base_url = base_url.replace("{0}:{1}@".format(url_parsed.username, url_parsed.password), "")
-                basic_auth = requests.auth.HTTPBasicAuth(url_parsed.username, url_parsed.password)
+                basic_auth = (url_parsed.username, url_parsed.password)
             self.clean_url = base_url
 
             if self.oauth2:

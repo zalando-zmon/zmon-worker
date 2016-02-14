@@ -4,6 +4,7 @@ import pytest
 from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.http import HttpWrapper
 from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 
 def get_dropwizard_metrics():
@@ -130,6 +131,52 @@ def test_http(monkeypatch):
     assert 'JSON fail' == ex.value.message
 
 
+def test_retries(monkeypatch):
+    session = MagicMock()
+    session.return_value.get.return_value.text = 'OK'
+    monkeypatch.setattr('requests.Session', session)
+    http = HttpWrapper('http://example.org', max_retries=10)
+    assert 'OK' == http.text()
+    assert session.return_value.get.called
+
+
+def test_basicauth(monkeypatch):
+    resp = MagicMock()
+    resp.text = 'OK'
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+
+    http = HttpWrapper('http://user:pass@example.org', timeout=2)
+    assert 'OK' == http.text()
+    get.assert_called_with('http://example.org', auth=('user', 'pass'),
+            headers={'User-Agent': 'zmon-worker/0.1'},
+            params=None, timeout=2, verify=True)
+
+    get.side_effect = requests.Timeout('timed out')
+    http = HttpWrapper('http://user:pass@example.org')
+    with pytest.raises(HttpError) as ex:
+        http.text()
+    # verify that our basic auth credentials are not exposed in the exception message
+    assert 'HTTP request failed for http://example.org: timeout' == str(ex.value)
+
+
+def test_oauth2(monkeypatch):
+    resp = MagicMock()
+    resp.status_code = 218
+    resp.text = 'OK'
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('tokens.get', lambda x: 'mytok')
+    http = HttpWrapper('http://example.org', oauth2=True, timeout=2)
+    assert 218 == http.code()
+    assert 'OK' == http.text()
+    get.assert_called_once_with('http://example.org', auth=None,
+            headers={'Authorization': 'Bearer mytok', 'User-Agent': 'zmon-worker/0.1'},
+            params=None, timeout=2, verify=True)
+
+
 def test_http_errors(monkeypatch):
     resp = MagicMock()
     resp.status_code = 404
@@ -206,6 +253,16 @@ def test_http_jolokia(monkeypatch):
         "path": "used",
     }])
 
+    resp.json.side_effect = Exception('JSON FAIL')
+    http = HttpWrapper('http://example.org/jolokia/')
+    with pytest.raises(HttpError) as ex:
+        http.jolokia([{
+            "mbean": "java.lang:type=Memory",
+            "attribute": "HeapMemoryUsage",
+            "path": "used",
+        }])
+    assert 'JSON FAIL' == ex.value.message
+
 
 def test_http_prometheus(monkeypatch):
     resp = MagicMock()
@@ -223,3 +280,4 @@ http_request_count{method="post",code="400"}    3 1395066363000
     expected = {u'http_request_count': [({u'code': u'200', u'method': u'post'}, 1027.0),
                                         ({u'code': u'400', u'method': u'post'}, 3.0)]}
     assert expected == http.prometheus()
+
