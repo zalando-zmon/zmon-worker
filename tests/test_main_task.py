@@ -1,12 +1,14 @@
 import json
 
 import pytest
+import time
 
 from zmon_worker_monitor.zmon_worker.tasks.main import MainTask
 from zmon_worker_monitor import plugin_manager
 
 from mock import MagicMock
 
+ONE_DAY = 24 * 3600
 
 def test_check(monkeypatch):
     reload(plugin_manager)
@@ -27,11 +29,10 @@ def test_evaluate_alert(monkeypatch):
     plugin_manager.collect_plugins()
 
     # mock Redis
-    con = MagicMock
+    con = MagicMock()
     monkeypatch.setattr(MainTask, 'con', con)
     MainTask.configure({})
     task = MainTask()
-    task.con = MagicMock()
     alert_def = {'id': 1, 'check_id': 123, 'condition': '>0', 'parameters': {'p1': {'value': 'x'}}}
     req = {'check_id': 123,
            'entity': {'id': '77', 'type': 'test'}}
@@ -51,6 +52,24 @@ def test_evaluate_alert(monkeypatch):
     is_alert, captures = task.evaluate_alert(alert_def, req, result)
     assert {'p1': 'x', 'exception': "'int' object has no attribute '__getitem__'"} == captures
     assert is_alert
+
+
+def test_evaluate_downtimes(monkeypatch):
+    downtimes = [{'id': 'dt-active', 'start_time': 0, 'end_time': time.time() + ONE_DAY},
+                 {'id': 'dt-expired', 'start_time': 0, 'end_time': 2},
+                 {'id': 'dt-future', 'start_time': time.time() + ONE_DAY, 'end_time': time.time() + (2 * ONE_DAY)}]
+    downtimes_active = downtimes[:1]  # only the first one is still active
+
+    # mock Redis
+    con = MagicMock()
+    con.pipeline.return_value.execute.return_value = (['ent1'], {'dt-active': json.dumps(downtimes[0]),
+                                                                 'dt-expired': json.dumps(downtimes[1]),
+                                                                 'dt-future': json.dumps(downtimes[2])})
+    monkeypatch.setattr(MainTask, 'con', con)
+    MainTask.configure({})
+    task = MainTask()
+    result = task._evaluate_downtimes(1, 'ent1')
+    assert downtimes_active == result
 
 
 def test_send_to_dataservice(monkeypatch):

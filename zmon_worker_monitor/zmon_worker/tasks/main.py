@@ -678,7 +678,6 @@ class MainTask(object):
     _con = None
     _graphite = None
     _counter = Counter()
-    _captures_local = []
     _last_metrics_sent = 0
     _last_captures_sent = 0
     _logger = None
@@ -1592,11 +1591,6 @@ class MainTask(object):
         except Exception:
             self.con.connection_pool.disconnect()
             return None
-
-    def _store_captures_locally(self, alert_id, entity_id, timestamp, captures):
-        metrics = _convert_captures(self.worker_name, alert_id, entity_id, timestamp, captures)
-        if metrics:
-            self._captures_local.extend(metrics)
 
     def _evaluate_downtimes(self, alert_id, entity_id):
         result = []
