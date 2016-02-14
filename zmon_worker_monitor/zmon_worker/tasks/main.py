@@ -1,58 +1,46 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import ast
-from inspect import isclass
-import __future__
-
-from collections import Callable, Counter
-import socket
-from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
-from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
-
 import functools
 import itertools
 import json
 import logging
 import random
-from zmon_worker_monitor.redis_context_manager import RedisConnHandler
-import time
 import re
 import requests
-import sys
 import setproctitle
-from datetime import timedelta, datetime
+import socket
+import sys
+import time
 import urllib
-import pytz
-import threading
-import Queue
-
-from collections import defaultdict
-
-import jsonpath_rw
-
 from bisect import bisect_left
-from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
-from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
-
-from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
-from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
-from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
-
-from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
-from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
-from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
-from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
-
+from collections import Callable, Counter
+from collections import defaultdict
+from datetime import timedelta, datetime
 from operator import itemgetter
-from timeperiod import in_period, InvalidFormat
 
 import functional
-from zmon_worker_monitor.zmon_worker.common import mathfun
+import jsonpath_rw
+import pytz
+import tokens
+from timeperiod import in_period, InvalidFormat
 
 from zmon_worker_monitor import plugin_manager
-
-import tokens
+from zmon_worker_monitor.redis_context_manager import RedisConnHandler
+from zmon_worker_monitor.zmon_worker.common import mathfun
+from zmon_worker_monitor.zmon_worker.common.eval import safe_eval, InvalidEvalExpression, ProtectedPartial
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
+from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
+from zmon_worker_monitor.zmon_worker.common.utils import flatten, PeriodicBufferedAction
+from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
+from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
+from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
+from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
+from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
+from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
+from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
+from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
+from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 
 logger = logging.getLogger(__name__)
 
@@ -106,27 +94,6 @@ INSTANCE_PORT_SUFFIX = re.compile(r':([0-9]+)$')
 get_value = itemgetter('value')
 
 
-class ProtectedPartial(object):
-    '''
-    Provides functools.partial functionality with one additional feature: if keyword arguments contain '__protected'
-    key with list of arguments as value, the appropriate values will not be overwritten when calling the partial. This
-    way we can prevent user from overwriting internal zmon parameters in check command. The protected key uses double
-    underscore to prevent overwriting it, we reject all commands containing double underscores.
-    '''
-
-    def __init__(self, func, *args, **kwargs):
-        self.__func = func
-        self.__partial_args = args
-        self.__partial_kwargs = kwargs
-        self.__protected = frozenset(kwargs.get('__protected', []))
-        self.__partial_kwargs.pop('__protected', None)
-
-    def __call__(self, *args, **kwargs):
-        new_kwargs = self.__partial_kwargs.copy()
-        new_kwargs.update((k, v) for (k, v) in kwargs.iteritems() if k not in self.__protected)
-        return self.__func(*self.__partial_args + args, **new_kwargs)
-
-
 def propartial(func, *args, **kwargs):
     '''
     >>> propartial(int, base=2)('100')
@@ -150,28 +117,6 @@ def setp(check_id, entity, msg):
 
 def get_kairosdb_value(name, points, tags):
     return {'name': name, 'datapoints': points, 'tags': tags}
-
-
-def flatten(structure, key='', path='', flattened=None):
-    '''
-    >>> flatten({})
-    {}
-    >>> flatten({'a': {'b': {'c': ['d', 'e']}}})
-    {'a.b.c': ['d', 'e']}
-    >>> sorted(flatten({'a': {'b': 'c'}, 'd': 'e'}).items())
-    [('a.b', 'c'), ('d', 'e')]
-    '''
-    path = str(path)
-    key = str(key)
-
-    if flattened is None:
-        flattened = {}
-    if not isinstance(structure, dict):
-        flattened[((path + '.' if path else '')) + key] = structure
-    else:
-        for new_key, value in structure.items():
-            flatten(value, new_key, '.'.join(filter(None, [path, key])), flattened)
-    return flattened
 
 
 def timed(f):
@@ -518,81 +463,6 @@ def _prepare_condition(condition):
         return condition
 
 
-class PeriodicBufferedAction(object):
-    def __init__(self, action, action_name=None, retries=5, t_wait=10, t_random_fraction=0.5):
-
-        self._stop = True
-        self.action = action
-        self.action_name = action_name if action_name else (action.func_name if hasattr(action, 'func_name') else
-                                                            (action.__name__ if hasattr(action, '__name__') else None))
-        self.retries = retries
-        self.t_wait = t_wait
-        self.t_rand_fraction = t_random_fraction
-
-        self._queue = Queue.Queue()
-        self._thread = threading.Thread(target=self._loop)
-        self._thread.daemon = True
-
-    def start(self):
-        self._stop = False
-        self._thread.start()
-
-    def stop(self):
-        self._stop = True
-
-    def is_active(self):
-        return not self._stop
-
-    def get_time_randomized(self):
-        return self.t_wait * (1 + random.uniform(-self.t_rand_fraction, self.t_rand_fraction))
-
-    def enqueue(self, data, count=0):
-        elem = {
-            'data': data,
-            'count': count,
-            # 'time': time.time()
-        }
-        try:
-            self._queue.put_nowait(elem)
-        except Queue.Full:
-            logger.exception('Fatal Error: is worker out of memory? Details: ')
-
-    def _collect_from_queue(self):
-        elem_list = []
-        empty = False
-
-        while not empty and not self._stop:
-            try:
-                elem_list.append(self._queue.get_nowait())
-            except Queue.Empty:
-                empty = True
-        return elem_list
-
-    def _loop(self):
-        t_last = time.time()
-        t_wait_last = self.get_time_randomized()
-
-        while not self._stop:
-            if time.time() - t_last >= t_wait_last:
-                elem_list = self._collect_from_queue()
-                try:
-                    if elem_list:
-                        self.action([e['data'] for e in elem_list])
-                except Exception as e:
-                    logger.error('Error executing action %s: %s', self.action_name, e)
-                    for elem in elem_list:
-                        if elem['count'] < self.retries:
-                            self.enqueue(elem['data'], count=elem['count'] + 1)
-                        else:
-                            logger.error('Error: Maximum retries reached for action %s. Dropping data: %s ',
-                                         self.action_name, elem['data'])
-                finally:
-                    t_last = time.time()
-                    t_wait_last = self.get_time_randomized()
-            else:
-                time.sleep(0.2)  # so loop is responsive to stop commands
-
-
 def _log_event(event_name, alert, result, entity=None):
     params = {'checkId': alert['check_id'], 'alertId': alert['id'], 'value': result['value']}
 
@@ -667,10 +537,6 @@ def evaluate_condition(val, condition, **ctx):
     '''
 
     return safe_eval(_prepare_condition(condition), eval_source='<alert-condition>', value=val, **ctx)
-
-
-class InvalidEvalExpression(Exception):
-    pass
 
 
 class MalformedCheckResult(Exception):
@@ -789,182 +655,6 @@ def build_default_context():
         'jsonpath_parse': jsonpath_rw.parse,
         'jsonpath_flat_filter': jsonpath_flat_filter
     }
-
-
-def check_ast_node_is_safe(node, source):
-    '''
-    Check that the ast node does not contain any system attribute calls
-    as well as exec call (not to construct the system attribute names with strings).
-
-    eval() function calls should not be a problem, as it is hopefuly not exposed
-    in the globals and __builtins__
-
-    >>> node = ast.parse('def __call__(): return 1')
-    >>> node == check_ast_node_is_safe(node, '<source>')
-    True
-
-    >>> check_ast_node_is_safe(ast.parse('def m(): return ().__class__'), '<hidden>')
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <hidden> should not try to access hidden attributes (for example '__class__')
-
-
-    >>> check_ast_node_is_safe(ast.parse('def horror(g): exec "exploit = ().__" + "class" + "__" in g'), '<horror>')
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <horror> should not try to execute arbitrary code
-
-    '''
-
-    for n in ast.walk(node):
-        if isinstance(n, ast.Attribute):
-            if n.attr.startswith('__'):
-                raise InvalidEvalExpression(
-                    "{} should not try to access hidden attributes (for example '__class__')".format(source))
-        elif isinstance(n, ast.Exec):
-            raise InvalidEvalExpression('{} should not try to execute arbitrary code'.format(source))
-    return node
-
-
-def safe_eval(expr, eval_source='<string>', **kwargs):
-    '''
-    Safely execute expr.
-
-    For now expr can be only one python expression, a function definition
-    or a callable class definition.
-
-    If the expression is returning a callable object (like lambda function
-    or Try() object) it will be called and a result of the call will be returned.
-
-    If a result of calling of the defined function or class are returning a callable object
-    it will not be called.
-
-    As access to the hidden attributes is protected by check_ast_node_is_safe() method
-    we should not have any problem with vulnerabilites defined here:
-    Link: http://nedbatchelder.com/blog/201206/eval_really_is_dangerous.html
-
-    TODO: implement compile object cache
-
-    >>> safe_eval('value > 0', value=1)
-    True
-
-    >>> safe_eval('def m(): return value', value=10)
-    10
-
-    >>> safe_eval('def m(param): return value', value=10)
-    Traceback (most recent call last):
-        ...
-    TypeError: m() takes exactly 1 argument (0 given)
-
-    >>> safe_eval('lambda: value', value=10)
-    10
-
-    >>> result = safe_eval('def m(): print value', value=10)
-    Traceback (most recent call last):
-        ...
-    SyntaxError: invalid syntax
-
-    >>> result = safe_eval('print value', value=10)
-    Traceback (most recent call last):
-        ...
-    SyntaxError: invalid syntax
-
-    >>> safe_eval('def m(): return lambda: value', value=10) #doctest: +ELLIPSIS
-    <function <lambda> at ...>
-
-    >>> safe_eval('error = value', value=10, eval_source='<alert-condition>')
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <alert-condition> can contain a python expression, a function call or a callable class definition
-
-    >>> safe_eval('def m(): return value.__class__', value=10)
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <string> should not try to access hidden attributes (for example '__class__')
-
-    >>> safe_eval("""
-    ... class CallableClass(object):
-    ...
-    ...     def get_value(self):
-    ...         return value
-    ...
-    ...     def __call__(self):
-    ...         return self.get_value()
-    ... """, value=10)
-    10
-
-    >>> safe_eval("""
-    ... class NotCallableClass(object):
-    ...
-    ...     def get_value(self):
-    ...         return value
-    ...
-    ...     def call(self): # this is not a callable class
-    ...         return self.get_value()
-    ... """, value=10)
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <string> should contain a callable class definition (missing __call__ method?)
-
-
-    >>> safe_eval("""
-    ... def firstfunc():
-    ...     return value
-    ...
-    ... value > 0
-    ...
-    ... """, value=10)
-    Traceback (most recent call last):
-        ...
-    InvalidEvalExpression: <string> should contain only one python expression, a function call or a callable class definition
-
-    '''
-
-    g = {'__builtins__': {}, 'object': object, '__name__': __name__}
-    # __builtins__ should be masked away to disable builtin functions
-    # object is needed if the NewStyle class is being created
-    # __name__ is needed to be able to complie a class
-    g.update(kwargs)
-
-    node = compile(expr, eval_source, 'exec', ast.PyCF_ONLY_AST | __future__.CO_FUTURE_PRINT_FUNCTION)
-    node = check_ast_node_is_safe(node, eval_source)
-    body = node.body
-    if body and len(body) == 1:
-        x = body[0]
-        if isinstance(x, ast.FunctionDef) or isinstance(x, ast.ClassDef):
-            cc = compile(node, eval_source, 'exec')  # can be nicely cached
-            v = {}
-            exec (cc, g, v)
-            if len(v) == 1:
-                c = v.itervalues().next()
-                if isclass(c):
-                    # we need a class instance and not the class itself
-                    c = c()
-
-                if callable(c):
-                    return c()  # if a function will return another callable, we will not call it
-                else:
-                    raise InvalidEvalExpression(
-                        '{} should contain a callable class definition (missing __call__ method?)'.format(eval_source))
-            else:
-                raise InvalidEvalExpression(
-                    '{} should contain only one function or one callable class definition'.format(eval_source))
-        elif isinstance(x, ast.Expr):
-            cc = compile(expr, eval_source, 'eval', __future__.CO_FUTURE_PRINT_FUNCTION)  # can be nicely cached
-            r = eval(cc, g)
-            if callable(r):
-                # Try() returns callable that should be executed
-                return r()
-            else:
-                return r
-        else:
-            raise InvalidEvalExpression(
-                '{} can contain a python expression, a function call or a callable class definition'.format(
-                    eval_source))
-    else:
-        raise InvalidEvalExpression(
-            '{} should contain only one python expression, a function call or a callable class definition'.format(
-                eval_source))
 
 
 class MainTask(object):
