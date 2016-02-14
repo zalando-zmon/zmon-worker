@@ -105,7 +105,6 @@ class NagiosWrapper(object):
                                    'parser': self._to_dict_commitdiff},
             'check_disk': {'args': '-a 15% 7% /', 'parser': self._parse_memory},
             'check_all_disks': {'args': '-a 15% 7% MB', 'parser': self._parse_disks},
-            'check_fiege-avis-file': {'args': '', 'parser': self._to_dict_from_text},
             'check_findfiles': {'args': '-a 20,20,20 20,20,20 {directory} {epoch} found',
                                 'parser': partial(self._to_dict, func=int),
                                 'parameters': {'directory': '', 'epoch': 1}},
@@ -206,9 +205,6 @@ class NagiosWrapper(object):
                     'password': hetcrawler_proxy_pass,
                 },
             },
-            'check_lounge_queries': {'args': '', 'parser': self._to_dict_lounge_queries},
-            'check_newsletter': {'args': '-p {port}', 'parser': self._to_dict_newsletter,
-                                 'parameters': {'port': '5666'}},
             'check_nfs_mounts': {'args': '', 'parser': self._to_dict_list},
             'check_kdc': {'args': '', 'parser': json.loads},
             'check_kadmin': {'args': '', 'parser': json.loads},
@@ -243,19 +239,6 @@ class NagiosWrapper(object):
                     'critical': 1,
                     'community': 'public',
                     'extra': '-r -2',
-                }},
-            # check_xmlrpc.rb:  BI checks for PF-3558
-            # possible user_args:
-            # Exasol: backup state -> '-check-backup'  (default)
-            # Exasol: DB-Status -> '--rpc getDatabaseState --ok'
-            # Exasol: Node status -> '--check-node-states -w 0 -c 1'
-            # Exasol: Verbindungs-Status -> '--rpc getDatabaseConnectionState --ok yes'
-            'check_xmlrpc.rb': {'args': '--url http://{user}:{password}@{targethost}/cluster1/db_exa_db1 {user_args}',
-                                'parser': self._to_dict_newsletter, 'parameters': {
-                    'targethost': '10.229.12.212',
-                    'user': exasol_user,
-                    'password': exasol_password,
-                    'user_args': '-check-backup',
                 }},
             'check_ssl_cert': {'args': '-w 60 -c 30 -H {host_ip} -n {domain_name} -r /etc/ssl/certs --altnames',
                                'parser': partial(self._to_dict, func=int),
@@ -514,17 +497,6 @@ class NagiosWrapper(object):
 
     @staticmethod
     @error_wrapped
-    def _to_dict_lounge_queries(output):
-        '''try to parse this output:
-        QUERY OK: 'SELECT COUNT(*) FROM global_orders WHERE (billing_address LIKE '%xxx%' OR email='foo@example.org')
-        AND order_date >= DATE_SUB(CURDATE(),INTERVAL 1 DAY);' returned 0.000000
-        '''
-
-        return {'status': ' '.join(output.split()[:2]).strip(':'), 'query': ' '.join(output.split()[2:-2]),
-                'result': float(output.split()[-1])}
-
-    @staticmethod
-    @error_wrapped
     def _to_dict_iostat(output):
         '''
         try to parse this output:
@@ -555,18 +527,6 @@ class NagiosWrapper(object):
                                                                                                       for a in
                                                                                                       output.split(
                                                                                                           ' -- ')])
-
-    @staticmethod
-    @error_wrapped
-    def _to_dict_newsletter(output):
-        '''
-        try to parse this output:
-        OK: Not in timeframe (02:25:00 - 09:00:00)
-        or
-        CRITICAL: NL not processed for appdomain 17, Not processed for appdomain 18
-        '''
-
-        return {'status': output.split(': ')[0], 'messages': output.split(': ')[-1].strip('\n').split(',')}
 
     @staticmethod
     @error_wrapped
