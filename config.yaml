@@ -24,7 +24,8 @@ kairosdb.port: 8083
 
 
 metriccache.url: 'http://localhost:8086'
-metriccache.check_ids: []
+metriccache.check.id: 0
+metriccache.check.ids: []
 
 ## plugin configuration: these values override those set in local plugin config files
 

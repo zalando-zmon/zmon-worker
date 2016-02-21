@@ -744,7 +744,9 @@ class MainTask(object):
             cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
             cls._dataservice_poster.start()
 
-        cls._metric_cache_check_ids = config.get('metriccache.check_ids', [])
+        cls._metric_cache_check_ids = config.get('metriccache.check.ids', [])
+        if (config.get('metriccache.check.id', 0) != 0):
+            cls._metric_cache_check_ids.add(config.get('metriccache.check.id'))
         cls._metric_cache_url = config.get('metriccache.url', '')
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
