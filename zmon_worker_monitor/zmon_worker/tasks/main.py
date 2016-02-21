@@ -1191,8 +1191,7 @@ class MainTask(object):
                     metric_tag = key_split[-2]
                 tags['metric'] = metric_tag
 
-                # FIXME: hardcoded check ID :-(
-                if req['check_id'] == 2115:
+                if req['check_id'] in self._metric_cache_check_ids:
                     status_code = key_split[-2]
                     tags['sc'] = status_code
                     tags['sg'] = status_code[:1]
