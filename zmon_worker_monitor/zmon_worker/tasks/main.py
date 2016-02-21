@@ -746,7 +746,7 @@ class MainTask(object):
 
         cls._metric_cache_check_ids = config.get('metriccache.check.ids', [])
         if (config.get('metriccache.check.id', 0) != 0):
-            cls._metric_cache_check_ids.add(config.get('metriccache.check.id'))
+            cls._metric_cache_check_ids.append(config.get('metriccache.check.id'))
         cls._metric_cache_url = config.get('metriccache.url', '')
 
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
