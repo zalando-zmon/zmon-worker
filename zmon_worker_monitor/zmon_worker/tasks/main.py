@@ -1077,7 +1077,7 @@ class MainTask(object):
                                                                                                  req["entity"][
                                                                                                      "application_version"]},
                                                 'check_result': res}], cls=JsonDataEncoder))
-            except:
+            except Exception as ex:
                 logger.error("failed to write to metric cache...", ex)
                 pass
 
