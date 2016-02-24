@@ -1078,7 +1078,7 @@ class MainTask(object):
                                                                                                      "application_version"]},
                                                 'check_result': res}], cls=JsonDataEncoder))
             except:
-                logger.error("failed to write to metric cache...")
+                logger.error("failed to write to metric cache...", ex)
                 pass
 
         setp(req['check_id'], req['entity']['id'], 'stored')
