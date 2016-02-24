@@ -1066,6 +1066,7 @@ class MainTask(object):
 
         # assume metric cache is not protected as not user exposed
         if int(req['check_id']) in self._metric_cache_check_ids:
+            logger.info("Writing check results to metric cache...")
             try:
                 requests.post(self._metric_cache_url,
                               data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id": req["entity"]["id"],
@@ -1077,7 +1078,7 @@ class MainTask(object):
                                                                                                      "application_version"]},
                                                 'check_result': res}], cls=JsonDataEncoder))
             except:
-                # TODO: really just silently ignore everything?
+                logger.error("failed to write to metric cache...")
                 pass
 
         setp(req['check_id'], req['entity']['id'], 'stored')
