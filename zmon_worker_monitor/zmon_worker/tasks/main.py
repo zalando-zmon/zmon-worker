@@ -1066,18 +1066,17 @@ class MainTask(object):
 
         # assume metric cache is not protected as not user exposed
         if int(req['check_id']) in self._metric_cache_check_ids:
-            logger.info("Writing check results to metric cache...")
+            temp_entity = {
+                "id": req["entity"]["id"],
+                "application_id": req["entity"]["application_id"],
+                "application_version": req["entity"].get('application_version', "1")
+            }
             try:
                 requests.post(self._metric_cache_url,
-                              data=json.dumps([{"entity_id": req['entity']['id'], 'entity': {"id": req["entity"]["id"],
-                                                                                             "application_id":
-                                                                                                 req["entity"][
-                                                                                                     "application_id"],
-                                                                                             "application_version":
-                                                                                                 req["entity"][
-                                                                                                     "application_version"]},
-                                                'check_result': res}], cls=JsonDataEncoder))
-            except Exception as ex:
+                              data=json.dumps([{"entity_id": req['entity']['id'],
+                                                "entity": temp_entity,
+                                                "check_result": res}], cls=JsonDataEncoder))
+            except Exception:
                 logger.exception("failed to write to metric cache...")
                 pass
 
@@ -1244,8 +1243,8 @@ class MainTask(object):
                 if r.status_code not in [200, 204]:
                     self.logger.error(r.text)
                     self.logger.error(json.dumps(values))
-            except Exception, e:
-                self.logger.error("KairosDB write failed {}".format(e))
+            except Exception:
+                self.logger.exception("KairosDB write failed")
 
     def evaluate_alert(self, alert_def, req, result):
         '''Check if the result triggers an alert
@@ -1537,8 +1536,8 @@ class MainTask(object):
             try:
                 requests.put(self._dataservice_url + "trial-run/", data=json.dumps(val, cls=JsonDataEncoder),
                              headers=headers)
-            except Exception as ex:
-                self.logger.exception(ex)
+            except Exception:
+                self.logger.exception("Posting trial run failed")
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
         """Like notify(), but for trial runs!"""
