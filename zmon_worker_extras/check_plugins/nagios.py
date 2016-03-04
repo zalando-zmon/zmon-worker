@@ -8,8 +8,8 @@ import re
 import shlex
 import subprocess32
 from functools import partial, wraps
-from zmon_worker_monitor.zmon_worker.errors import CheckError, NagiosError
 
+from zmon_worker_monitor.zmon_worker.errors import CheckError, NagiosError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger(__name__)

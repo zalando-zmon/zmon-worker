@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from mock import patch
-from zmon_worker_monitor.builtins.plugins.nagios import NagiosWrapper, NagiosError
+
+from zmon_worker_extras.check_plugins.nagios import NagiosWrapper, NagiosError
 
 import unittest
 

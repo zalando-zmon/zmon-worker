@@ -12,6 +12,10 @@ ADD ./ /app/
 
 RUN cd /app && python2 setup.py install
 
+COPY zmon_worker_extras/ /app/zmon_worker_extras
+
+ENV ZMON_PLUGINS "$ZMON_PLUGINS:/app/zmon_worker_extras/check_plugins"
+
 CMD ["zmon-worker", "-c", "/app/config.yaml"]
 
 COPY scm-source.json /

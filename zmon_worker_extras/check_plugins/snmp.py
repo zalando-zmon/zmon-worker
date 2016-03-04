@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from zmon_worker_monitor.zmon_worker.errors import SnmpError
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.proto.rfc1902 import Integer, OctetString, Counter32, Counter64
 import re
 
+from zmon_worker_monitor.zmon_worker.errors import SnmpError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 
