@@ -76,13 +76,15 @@ def _env_dirs(env_var, raise_errors=True):
 
     folders = []
     for d in env_value.split(os.pathsep):
+        if not d:
+            continue  # allows VAR="$VAR:newvalue", if $VAR is empty
         if not os.path.isdir(d):
             logger.warn('Wrong path %s in env variable %s', d, env_var)
             if raise_errors:
                 raise PluginFatalError('Env plugins error in path: {}, from env_var: {}'.format(d, env_var))
             continue
         folders.append(d)
-    return folders
+    return list(set(os.path.abspath(p) for p in folders))
 
 
 def _filter_additional_dirs(path_list, raise_errors=True):
