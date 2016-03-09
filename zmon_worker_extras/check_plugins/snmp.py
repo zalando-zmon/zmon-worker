@@ -5,7 +5,7 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 from pysnmp.proto.rfc1902 import Integer, OctetString, Counter32, Counter64
 import re
 
-from zmon_worker_monitor.zmon_worker.errors import SnmpError
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 
@@ -27,6 +27,15 @@ class SnmpFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
         return propartial(SnmpWrapper, host=factory_ctx['host'])
+
+
+class SnmpError(CheckError):
+    def __init__(self, message):
+        self.message = message
+        super(SnmpError, self).__init__()
+
+    def __str__(self):
+        return 'SNMP Error. Message: {}'.format(self.message)
 
 
 class SnmpWrapper(object):

@@ -9,7 +9,7 @@ import shlex
 import subprocess32
 from functools import partial, wraps
 
-from zmon_worker_monitor.zmon_worker.errors import CheckError, NagiosError
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,15 @@ def fix_sub32_exc(e):
             if not hasattr(e, field):
                 setattr(e, field, '--')
     return e
+
+
+class NagiosError(CheckError):
+    def __init__(self, output):
+        self.output = output
+        super(NagiosError, self).__init__()
+
+    def __str__(self):
+        return 'NagiosError. Command output: {}'.format(self.output)
 
 
 class NagiosWrapper(object):
