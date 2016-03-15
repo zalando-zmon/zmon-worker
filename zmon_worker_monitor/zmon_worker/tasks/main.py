@@ -1512,7 +1512,7 @@ class MainTask(object):
 
                 # overwrite timestamp with scheduled time for datapoint alignment
                 if '_use_scheduled_time' in check_result['check_result']['value']:
-                    check_result['check_result']['ts'] = int(req['schedule_time'] * 1000)
+                    check_result['check_result']['ts'] = int(req['schedule_time'])
                     del check_result['check_result']['value']['_use_scheduled_time']
 
                 self._dataservice_poster.enqueue(check_result)
