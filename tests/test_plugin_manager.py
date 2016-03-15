@@ -21,8 +21,11 @@ def broken_plugin_dir_abs_path(*suffixes):
     return os.path.abspath(os.path.join(os.path.dirname(__file__), 'plugins/broken_plugins', *suffixes))
 
 
-class TestPluginManager(unittest.TestCase):
+def extras_plugin_dir_abs_path(*suffixes):
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '../zmon_worker_extras/check_plugins', *suffixes))
 
+
+class TestPluginManager(unittest.TestCase):
 
     def test_load_plugins_twice(self):
         """
@@ -37,7 +40,6 @@ class TestPluginManager(unittest.TestCase):
 
         with self.assertRaises(plugin_manager.PluginFatalError):
             plugin_manager.collect_plugins(load_builtins=True, load_env=False, additional_dirs=None)
-
 
     def test_load_builtin_plugins(self):
         """
@@ -132,10 +134,6 @@ class TestPluginManager(unittest.TestCase):
             known_plugin_names = ['http', 'color_spain', 'color_germany', 'temperature_fridge']
             plugin_names = plugin_manager.get_all_plugin_names()
 
-            # print 'known_plugin_names', known_plugin_names
-            # print 'plugin_names', plugin_names
-
-
             self.assertTrue(set(known_plugin_names).issubset(plugin_names), 'All known test plugins are loaded')
 
             # test get_plugin_obj_by_name() and get_plugin_objs_of_category()
@@ -183,6 +181,59 @@ class TestPluginManager(unittest.TestCase):
 
             # test subpackage dependencies can be resolved
             self.assertEqual(temp_fridge.engine.power_unit, 'Watts')
+
+    @patch.dict(os.environ, {'ZMON_PLUGINS': extras_plugin_dir_abs_path() + ':' + simple_plugin_dir_abs_path()})
+    def test_load_plugins_extras(self):
+        """
+        Test is we can load correctly the extra plugins. Also loads builtins and simple test plugins.
+        Notice we put two folders to ZMON_PLUGINS env var, separated by ':'
+        """
+        # reload the plugin
+        reload(plugin_manager)
+
+        # Lets create a category filter that includes our builtin plugin type and 2 types we defines for our tests
+        category_filter = {
+            'Function': IFunctionFactoryPlugin,
+            'Color': IColorPlugin,
+            'Temperature': ITemperaturePlugin,
+        }
+
+        # init the plugin manager
+        plugin_manager.init_plugin_manager(category_filter=category_filter)
+
+        # collect builtins and explore folder in env var, e.g. ZMON_PLUGINS="/path/one:path/two:/path/three"
+        plugin_manager.collect_plugins(load_builtins=True, load_env=True, additional_dirs=None)
+
+        # check categories
+        all_categories = plugin_manager.get_all_categories()
+        seen_categories = plugin_manager.get_loaded_plugins_categories()
+        self.assertEqual(set(all_categories), set(category_filter.keys()), 'All defined categories are stored')
+
+        self.assertTrue(len(seen_categories) >= 2 and set(seen_categories).issubset(set(all_categories)),
+                        'found at least 2 categories and they all belong to all defined categories')
+
+        # check known test plugins are loaded
+        extra_plugins = ['exacrm', 'job_lock', 'nagios', 'snmp', 'mssql']  # non exhaustive list
+        known_plugin_names = extra_plugins + ['http', 'color_spain', 'color_germany', 'temperature_fridge']
+        plugin_names = plugin_manager.get_all_plugin_names()
+        self.assertTrue(set(known_plugin_names).issubset(plugin_names), 'All known test plugins are loaded')
+
+        # check extra plugins
+        for name, category in zip(extra_plugins, ['Function']*len(extra_plugins)):
+
+            p = plugin_manager.get_plugin_by_name(name, category)
+            p_obj = plugin_manager.get_plugin_obj_by_name(name, category)
+            self.assertEqual(id(p.plugin_object), id(p_obj), 'locate plugin object works')
+
+            self.assertTrue(p.is_activated)
+            self.assertEqual(p.plugin_object.is_activated, p.is_activated, 'plugin is activated')
+
+            self.assertTrue(isinstance(p_obj, IFunctionFactoryPlugin),
+                            'plugin object is instance of IFunctionFactoryPlugin')
+
+        # test extra plugin are configured according to config file
+        self.assertEqual(plugin_manager.get_plugin_obj_by_name('exacrm', 'Function')._exacrm_cluster, '--secret--',
+                         'exacrm object is configured')
 
     @patch.dict(os.environ, {'ZMON_PLUGINS': simple_plugin_dir_abs_path()})
     def test_global_config(self):
