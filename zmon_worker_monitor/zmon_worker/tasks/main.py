@@ -1511,7 +1511,7 @@ class MainTask(object):
                         check_result["entity"][k] = req["entity"][k]
 
                 # overwrite timestamp with scheduled time for datapoint alignment
-                if '_use_scheduled_time' in check_result['check_result']['value']:
+                if isinstance(check_result['check_result']['value'], dict) and '_use_scheduled_time' in check_result['check_result']['value']:
                     check_result['check_result']['ts'] = int(req['schedule_time'])
                     del check_result['check_result']['value']['_use_scheduled_time']
 
