@@ -51,6 +51,10 @@ class CloudwatchWrapper(object):
         '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
         end = end or datetime.datetime.utcnow()
         start = start or (end - datetime.timedelta(minutes=minutes))
+        if isinstance(dimensions, dict):
+            # transform Python dict to stupid AWS list structure
+            # see http://boto3.readthedocs.org/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.get_metric_statistics
+            dimensions = list({'Name': k, 'Value': v} for k, v in dimensions.items())
         response = self.client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
                                                      Dimensions=dimensions,
                                                      StartTime=start, EndTime=end, Period=period,

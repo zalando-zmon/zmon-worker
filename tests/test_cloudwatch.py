@@ -44,9 +44,17 @@ def test_cloudwatch_query_one(monkeypatch):
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
     cloudwatch = CloudwatchWrapper()
-    elb_data = cloudwatch.query_one({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-1'}, 'Latency', 'Average', 'AWS/ELB')
+    start = datetime.datetime.now()
+    end = start # makes no sense, but works for our test
+    elb_data = cloudwatch.query_one({'LoadBalancerName': 'pierone-1'}, 'Latency', 'Average', 'AWS/ELB', start=start, end=end)
     assert 111.25 == elb_data
     assert not client.list_metrics.called
+    client.get_metric_statistics.assert_called_with(Namespace='AWS/ELB', MetricName='Latency',
+            Dimensions=[{'Name': 'LoadBalancerName', 'Value': 'pierone-1'}],
+            StartTime=start,
+            EndTime=end,
+            Period=60,
+            Statistics=['Average'])
 
 
 def test_cloudwatch_query_one_no_result(monkeypatch):
