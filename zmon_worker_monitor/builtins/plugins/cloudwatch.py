@@ -47,7 +47,21 @@ class CloudwatchWrapper(object):
             region = get_region()
         self.client = boto3.client('cloudwatch', region_name=region)
 
-    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, unit=None, period=60, minutes=5):
+    def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None):
+        '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
+        end = end or datetime.datetime.utcnow()
+        start = start or (end - datetime.timedelta(minutes=minutes))
+        response = self.client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
+                                                     Dimensions=dimensions,
+                                                     StartTime=start, EndTime=end, Period=period,
+                                                     Statistics=[statistics])
+        data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
+        if not data_points:
+            return None
+        return data_points[-1][statistics]
+
+    def query(self, dimensions, metric_name, statistics='Sum', namespace=None, period=60, minutes=5):
+        '''Query one or more metric statistics; allows finding dimensions with wildcards'''
         filter_dimension_keys = set()
         filter_dimension_pattern = {}
         for key, val in list(dimensions.items()):
@@ -73,15 +87,11 @@ class CloudwatchWrapper(object):
                 continue
             if filter_dimension_pattern and not matches(metric_dimensions, filter_dimension_pattern):
                 continue
-            response = self.client.get_metric_statistics(Namespace=metric['Namespace'], MetricName=metric['MetricName'],
-                                                         Dimensions=metric['Dimensions'],
-                                                         StartTime=start, EndTime=end, Period=period,
-                                                         Statistics=[statistics])
-            data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
-            if data_points:
+            val = self.query_one(metric['Dimensions'], metric['MetricName'], statistics, metric['Namespace'], period, start=start, end=end)
+            if val:
                 for [dim_name, dim_val] in metric_dimensions.items():
                     if dim_name not in data['dimensions']:
                         data['dimensions'][dim_name] = collections.defaultdict(int)
-                    data['dimensions'][dim_name][dim_val] += data_points[-1][statistics]
-                data[metric['MetricName']] += data_points[-1][statistics]
+                    data['dimensions'][dim_name][dim_val] += val
+                data[metric['MetricName']] += val
         return data
