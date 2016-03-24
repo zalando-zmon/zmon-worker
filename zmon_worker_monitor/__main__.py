@@ -1,4 +1,4 @@
-import zmon_worker_monitor.web
+import zmon_worker_monitor.main
 
 if __name__ == '__main__':
-    zmon_worker_monitor.web.main()
+    zmon_worker_monitor.main.main()

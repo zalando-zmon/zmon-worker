@@ -1,14 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Client module for connecting to an rpc_server in a remote machine
 
-Test of execution:
-python rpc_client.py http://localhost:8000/patata popo_method int:3.5  float:5.6
+"""
+Client module for executing RPC methods exposed by a remote server.
+This module is compatible with any RPC server, but it is meant to be used to communicate
+with ZMON's internal RPC server.
+
+Although RPC specification don't allow calling methods with Python's kwargs, we have extended
+this module and ZMON's RPC server to support it. You can pass kwargs to ZMON's RPC server
+with one important limitation: kwargs values must be built-in types and json serializable.
+In practice this means: nested lists, dicts and all primitive types (int, float, string, ...)
+
+Example of use from code:
+  from rpc_client import call_rpc_method
+  rpc_url = 'http://localhost:8000/rpc_path'
+  result = call_rpc_method(rpc_url, 'my_method', args=[300, 1.1], kwargs={"age": 12, "name": "Peter Pan"})
+
+Another way to do the same:
+  from rpc_client import remote_callable
+  my_method = remote_callable(rpc_url, 'my_method')
+  result = my_method(300, 1.1, age=12, name="Peter Pan")
+
+Same example, but executed from the command line:
+  python rpc_client.py http://localhost:8000/rpc_path my_method int:300 float:1.1 'js:{"age": 12, "name": "Peter Pan"}'
+
 """
 
 import sys
+import json
 import xmlrpclib
+
 
 DEBUG = True
 
@@ -17,6 +38,10 @@ _cmd_struct = {
     'method_name': None,
     'args': []
 }
+
+
+def _serialize_kwargs(kwargs):
+    return 'js:{}'.format(json.dumps(kwargs))
 
 
 def parse_cmd_line(args):
@@ -31,7 +56,6 @@ def parse_cmd_line(args):
 
     for raw_arg in raw_method_args:
 
-        # arg_parts = raw_arg.strip('"\'').split(':')
         arg_parts = raw_arg.split(':')
 
         if len(arg_parts) == 1 or arg_parts[0] not in admitted_types:
@@ -56,11 +80,53 @@ def parse_cmd_line(args):
 
 def get_rpc_client(endpoint):
     """
-    Get an rpc client object to remote server listening at endpoint
-    :param endpoint: http://host:port/rpc_path
-    :return: rpc_client object
+    Returns a standard rpc client that connects to the remote server listening at endpoint
+
+    :param str endpoint: RPC url, example http://host:port/rpc_path
+    :return: object rpc_client
     """
     return xmlrpclib.ServerProxy(endpoint)
+
+
+def remote_callable(endpoint, method):
+    """
+    Returns a callable that represents the remote method.
+    Later execute the RPC using callable(*args, **kwargs). See module docstring for limitations on kwargs.
+
+    :param str endpoint: RPC endpoint url
+    :param str method: remote method name
+    :return: callable representing remote method.
+    """
+
+    client = get_rpc_client(endpoint)
+
+    def __wrap_f(*args, **kwargs):
+        args = list(args)
+        if kwargs:
+            args.append(_serialize_kwargs(kwargs))
+        return getattr(client, method)(*args)
+
+    return __wrap_f
+
+
+def call_rpc_method(endpoint, method, args=None, kwargs=None):
+    """
+    Executes RPC method and returns result.
+
+    :param str endpoint: RPC endpoint url
+    :param str method: remote method name
+    :param list args: positional arguments to passed
+    :param dict kwargs: keyword arguments to passed. See module docstring for limitations.
+    :return: result of RPC call
+    """
+
+    client = get_rpc_client(endpoint)
+
+    rpc_args = list(args) if args else []
+    if kwargs:
+        rpc_args.append(_serialize_kwargs(kwargs))
+
+    return getattr(client, method)(*rpc_args)
 
 
 if __name__ == '__main__':
@@ -75,9 +141,7 @@ if __name__ == '__main__':
     if DEBUG:
         print 'Parsed cmd_line: ', cmd_line
 
-    client = get_rpc_client(cmd_line['endpoint'])
-
     # Executing now the remote method
-    result = getattr(client, cmd_line['method_name'])(*cmd_line['args'])
+    result = call_rpc_method(cmd_line['endpoint'], cmd_line['method_name'], *cmd_line['args'])
     if result is not None:
         print ">>Result:\n", result

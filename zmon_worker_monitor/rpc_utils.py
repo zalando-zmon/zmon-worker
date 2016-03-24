@@ -111,5 +111,6 @@ def start_RPC_server(host, port, rpc_path, rpc_proxy):
         # Run the server's main loop
         server.serve_forever()
     except (KeyboardInterrupt, SystemExit):
-        logger.info("Server interrupted: Exiting!")
+        logger.info("RPC Server loop interrupted: Clean up and propagate SystemExit exception")
         rpc_proxy.on_exit()
+        raise
