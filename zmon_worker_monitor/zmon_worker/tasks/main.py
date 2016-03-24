@@ -1510,6 +1510,11 @@ class MainTask(object):
                     if k in req["entity"]:
                         check_result["entity"][k] = req["entity"][k]
 
+                # overwrite timestamp with scheduled time for datapoint alignment
+                if isinstance(check_result['check_result']['value'], dict) and '_use_scheduled_time' in check_result['check_result']['value']:
+                    check_result['check_result']['ts'] = int(req['schedule_time'])
+                    del check_result['check_result']['value']['_use_scheduled_time']
+
                 self._dataservice_poster.enqueue(check_result)
 
             return result
