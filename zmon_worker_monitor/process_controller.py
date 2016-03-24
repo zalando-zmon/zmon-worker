@@ -110,13 +110,8 @@ class ProcessController(object):
 
 
 class ProcessPlus(Process):
-
     """
     A multiprocessing.Process class extended to include all information we attach to the process
-
-    >>> p = eval(str(ProcessPlus(target=None, args=[1,2], kwargs={'a':1})))
-    >>> p.args == [1,2] and p.kwargs == {'a':1}
-    True
     """
 
     _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'ping_data', 'stored_pings', 'name', 'pid')

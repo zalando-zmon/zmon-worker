@@ -15,7 +15,6 @@ def start_web(listen_on="0.0.0.0", port=8080, threaded=False, log_conf=None, rpc
     :param threaded: use multithreaded server
     :param log_conf: log configuration to use in subprocess in dictConfig format
     :param rpc_url: internal RPC server endpoint
-    :return: None
     """
 
     if log_conf:
