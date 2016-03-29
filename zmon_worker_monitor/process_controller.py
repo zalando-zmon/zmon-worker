@@ -102,6 +102,9 @@ class ProcessController(object):
     def mark_for_termination(self, pid):
         self.proc_group.mark_for_termination(pids=[pid])
 
+    def ping(self, pid, data):
+        self.proc_group.add_ping(pid, data)
+
     def start_action_loop(self):
         self.proc_group.start_action_loop()
 
@@ -114,9 +117,18 @@ class ProcessPlus(Process):
     A multiprocessing.Process class extended to include all information we attach to the process
     """
 
-    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'ping_data', 'stored_pings', 'name', 'pid')
+    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'stored_pings', 'name', 'pid')
 
-    def __init__(self, target=None, args=(), kwargs=None, flags=None, tags=None, ping_data=None, **extra):
+    keep_pings = 30
+
+    _ping_template = {
+        'timestamp': 0,
+        'timedelta': 0,
+        'tasks_done': 0,
+        'percert_idle': 0,
+    }
+
+    def __init__(self, target=None, args=(), kwargs=None, flags=None, tags=None, **extra):
 
         # passed info
         self.target = target if callable(target) else self._str2func(target)
@@ -142,13 +154,7 @@ class ProcessPlus(Process):
             'pid': None,
         }
 
-        self.ping_data = {
-            'time_sent': None,
-            'tasks_done': 0,
-            'idle_faction': 0,
-        } if not ping_data else ping_data
-
-        self.stored_pings = []  # TODO: keep len in size
+        self.stored_pings = []
 
         self._rebel = False
         self._termination_mark = False
@@ -187,6 +193,13 @@ class ProcessPlus(Process):
 
     def has_flag(self, flag):
         return has_flag(self.flags, flag)
+
+    def add_ping(self, data):
+        self.stored_pings.append(data)
+        self.stored_pings = self.stored_pings[-self.keep_pings:]
+
+    def get_pings(self):
+        return self.stored_pings
 
     def start(self):
         self.stats['start_time'] = time.time()
@@ -389,7 +402,7 @@ class ProcessGroup(IterableUserDict):
         return n_success == N  # TODO: better return n_success
 
     def get_by_pid(self, pid):
-        # TODO: cache {pid => proc_name} to improve T? pids should not be reused often in a system
+        # TODO: cache {pid => proc_name}? PIDs reused slowly in linux (PIDs wrap around ~32768)
         for name, proc in self.items():
             if proc.pid == pid:
                 return proc
@@ -429,6 +442,11 @@ class ProcessGroup(IterableUserDict):
     def mark_for_termination(self, proc_names=(), pids=()):
         for name, proc in self.filtered(proc_names=proc_names, pids=pids).items():
             proc.mark_for_termination()
+
+    def add_ping(self, pid, data):
+        proc = self.get_by_pid(pid)
+        if proc:
+            proc.add_ping(data)
 
     def terminate_many(self, proc_names=(), pids=(), kill_wait=None):
         success = True
@@ -541,4 +559,3 @@ class ProcessGroup(IterableUserDict):
 
     def is_action_loop_running(self):
         return not self.stop_action
-

@@ -89,7 +89,7 @@ def main(args=None):
         main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"},
                                           flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
-    # start web server process. It will be restarted if it dies
+    # start web server process under supervision
     main_proc.proc_control.spawn_process(
         target=start_web,
         kwargs=dict(
@@ -100,7 +100,7 @@ def main(args=None):
             rpc_url='http://{host}:{port}{path}'.format(host='localhost', port=config.get('server.port'),
                                                         path=settings.RPC_SERVER_CONF['RPC_PATH']),
         ),
-        flags=MONITOR_RESTART,
+        flags=MONITOR_RESTART,  # web server will be restarted if dies
     )
 
     if not args.no_rpc:

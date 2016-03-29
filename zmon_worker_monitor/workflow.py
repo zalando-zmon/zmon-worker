@@ -9,6 +9,8 @@ import json
 import logging
 import time
 import threading
+from copy import deepcopy
+from random import random
 from rpc_client import get_rpc_client
 from contextlib import contextmanager
 import settings
@@ -203,7 +205,16 @@ class FlowControlReactor(object):
     _initialized = False
     _can_init = False
     _instance = None
+
     t_wait = 0.2
+    ping_timedelta = 30
+
+    _ping_template = {
+        'timestamp': None,
+        'timedelta': None,
+        'tasks_done': 0,
+        'percert_idle': 0,
+    }
 
     def __init__(self):
         # self.task_agg_info = {}  # we could aggregate some info about how tasks are running in this worker
@@ -217,6 +228,13 @@ class FlowControlReactor(object):
         self.action_on = False
         self._thread = threading.Thread(target=self.action_loop)
         self._thread.daemon = True
+        self._actions = (self.action_hard_kill, self.action_send_ping)
+
+        self._ping_data = deepcopy(self._ping_template)
+        self._ping_lock = threading.RLock()
+        self._ping_idle_points = [0, 0]  # [num_idle_points, num_total_points]
+        self._t_last_ping = time.time() - self.ping_timedelta * random()  # randomize ping start
+        self._num_ping_sent = -1
 
     @classmethod
     def get_instance(cls):
@@ -236,17 +254,49 @@ class FlowControlReactor(object):
         else:
             self.task_ended()
 
+    def action_hard_kill(self):
+        """ hard kill logic """
+        for th_name, (taskname, t_hard, t_soft, ts) in self._current_task_by_thread.copy().items():
+            if time.time() > ts + t_hard:
+                logger.warn('Hard Kill request started for worker pid=%s, task: %s, t_hard=%d', self._pid,
+                            taskname, t_hard)
+                self._rpc_client.mark_for_termination(self._pid)  # rpc call to parent asking for a kill
+                self._current_task_by_thread.pop(th_name, {})
+
+    def action_send_ping(self):
+
+        t_now = time.time()
+
+        if t_now - self._t_last_ping >= self.ping_timedelta:
+
+            with self._ping_lock:
+                data = self._ping_data
+                self._ping_data = deepcopy(self._ping_template)
+                idle, total = tuple(self._ping_idle_points)
+                self._ping_idle_points = [0, 0]
+
+            data['timestamp'] = t_now
+            data['timedelta'] = t_now - self._t_last_ping
+            data['percert_idle'] = (idle * 100.0) / total if total > 0 else 100
+
+            # send ping data
+            if self._num_ping_sent > 0:
+                self._rpc_client.ping(self._pid, data)  # rpc call to send ping data to parent
+
+            self._num_ping_sent += 1
+            self._t_last_ping = t_now
+        else:
+            # update idle info
+            with self._ping_lock:
+                self._ping_idle_points[0] += 1 if not self._current_task_by_thread else 0  # idle
+                self._ping_idle_points[1] += 1  # total
+
     def action_loop(self):
 
         while self.action_on:
             try:
-                # hard kill logic
-                for th_name, (taskname, t_hard, t_soft, ts) in self._current_task_by_thread.copy().items():
-                    if time.time() > ts + t_hard:
-                        logger.warn('Hard Kill request started for worker pid=%s, task: %s, t_hard=%d', self._pid,
-                                    taskname, t_hard)
-                        self._rpc_client.mark_for_termination(self._pid)  # rpc call to parent asking for a kill
-                        self._current_task_by_thread.pop(th_name, {})
+                for action in self._actions:
+                    action()
             except Exception:
                 logger.exception('Scary Error in FlowControlReactor.action_loop(): ')
 
@@ -266,6 +316,9 @@ class FlowControlReactor(object):
     def task_ended(self, exc=None):
         # delete the task from the list
         self._current_task_by_thread.pop(threading.currentThread().getName(), {})
+        # update ping data
+        with self._ping_lock:
+            self._ping_data['tasks_done'] += 1
 
 
 def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:default', **execution_context):

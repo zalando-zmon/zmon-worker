@@ -57,4 +57,4 @@ def has_flag(number, flag):
 
 def __is_pow2(x):
     i = x if str(x).isdigit() else -1
-    return True if i > 0 and i & (i-1) == 0 else False
+    return True if i > 0 and i & (i - 1) == 0 else False
