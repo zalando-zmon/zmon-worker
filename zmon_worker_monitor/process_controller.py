@@ -339,48 +339,61 @@ class ProcessPlus(Process):
         return self.__repr__()
 
 
-class ProcAction(object):
+class SimpleMethodCacheInMemory(object):
     """
     Simple cache-like decorator to mark methods of ProcessGroup that will run in the action loop in certain intervals
     """
 
-    decorated_functions = set()  # set(func_id1, func_id2)
-    returned = defaultdict(dict)  # {class_instance_id => {func_id => returned}}
-    t_last_exec = defaultdict(dict)  # {class_instance_id => {func_id => time_in_secs}}
+    decorated_functions = defaultdict(set)  # {region => set(func_id1, func_id2, ...)}
+    returned = {}  # {cache_key => returned}
+    t_last_exec = {}  # {cache_key => time }
 
-    def __init__(self, wait_sec=5, action_flag=None):
+    def __init__(self, region='', wait_sec=5, action_flag=None):
+        self.region = region
         self.wait_sec = wait_sec
         self.action_flag = action_flag if action_flag else MONITOR_NONE
 
+    @classmethod
+    def make_key(cls, region, self_received, func, args, kwargs):
+        return '{}-{}-{}-{}-{}'.format(region, id(self_received), id(func), args, sorted([(k, v) for k, v in
+                                                                                          kwargs.items()]))
+
     def __call__(self, f):
-        f_id = id(f)
-        self.decorated_functions.add(f_id)
+        self.decorated_functions[self.region].add(id(f))
 
         @wraps(f)
         def wrapper(*args, **kwargs):
-            class_instance = id(args[0])
-            t_last = self.t_last_exec[class_instance].get(f_id)
+
+            class_instance = args[0]  # TODO: detect case where f is not bounded to support functions
+
+            key = self.make_key(self.region, class_instance, f, args[1:], kwargs)
+
+            t_last = self.t_last_exec.get(key)
 
             if not t_last or (time.time() - t_last >= self.wait_sec):
-                self.t_last_exec[class_instance][f_id] = time.time()
                 r = f(*args, **kwargs)
-                self.returned[class_instance][f_id] = r
+                self.returned[key] = r
+                self.t_last_exec[key] = time.time()
                 return r
             else:
-                return self.returned[class_instance][f_id]
+                return self.returned[key]
 
         wrapper.action_flag = self.action_flag
         wrapper.wrapped_func = f
         return wrapper
 
     @classmethod
-    def get_registered_by_obj(cls, obj):
+    def get_registered_by_obj(cls, obj, region=''):
         methods = []
         for name in dir(obj):
             f = getattr(obj, name)
-            if callable(f) and hasattr(f, 'wrapped_func') and id(getattr(f, 'wrapped_func')) in cls.decorated_functions:
+            if callable(f) and hasattr(f, 'wrapped_func') and id(getattr(f, 'wrapped_func')) in \
+                    cls.decorated_functions.get(region, set()):
                 methods.append(f)
         return methods
+
+
+register = SimpleMethodCacheInMemory
 
 
 class ProcessGroup(IterableUserDict):
@@ -567,9 +580,9 @@ class ProcessGroup(IterableUserDict):
             raise
 
     def get_actions(self):
-        return ProcAction.get_registered_by_obj(self)
+        return register.get_registered_by_obj(self, region='action')
 
-    @ProcAction(wait_sec=2)
+    @register('action', wait_sec=2)
     def _action_kill_req(self):
         """
         action: respond to kill requests terminate marked pid and spawn them again
@@ -578,7 +591,7 @@ class ProcessGroup(IterableUserDict):
             if not self.stop_action and proc.should_terminate() and proc.has_flag(MONITOR_KILL_REQ):
                 self.respawn_process(name)
 
-    @ProcAction(wait_sec=2)
+    @register('action', wait_sec=2)
     def _action_restart_dead(self):
         """
         action: inspect all processes and react to those that died unexpectedly
@@ -588,7 +601,7 @@ class ProcessGroup(IterableUserDict):
                 self.logger.warn('Detected abnormal termination of pid: %s ... Attempting restart', proc.pid)
                 self.respawn_process(name)
 
-    @ProcAction(wait_sec=300)
+    @register('action', wait_sec=300)
     def _action_clean_limbo(self):
         """
         Clean limbo procs
@@ -603,7 +616,7 @@ class ProcessGroup(IterableUserDict):
                 self.limbo_data.pop(name, None)
                 self.logger.info('Limbo proc was terminated: %s', proc)
 
-    @ProcAction(wait_sec=600)
+    @register('action', wait_sec=600)
     def _action_prune_dead_info(self):
         """
         Remove old stats from dead processes to avoid high memory usage
