@@ -207,7 +207,7 @@ class FlowControlReactor(object):
     _instance = None
 
     t_wait = 0.2
-    ping_timedelta = 30
+    ping_timedelta = 30  # send ping data every 30 seconds
 
     _ping_template = {
         'timestamp': None,
@@ -277,7 +277,7 @@ class FlowControlReactor(object):
 
             data['timestamp'] = t_now
             data['timedelta'] = t_now - self._t_last_ping
-            data['percert_idle'] = (idle * 100.0) / total if total > 0 else 100
+            data['percert_idle'] = int(round((idle * 100.0) / total)) if total > 0 else 0
 
             # send ping data
             if self._num_ping_sent > 0:

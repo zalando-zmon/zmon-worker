@@ -105,6 +105,12 @@ class ProcessController(object):
     def ping(self, pid, data):
         self.proc_group.add_ping(pid, data)
 
+    def status(self):
+        return self.proc_group.status()
+
+    def health_state(self):
+        return self.proc_group.is_healthy()
+
     def start_action_loop(self):
         self.proc_group.start_action_loop()
 
@@ -117,9 +123,10 @@ class ProcessPlus(Process):
     A multiprocessing.Process class extended to include all information we attach to the process
     """
 
-    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'stored_pings', 'name', 'pid')
+    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'ping_status',
+                    'ping_avg_5_min', 'ping_avg_10_min', 'ping_avg_30_min')
 
-    keep_pings = 30
+    keep_pings = 3000  # covers approx. 24 hours if pings sent every 30 secs
 
     _ping_template = {
         'timestamp': 0,
@@ -127,6 +134,15 @@ class ProcessPlus(Process):
         'tasks_done': 0,
         'percert_idle': 0,
     }
+
+    time_window_status = 60 * 5  # analyze only the pings received since now - this interval
+
+    status_ok = 'OK'
+    status_ok_idle = 'OK-IDLE'
+    status_bad_no_pings = 'BAD-NO-PINGS'
+    status_bad_is_stuck = 'BAD-IS-STUCK'
+    status_bad_malformed = 'BAD-MALFORMED-PINGS'
+    status_not_tracked = 'UNKNOWN-NOT-TRACKED'
 
     def __init__(self, target=None, args=(), kwargs=None, flags=None, tags=None, **extra):
 
@@ -163,6 +179,7 @@ class ProcessPlus(Process):
         self._old_name = extra.get('name')
         self._old_pid = extra.get('pid')
         self._old_stats = extra.get('stats')
+        self._old_ping_status = extra.get('ping_status')
         self._old_stored_pings = extra.get('stored_pings')
 
         self.logger = logging.getLogger(__name__)
@@ -182,6 +199,22 @@ class ProcessPlus(Process):
         end_time = self.stats['end_time'] or time.time()
         return end_time - self.stats['start_time']
 
+    @property
+    def ping_avg_5_min(self):
+        return self.get_ping_avg(time_window=300)
+
+    @property
+    def ping_avg_10_min(self):
+        return self.get_ping_avg(time_window=600)
+
+    @property
+    def ping_avg_30_min(self):
+        return self.get_ping_avg(time_window=1800)
+
+    @property
+    def ping_status(self):
+        return self.get_ping_status(time_window=self.time_window_status)
+
     def is_rebel(self):
         return self._rebel
 
@@ -200,6 +233,37 @@ class ProcessPlus(Process):
 
     def get_pings(self):
         return self.stored_pings
+
+    def get_ping_status(self, time_window=None):
+
+        if not self.has_flag(MONITOR_PING):
+            return self.status_not_tracked
+
+        avg_data = self.get_ping_avg(time_window=time_window)
+
+        if avg_data['tasks_done'] < 0 and avg_data['percent_idle'] < 0:
+            return self.status_bad_no_pings
+        if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] < 1:
+            return self.status_bad_is_stuck  # This shouldn't happen, hard kill should be triggered
+        if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] > 98:
+            return self.status_ok_idle
+
+        return self.status_ok
+
+    def get_ping_avg(self, time_window=None):
+
+        time_window = time_window if time_window else self.time_window_status
+        tnow = time.time()
+
+        avg_data = dict(tasks_x_sec=-1, percent_idle=-1, time_window=time_window, tasks_done=-1)
+
+        pings = [p for p in self.stored_pings if tnow - p['timestamp'] <= time_window]
+        if pings:
+            avg_data['tasks_done'] = sum([p['tasks_done'] for p in pings])
+            avg_data['tasks_x_sec'] = float(avg_data['tasks_done']) / time_window
+            avg_data['percent_idle'] = float(sum([p['percert_idle'] for p in pings])) / len(pings)
+
+        return avg_data
 
     def start(self):
         self.stats['start_time'] = time.time()
@@ -447,6 +511,21 @@ class ProcessGroup(IterableUserDict):
         proc = self.get_by_pid(pid)
         if proc:
             proc.add_ping(data)
+
+    def status(self):
+        # TODO: add some info about recently restarted processes
+        return [dict(name=name, pid=proc.pid, ping_status=proc.get_ping_status(), ping_avg=proc.get_ping_avg())
+                for name, proc in self.items()]
+
+    def is_healthy(self):
+        num_ok, total = 0, 0
+        for name, proc in self.items():
+            status = proc.get_ping_status()
+            if status != ProcessPlus.status_not_tracked:
+                total += 1
+            if status.startswith('OK'):
+                num_ok += 1
+        return num_ok * 2 > total  # current definition: is healthy if half the monitored processes plus one are OK
 
     def terminate_many(self, proc_names=(), pids=(), kill_wait=None):
         success = True

@@ -37,7 +37,7 @@ class ProcessControllerProxy(rpc_utils.RpcProxy):
     valid_methods = ['spawn_many', 'list_running', 'list_stats', 'start_action_loop', 'stop_action_loop',
                      'is_action_loop_running', 'get_dynamic_num_processes', 'set_dynamic_num_processes',
                      'get_action_policy', 'set_action_policy', 'available_action_policies', 'terminate_all_processes',
-                     'terminate_process', 'mark_for_termination', 'ping']
+                     'terminate_process', 'mark_for_termination', 'ping', 'status', 'health_state']
 
     def on_exit(self):
         self.get_exposed_obj().terminate_all_processes()
