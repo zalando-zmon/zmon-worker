@@ -3,6 +3,7 @@
 
 import logging
 import logging.config
+from ..settings import LOGGING
 
 
 def start_web(listen_on="0.0.0.0", port=8080, threaded=False, log_conf=None, rpc_url=None):
@@ -17,8 +18,7 @@ def start_web(listen_on="0.0.0.0", port=8080, threaded=False, log_conf=None, rpc
     :param rpc_url: internal RPC server endpoint
     """
 
-    if log_conf:
-        logging.config.dictConfig(log_conf)
+    logging.config.dictConfig(log_conf if log_conf else LOGGING)
 
     from . import web  # imported here to avoid flask related modules loaded in workers' memory
 

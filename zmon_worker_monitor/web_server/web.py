@@ -13,9 +13,9 @@ parent process.
 
 import logging
 import json
-from flask import Flask, Response, request
+from flask import Flask, Response, request, url_for, redirect, jsonify
 
-from ..rpc_client import call_rpc_method
+from ..rpc_client import get_rpc_client_plus
 
 
 app = Flask(__name__)
@@ -24,44 +24,70 @@ app = Flask(__name__)
 _rpc_endpoint = 'http://localhost:8000/rpc_path'
 
 
+_rpc_client = None
+
+
+def get_logger():
+    return logging.getLogger(__name__)
+
+
 @app.route('/')
-def hello_world():
+def root():
     return 'Hello World!'
 
 
-@app.route('/health')
+@app.route('/api/running_procs/')
+@app.route('/api/list_running/')
+@app.route('/api/running_processes/')
+def list_running_redirects():
+    return redirect(url_for('list_running'))
+
+
+@app.route('/api/processes/')
+def list_running():
+    return common_rpc_call('list_running')
+
+
+@app.route('/api/status')
+def status():
+    return common_rpc_call('status')
+
+
+@app.route('/api/health')
 def health():
-    return 'Healthy as an ox!'
-
-
-@app.route('/unhealthy')
-def unhealthy():
-    return 'UnHealthy as a tardigrad!', 503
+    try:
+        result = _rpc_client.health_state()
+        resp = jsonify(value=result)
+        resp.status_code = 200 if result else 503
+    except Exception as e:
+        get_logger().exception('Error calling rpc from web_server. Details: ')
+        resp = jsonify({'error': str(e)})
+        resp.status_code = 500
+    return resp
 
 
 @app.route('/rpc/<rpc_method>/')
 def rpc_query(rpc_method=None):
+    kwargs = dict(request.args)  # at least can pass strings as kwargs
+    return common_rpc_call(rpc_method, kwargs=kwargs)
 
-    # allowed_methods = ('list_running', 'list_stats')  # TODO: move this to module level ?
-    # if rpc_method not in allowed_methods:
-    #     return Response(response=json.dumps({'error': 'Not allowed'}), status=403, mimetype='application/json')
 
-    # HTTP GET parameters are used as kwargs to pass to remote procedure
-    kwargs = dict(request.args)
-
+def common_rpc_call(rpc_method, args=(), kwargs=None):
     try:
-        result = call_rpc_method(_rpc_endpoint, rpc_method, kwargs=kwargs)
+        result = _rpc_client.call_rpc_method(rpc_method, args=args, kwargs=kwargs)
         return Response(response=json.dumps(result), status=200, mimetype='application/json')
     except Exception as e:
+        get_logger().exception('Error calling rpc from web_server. Details: ')
         return Response(response=json.dumps({'error': str(e)}), status=500, mimetype='application/json')
 
 
 def run(listen_on="0.0.0.0", port=8080, threaded=False, rpc_url=None):
-    global _rpc_endpoint
+    global _rpc_endpoint, _rpc_client
 
     _rpc_endpoint = rpc_url
+    _rpc_client = get_rpc_client_plus(rpc_url)
 
-    logger = logging.getLogger(__name__)
+    logger = get_logger()
 
     try:
         app.run(host=listen_on, port=port, threaded=threaded, debug=False, use_reloader=False)

@@ -128,6 +128,8 @@ class ProcessPlus(Process):
 
     keep_pings = 3000  # covers approx. 24 hours if pings sent every 30 secs
 
+    initial_wait_pings = 120
+
     _ping_template = {
         'timestamp': 0,
         'timedelta': 0,
@@ -139,6 +141,7 @@ class ProcessPlus(Process):
 
     status_ok = 'OK'
     status_ok_idle = 'OK-IDLE'
+    status_ok_initiating = 'OK-INITIATING'
     status_bad_no_pings = 'BAD-NO-PINGS'
     status_bad_is_stuck = 'BAD-IS-STUCK'
     status_bad_malformed = 'BAD-MALFORMED-PINGS'
@@ -197,7 +200,7 @@ class ProcessPlus(Process):
     @property
     def t_running_secs(self):
         end_time = self.stats['end_time'] or time.time()
-        return end_time - self.stats['start_time']
+        return end_time - self.stats['start_time'] if self.stats['start_time'] else 0
 
     @property
     def ping_avg_5_min(self):
@@ -238,6 +241,9 @@ class ProcessPlus(Process):
 
         if not self.has_flag(MONITOR_PING):
             return self.status_not_tracked
+
+        if not self.stats['start_time'] or self.t_running_secs < self.initial_wait_pings:
+            return self.status_ok_initiating
 
         avg_data = self.get_ping_avg(time_window=time_window)
 
@@ -355,8 +361,8 @@ class SimpleMethodCacheInMemory(object):
 
     @classmethod
     def make_key(cls, region, self_received, func, args, kwargs):
-        return '{}-{}-{}-{}-{}'.format(region, id(self_received), id(func), args, sorted([(k, v) for k, v in
-                                                                                          kwargs.items()]))
+        return '{}-{}-{}-{}-{}'.format(region, id(self_received), id(func), args, sorted((k, v) for k, v in
+                                                                                         kwargs.items()))
 
     def __call__(self, f):
         self.decorated_functions[self.region].add(id(f))
