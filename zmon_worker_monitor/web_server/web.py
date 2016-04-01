@@ -36,24 +36,24 @@ def root():
     return 'Hello World!'
 
 
-@app.route('/api/running_procs/')
-@app.route('/api/list_running/')
-@app.route('/api/running_processes/')
+@app.route('/running_procs/')
+@app.route('/list_running/')
+@app.route('/running_processes/')
 def list_running_redirects():
     return redirect(url_for('list_running'))
 
 
-@app.route('/api/processes/')
+@app.route('/processes/')
 def list_running():
     return common_rpc_call('list_running')
 
 
-@app.route('/api/status')
+@app.route('/status')
 def status():
     return common_rpc_call('status')
 
 
-@app.route('/api/health')
+@app.route('/health')
 def health():
     try:
         result = _rpc_client.health_state()

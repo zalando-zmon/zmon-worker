@@ -124,9 +124,11 @@ class ProcessPlus(Process):
     """
 
     _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'ping_status',
-                    'ping_avg_5_min', 'ping_avg_10_min', 'ping_avg_30_min')
+                    'actions_last_5', 'errors_last_5', 'exceptions_last_5', 'status_summary')
 
     keep_pings = 3000  # covers approx. 24 hours if pings sent every 30 secs
+
+    keep_events = 200
 
     initial_wait_pings = 120
 
@@ -139,13 +141,26 @@ class ProcessPlus(Process):
 
     time_window_status = 60 * 5  # analyze only the pings received since now - this interval
 
-    status_ok = 'OK'
-    status_ok_idle = 'OK-IDLE'
-    status_ok_initiating = 'OK-INITIATING'
-    status_bad_no_pings = 'BAD-NO-PINGS'
-    status_bad_is_stuck = 'BAD-IS-STUCK'
-    status_bad_malformed = 'BAD-MALFORMED-PINGS'
-    status_not_tracked = 'UNKNOWN-NOT-TRACKED'
+    STATUS_OK = 'OK'
+    STATUS_OK_IDLE = 'OK-IDLE'
+    STATUS_OK_INITIATING = 'OK-INITIATING'
+    STATUS_BAD_NO_PINGS = 'BAD-NO-PINGS'
+    STATUS_BAD_IS_STUCK = 'BAD-IS-STUCK'
+    STATUS_BAD_MALFORMED = 'BAD-MALFORMED-PINGS'
+    STATUS_NOT_TRACKED = 'UNKNOWN-NOT-TRACKED'
+
+    _event_template = {
+        'origin': '',
+        'type': '',
+        'body': '',
+        'timestamp': 0,
+    }
+
+    EVENT_TYPE_ACTION = 'ACTION'
+    EVENT_TYPE_ERROR = 'ERROR'
+    EVENT_TYPE_EXCEPTION = 'EXCEPTION'
+
+    event_types = (EVENT_TYPE_ACTION, EVENT_TYPE_ERROR, EVENT_TYPE_EXCEPTION)
 
     def __init__(self, target=None, args=(), kwargs=None, flags=None, tags=None, **extra):
 
@@ -174,6 +189,7 @@ class ProcessPlus(Process):
         }
 
         self.stored_pings = []
+        self.stored_events = []
 
         self._rebel = False
         self._termination_mark = False
@@ -184,6 +200,7 @@ class ProcessPlus(Process):
         self._old_stats = extra.get('stats')
         self._old_ping_status = extra.get('ping_status')
         self._old_stored_pings = extra.get('stored_pings')
+        self._old_stored_pings = extra.get('stored_events')
 
         self.logger = logging.getLogger(__name__)
 
@@ -218,6 +235,22 @@ class ProcessPlus(Process):
     def ping_status(self):
         return self.get_ping_status(time_window=self.time_window_status)
 
+    @property
+    def actions_last_5(self):
+        return self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, limit=5)
+
+    @property
+    def errors_last_5(self):
+        return self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, limit=5)
+
+    @property
+    def exceptions_last_5(self):
+        return self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, limit=5)
+
+    @property
+    def status_summary(self):
+        return self.get_status_summary()
+
     def is_rebel(self):
         return self._rebel
 
@@ -230,31 +263,58 @@ class ProcessPlus(Process):
     def has_flag(self, flag):
         return has_flag(self.flags, flag)
 
+    def add_event_explicit(self, origin, event_type, body):
+        event = {
+            'origin': origin,
+            'type': event_type,
+            'body': body,
+            'timestamp': time.time(),
+        }
+        self.add_event(event)
+
+    def add_event(self, data):
+        self._assert_valid_event(data)
+        self.stored_events.append(data)
+        self.stored_events = self.stored_events[-self.keep_events:]
+
+    def get_events(self, event_type=None, time_window=None, limit=-1):
+        r, tnow = [], time.time()
+        for e in self.stored_events:
+            if (time_window and tnow - e['timestamp'] > time_window) or (event_type and e['type'] != event_type):
+                continue
+            r.append(e)
+        return r[-limit:] if limit and limit > 0 else r
+
     def add_ping(self, data):
+        self._assert_valid_ping(data)
         self.stored_pings.append(data)
         self.stored_pings = self.stored_pings[-self.keep_pings:]
 
-    def get_pings(self):
-        return self.stored_pings
+    def get_pings(self, time_window=None, limit=-1):
+        r = self.stored_pings
+        if time_window:
+            tnow = time.time()
+            r = [p for p in self.stored_pings if tnow - p['timestamp'] <= time_window]
+        return r[-limit:] if limit and limit > 0 else r
 
     def get_ping_status(self, time_window=None):
 
         if not self.has_flag(MONITOR_PING):
-            return self.status_not_tracked
+            return self.STATUS_NOT_TRACKED
 
         if not self.stats['start_time'] or self.t_running_secs < self.initial_wait_pings:
-            return self.status_ok_initiating
+            return self.STATUS_OK_INITIATING
 
         avg_data = self.get_ping_avg(time_window=time_window)
 
         if avg_data['tasks_done'] < 0 and avg_data['percent_idle'] < 0:
-            return self.status_bad_no_pings
+            return self.STATUS_BAD_NO_PINGS
         if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] < 1:
-            return self.status_bad_is_stuck  # This shouldn't happen, hard kill should be triggered
+            return self.STATUS_BAD_IS_STUCK  # This shouldn't happen, hard kill should be triggered
         if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] > 98:
-            return self.status_ok_idle
+            return self.STATUS_OK_IDLE
 
-        return self.status_ok
+        return self.STATUS_OK
 
     def get_ping_avg(self, time_window=None):
 
@@ -270,6 +330,74 @@ class ProcessPlus(Process):
             avg_data['percent_idle'] = float(sum([p['percert_idle'] for p in pings])) / len(pings)
 
         return avg_data
+
+    def get_status_summary(self, time_window=None):
+        time_window = time_window if time_window else self.time_window_status
+
+        return {
+            'name': self.name,
+            'pid': self.pid,
+            'ping_status': self.get_ping_status(time_window=time_window),
+            'ping': {
+                'ping_avg': self.get_ping_avg(time_window=time_window),
+                'ping_avg_5_min': self.get_ping_avg(time_window=300),
+                'ping_avg_10_min': self.get_ping_avg(time_window=600),
+                'ping_avg_30_min': self.get_ping_avg(time_window=1800),
+                'ping_avg_24_h': self.get_ping_avg(time_window=86400),
+            },
+            'event': {
+                'event_summary': self.get_event_summary(time_window=time_window),
+                'event_summary_5_min': self.get_event_summary(time_window=300),
+                'event_summary_10_min': self.get_event_summary(time_window=600),
+                'event_summary_30_min': self.get_event_summary(time_window=1800),
+                'event_summary_24_h': self.get_event_summary(time_window=86400),
+            },
+        }
+
+    def get_event_summary(self, time_window=None):
+
+        if not time_window:
+            # if time_window not given we search from the first stored event
+            time_window = time.time() - self.stored_events[0]['timestamp'] + 5 if self.stored_events else 0
+
+        all_events = self.get_events(time_window=time_window)
+        actions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, time_window=time_window)
+        errors = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR)
+        exceptions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION)
+
+        events_by_origin = defaultdict(list)
+        for e in all_events:
+            events_by_origin[e['origin']].append(e)
+
+        return {
+            'time_window': time_window,
+            'events_total': {
+                'num_events': len(all_events),
+                'num_actions': len(actions),
+                'num_errors': len(errors),
+                'num_exceptions': len(exceptions),
+            },
+            'events_totals_by_origin': {origin: len(elist) for origin, elist in events_by_origin.items()},
+        }
+
+    def is_monitored(self):
+        return self.has_flag(MONITOR_PING)
+
+    def _assert_valid_event(self, event):
+        try:
+            assert event['type'] in self.event_types, 'Unrecognized event type: {}'.format(event['type'])
+            assert set(event.keys()) == set(self._event_template.keys()), 'Malformed data: {}'.format(event)
+            # assert not [1 for v in event.values() if v is None]
+        except:
+            self.logger.exception('Bad event: ')
+            raise
+
+    def _assert_valid_ping(self, data):
+        try:
+            assert set(data.keys()) == set(self._ping_template.keys()), 'Malformed data: {}'.format(data)
+        except:
+            self.logger.exception('Bad ping: ')
+            raise
 
     def start(self):
         self.stats['start_time'] = time.time()
@@ -531,16 +659,58 @@ class ProcessGroup(IterableUserDict):
         if proc:
             proc.add_ping(data)
 
-    def status(self):
-        # TODO: add some info about recently restarted processes
-        return [dict(name=name, pid=proc.pid, ping_status=proc.get_ping_status(), ping_avg=proc.get_ping_avg())
-                for name, proc in self.items()]
+    def status(self, time_window=None):
+        # TODO: add aggregated events
+
+        time_window = time_window or 60 * 5  # TODO add default value in constructor ?
+
+        total_processes = self.total_processes()
+        total_monitored = 0
+        total_tasks_done = 0
+        total_tasks_x_sec = 0
+        avg_percent_idle = 0
+
+        status_summary_list = []
+
+        for name, proc in self.items():
+            if proc.is_monitored():
+                total_monitored += 1
+                status_summary = proc.get_status_summary(time_window=time_window)
+                ping_avg = status_summary['ping']['ping_avg']
+                status_summary_list.append(status_summary)
+                total_tasks_done += ping_avg['tasks_done'] if ping_avg['tasks_done'] > 0 else 0
+                avg_percent_idle += ping_avg['percent_idle'] if ping_avg['percent_idle'] > 0 else 0
+
+        total_tasks_x_sec = (total_tasks_done * 1.0) / time_window if time_window > 1e-2 else total_tasks_x_sec
+        avg_percent_idle = int(round((avg_percent_idle * 1.0) / total_monitored)) if total_monitored else 0
+
+        return {
+            'running': status_summary_list,
+            'totals': {
+                'time_window': time_window,
+                'total_processes': total_processes,
+                'total_monitored': total_monitored,
+                'total_unmonitored': total_processes - total_monitored,
+                'total_tasks_done': total_tasks_done,
+                'total_tasks_x_sec': total_tasks_x_sec,
+                'avg_percent_idle': avg_percent_idle,
+            },
+            'events': {
+
+            },
+        }
+
+    def total_processes(self):
+        return len(self)
+
+    def total_monitored_processes(self):
+        return len([name for name, proc in self.items() if proc.is_monitored()])
 
     def is_healthy(self):
         num_ok, total = 0, 0
         for name, proc in self.items():
             status = proc.get_ping_status()
-            if status != ProcessPlus.status_not_tracked:
+            if status != ProcessPlus.STATUS_NOT_TRACKED:
                 total += 1
             if status.startswith('OK'):
                 num_ok += 1

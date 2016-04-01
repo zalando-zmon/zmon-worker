@@ -280,7 +280,7 @@ class FlowControlReactor(object):
             data['percert_idle'] = int(round((idle * 100.0) / total)) if total > 0 else 0
 
             # send ping data
-            if self._num_ping_sent > 0:
+            if self._num_ping_sent >= 0:
                 self._rpc_client.ping(self._pid, data)  # rpc call to send ping data to parent
 
             self._num_ping_sent += 1
