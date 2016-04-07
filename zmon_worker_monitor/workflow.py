@@ -10,9 +10,11 @@ import logging
 import time
 import threading
 from copy import deepcopy
+from operator import itemgetter
 from random import random
 from rpc_client import get_rpc_client
 from contextlib import contextmanager
+from traceback import format_exc
 import settings
 import eventloghttp
 import snappy
@@ -143,7 +145,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
                 timelimit = msg_body.get('timelimit')  # [90, 60]
                 t_hard, t_soft = timelimit
 
-                # we pass task metadata as a kwargs right now, later will be put in the function context by our decorator
+                # we pass task metadata as a kwargs right now, later will be put in the function context by decorator
                 task_context = {
                     'queue': queue,
                     'taskname': taskname,
@@ -182,13 +184,10 @@ def flow_simple_queue_processor(queue='', **execution_context):
                         logger.warning("expired tasks count: %s", expired_count)
                 count += 1
 
-        except Exception as e:
-            logger.exception('Exception in redis loop. Details: ', e)
+        except Exception:
+            logger.exception('Exception in redis loop. Details: ')
             time.sleep(5)  # avoid heavy log spam here
-            # some exit condition on failure: maybe when number of consecutive failures > n ?
-
-            # TODO: Clean redis connection... very important!!!!
-            # disconnect_all()
+            # TODO: some exit condition on failure: maybe when number of consecutive failures > n ?
 
 
 class FlowControlReactor(object):
@@ -207,7 +206,7 @@ class FlowControlReactor(object):
     _instance = None
 
     t_wait = 0.2
-    ping_timedelta = 30  # send ping data every 30 seconds
+    ping_timedelta = 30  # send ping data every X seconds
 
     _ping_template = {
         'timestamp': None,
@@ -215,6 +214,17 @@ class FlowControlReactor(object):
         'tasks_done': 0,
         'percert_idle': 0,
     }
+
+    _event_template = {
+        'origin': '',
+        'type': '',
+        'body': '',
+        'timestamp': 0,
+        'repeats': 0,
+    }
+
+    _max_keep_events = 5000
+    events_timedelta = 60  # send events every X seconds
 
     def __init__(self):
         # self.task_agg_info = {}  # we could aggregate some info about how tasks are running in this worker
@@ -228,13 +238,17 @@ class FlowControlReactor(object):
         self.action_on = False
         self._thread = threading.Thread(target=self.action_loop)
         self._thread.daemon = True
-        self._actions = (self.action_hard_kill, self.action_send_ping)
+        self._actions = (self.action_hard_kill, self.action_send_ping, self.action_send_events)
 
         self._ping_data = deepcopy(self._ping_template)
         self._ping_lock = threading.RLock()
         self._ping_idle_points = [0, 0]  # [num_idle_points, num_total_points]
         self._t_last_ping = time.time() - self.ping_timedelta * random()  # randomize ping start
         self._num_ping_sent = -1
+
+        self._event_list = []
+        self._event_lock = threading.RLock()
+        self._t_last_events = time.time() + self.events_timedelta * random()  # randomize event start
 
     @classmethod
     def get_instance(cls):
@@ -249,7 +263,7 @@ class FlowControlReactor(object):
         try:
             yield self
         except Exception as e:
-            self.task_ended(exc=e)
+            self.task_ended(exc=format_exc())  # self.task_ended(exc=e)
             raise
         else:
             self.task_ended()
@@ -258,8 +272,9 @@ class FlowControlReactor(object):
         """ hard kill logic """
         for th_name, (taskname, t_hard, t_soft, ts) in self._current_task_by_thread.copy().items():
             if time.time() > ts + t_hard:
-                logger.warn('Hard Kill request started for worker pid=%s, task: %s, t_hard=%d', self._pid,
-                            taskname, t_hard)
+                msg = 'Hard Kill request started for worker pid=%s, task: %s, t_hard=%d' % (self._pid, taskname, t_hard)
+                logger.warn(msg)
+                self.add_event('FlowControlReactor.action_hard_kill', 'ACTION', msg)
                 self._rpc_client.mark_for_termination(self._pid)  # rpc call to parent asking for a kill
                 self._current_task_by_thread.pop(th_name, {})
 
@@ -277,7 +292,7 @@ class FlowControlReactor(object):
 
             data['timestamp'] = t_now
             data['timedelta'] = t_now - self._t_last_ping
-            data['percert_idle'] = int(round((idle * 100.0) / total)) if total > 0 else 0
+            data['percert_idle'] = (idle * 100.0) / total if total > 0 else 0
 
             # send ping data
             if self._num_ping_sent >= 0:
@@ -291,13 +306,42 @@ class FlowControlReactor(object):
                 self._ping_idle_points[0] += 1 if not self._current_task_by_thread else 0  # idle
                 self._ping_idle_points[1] += 1  # total
 
+    def action_send_events(self):
+        t_now = time.time()
+
+        if t_now - self._t_last_events >= self.events_timedelta:
+            with self._event_lock:
+                events = self._event_list
+                self._event_list = []
+
+            # eliminate repeated events, keep last timestamp
+            event_dict = {}
+            for e in events[::-1]:
+                key = (e['origin'], e['type'], e['body'])
+                if key in event_dict:
+                    event_dict[key]['repeats'] += e['repeats']
+                else:
+                    event_dict[key] = e
+
+            events = sorted(event_dict.values(), key=itemgetter('timestamp'))
+            if events:
+                self._rpc_client.add_events(self._pid, events)  # rpc call to send events to parent
+            self._t_last_events = t_now
+
+    def add_event(self, origin, type, body, repeats=1):
+        with self._event_lock:
+            self._event_list.append(dict(origin=origin, type=type, body=body, repeats=repeats, timestamp=time.time()))
+            if len(self._event_list) > self._max_keep_events:
+                self._event_list = self._event_list[-self._max_keep_events:]
+
     def action_loop(self):
 
         while self.action_on:
             try:
                 for action in self._actions:
                     action()
-            except Exception:
+            except Exception as e:
+                self.add_event('FlowControlReactor.action_loop', 'ERROR', format_exc())
                 logger.exception('Scary Error in FlowControlReactor.action_loop(): ')
 
             time.sleep(self.t_wait)
@@ -316,9 +360,13 @@ class FlowControlReactor(object):
     def task_ended(self, exc=None):
         # delete the task from the list
         self._current_task_by_thread.pop(threading.currentThread().getName(), {})
-        # update ping data
-        with self._ping_lock:
-            self._ping_data['tasks_done'] += 1
+        if not exc:
+            # update ping data
+            with self._ping_lock:
+                self._ping_data['tasks_done'] += 1
+        else:
+            # register error event
+            self.add_event('FlowControlReactor.task_ended', 'ERROR', str(exc))
 
 
 def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:default', **execution_context):

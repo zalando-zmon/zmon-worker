@@ -36,21 +36,34 @@ def root():
     return 'Hello World!'
 
 
+@app.route('/procs/')
 @app.route('/running_procs/')
 @app.route('/list_running/')
 @app.route('/running_processes/')
 def list_running_redirects():
-    return redirect(url_for('list_running'))
+    return redirect(url_for('process_view'))
 
 
 @app.route('/processes/')
-def list_running():
-    return common_rpc_call('list_running')
+def process_view():
+    return common_rpc_call('process_view')
 
 
-@app.route('/status')
-def status():
-    return common_rpc_call('status')
+@app.route('/processes/<proc_id>/')
+@app.route('/processes/<by>/<proc_id>/')
+def single_process_view(proc_id, by='name'):
+    by = 'name' if by in ('name', 'proc_name') else 'pid'
+    return common_rpc_call('single_process_view', proc_id, by)
+
+@app.route('/status/')
+@app.route('/status/time_window/<int:time_window>/')
+@app.route('/status/time_window/<float:time_window>/')
+@app.route('/status/time_window/<unit>/<int:time_window>/')
+@app.route('/status/time_window/<unit>/<float:time_window>/')
+def status(unit='sec', time_window=None):
+    time_window = time_window if time_window else 60*60*24*365  # TODO: better default for time_window
+    time_window = time_window * 3600 if str(unit).lower() in ('hours', 'hour', 'h') else time_window
+    return common_rpc_call('status_view', time_window=time_window)
 
 
 @app.route('/health')
@@ -69,10 +82,10 @@ def health():
 @app.route('/rpc/<rpc_method>/')
 def rpc_query(rpc_method=None):
     kwargs = dict(request.args)  # at least can pass strings as kwargs
-    return common_rpc_call(rpc_method, kwargs=kwargs)
+    return common_rpc_call(rpc_method, **kwargs)
 
 
-def common_rpc_call(rpc_method, args=(), kwargs=None):
+def common_rpc_call(rpc_method, *args, **kwargs):
     try:
         result = _rpc_client.call_rpc_method(rpc_method, args=args, kwargs=kwargs)
         return Response(response=json.dumps(result), status=200, mimetype='application/json')

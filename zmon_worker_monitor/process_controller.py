@@ -18,8 +18,8 @@ from collections import defaultdict, Iterable
 from functools import wraps
 
 
-from .consts import has_flag, flags2num
-from .consts import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING, MONITOR_NONE
+from .flags import has_flag, flags2num
+from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING, MONITOR_NONE
 
 
 class ProcessController(object):
@@ -105,8 +105,26 @@ class ProcessController(object):
     def ping(self, pid, data):
         self.proc_group.add_ping(pid, data)
 
-    def status(self):
-        return self.proc_group.status()
+    def add_events(self, pid, events):
+        self.proc_group.add_events(pid, events)
+
+    def process_view(self):
+        return self.proc_group.process_view()
+
+    def single_process_view(self, proc_id, by=None):
+        by = str(by).lower()
+        proc = self.proc_group.get_by_name(proc_id) if by in ('name', 'proc_name') else \
+            (self.proc_group.get_by_pid(int(proc_id)) if by == 'pid' else None)
+        if not proc:
+            raise Exception('No process located with {}={}'.format(by, proc_id))
+        return proc.to_dict(serialize_all=True)
+
+    def one_process_view_by_pid(self, pid):
+        # TODO: fill logic
+        return self.proc_group.process_view()
+
+    def status_view(self, time_window=None):
+        return self.proc_group.status_view(time_window)
 
     def health_state(self):
         return self.proc_group.is_healthy()
@@ -118,13 +136,85 @@ class ProcessController(object):
         self.proc_group.stop_action_loop()
 
 
+class SimpleMethodCacheInMemory(object):
+    """
+    Simple cache-like decorator for class methods (receiving self as first argument).
+    Do not use it for functions, classmethods or staticmethods.
+    We use it mostly for marking methods of ProcessGroup that will run in the action loop in certain intervals
+    and for limited caching of some methods without having to add another heavy dependency to the project.
+    """
+
+    decorated_functions = defaultdict(set)  # {region => set(func_id1, func_id2, ...)}
+
+    # { region => { class_instance_id => { func_id => { args_key => returned } } } }
+    returned = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+
+    # { region => { class_instance_id => { func_id => { args_key => timestamp } } } }
+    t_last_exec = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+
+    def __init__(self, region='', wait_sec=5, action_flag=None):
+        assert '-' not in region, "'-' char not allowed in regions"
+        self.region = region
+        self.wait_sec = wait_sec
+        self.action_flag = action_flag if action_flag else MONITOR_NONE
+
+    @classmethod
+    def make_args_key(cls, args, kwargs):
+        return '{}-{}'.format(args, sorted((k, v) for k, v in kwargs.items()))
+
+    def __call__(self, f):
+        id_f = id(f)
+        self.decorated_functions[self.region].add(id_f)
+
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            id_class_instance = id(args[0])  # TODO: detect case where f is not bounded to support functions
+            args_key = self.make_args_key(args[1:], kwargs)
+            t_last = self.t_last_exec[self.region][id_class_instance][id_f].get(args_key, 0)
+            if time.time() - t_last >= self.wait_sec:
+                r = f(*args, **kwargs)
+                self.returned[self.region][id_class_instance][id_f][args_key] = r
+                self.t_last_exec[self.region][id_class_instance][id_f][args_key] = time.time()
+                return r
+            else:
+                return self.returned[self.region][id_class_instance][id_f][args_key]
+
+        wrapper.action_flag = self.action_flag
+        wrapper.wrapped_func = f
+        return wrapper
+
+    @classmethod
+    def get_registered_by_obj(cls, obj, region=''):
+        methods = []
+        for name in dir(obj):
+            f = getattr(obj, name)
+            if callable(f) and hasattr(f, 'wrapped_func') and id(getattr(f, 'wrapped_func')) in \
+                    cls.decorated_functions.get(region, set()):
+                methods.append(f)
+        return methods
+
+    @classmethod
+    def invalidate(cls, region='', obj=None, method=None):
+        assert obj if method else True, 'Need to pass the object the method is bound to'
+        if not obj:  # invalidate a whole region
+            cls.t_last_exec.pop(region, None)
+        elif not method:  # invalidate all methods from an object
+            cls.t_last_exec[region].pop(id(obj), None)
+        else:  # invalidate just this method
+            cls.t_last_exec[region][id(obj)].pop(id(getattr(method, 'wrapped_func')), None)
+
+
+register = SimpleMethodCacheInMemory
+cache = SimpleMethodCacheInMemory
+
+
 class ProcessPlus(Process):
     """
     A multiprocessing.Process class extended to include all information we attach to the process
     """
 
-    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'ping_status',
-                    'actions_last_5', 'errors_last_5', 'exceptions_last_5', 'status_summary')
+    _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'previous_proc',
+                    'ping_status', 'actions_last_5', 'errors_last_5', 'status_summary')
 
     keep_pings = 3000  # covers approx. 24 hours if pings sent every 30 secs
 
@@ -147,13 +237,15 @@ class ProcessPlus(Process):
     STATUS_BAD_NO_PINGS = 'BAD-NO-PINGS'
     STATUS_BAD_IS_STUCK = 'BAD-IS-STUCK'
     STATUS_BAD_MALFORMED = 'BAD-MALFORMED-PINGS'
-    STATUS_NOT_TRACKED = 'UNKNOWN-NOT-TRACKED'
+    STATUS_BAD_DEAD = 'BAD-DEAD'
+    STATUS_NOT_TRACKED = 'NOT-TRACKED'
 
     _event_template = {
         'origin': '',
         'type': '',
         'body': '',
         'timestamp': 0,
+        'repeats': 0,
     }
 
     EVENT_TYPE_ACTION = 'ACTION'
@@ -194,13 +286,13 @@ class ProcessPlus(Process):
         self._rebel = False
         self._termination_mark = False
 
-        # extra fields can not be reused in new process (e.g. pid, name).
-        self._old_name = extra.get('name')
-        self._old_pid = extra.get('pid')
-        self._old_stats = extra.get('stats')
-        self._old_ping_status = extra.get('ping_status')
-        self._old_stored_pings = extra.get('stored_pings')
-        self._old_stored_pings = extra.get('stored_events')
+        # fields that can not be reused in new process (e.g. pid, name).
+        self.previous_proc = {
+            'dead_name': extra.get('name'),
+            'dead_pid': extra.get('pid'),
+            'dead_stats': extra.get('stats'),
+            'previous_deaths': extra['previous_proc']['previous_deaths'] + 1 if extra.get('previous_proc') else -1,
+        }
 
         self.logger = logging.getLogger(__name__)
 
@@ -213,6 +305,10 @@ class ProcessPlus(Process):
     @abnormal_termination.setter
     def abnormal_termination(self, ab_state):
         self.stats['abnormal_termination'] = ab_state
+
+    @property
+    def start_time(self):
+        return self.stats['start_time']
 
     @property
     def t_running_secs(self):
@@ -263,13 +359,8 @@ class ProcessPlus(Process):
     def has_flag(self, flag):
         return has_flag(self.flags, flag)
 
-    def add_event_explicit(self, origin, event_type, body):
-        event = {
-            'origin': origin,
-            'type': event_type,
-            'body': body,
-            'timestamp': time.time(),
-        }
+    def add_event_explicit(self, origin, event_type, body, repeats=1):
+        event = dict(origin=origin, type=event_type, body=body, repeats=repeats, timestamp=time.time())
         self.add_event(event)
 
     def add_event(self, data):
@@ -299,39 +390,46 @@ class ProcessPlus(Process):
 
     def get_ping_status(self, time_window=None):
 
+        if not self.is_alive():
+            return self.STATUS_BAD_DEAD
+
         if not self.has_flag(MONITOR_PING):
             return self.STATUS_NOT_TRACKED
 
-        if not self.stats['start_time'] or self.t_running_secs < self.initial_wait_pings:
+        if self.t_running_secs < self.initial_wait_pings:
             return self.STATUS_OK_INITIATING
 
         avg_data = self.get_ping_avg(time_window=time_window)
 
         if avg_data['tasks_done'] < 0 and avg_data['percent_idle'] < 0:
             return self.STATUS_BAD_NO_PINGS
-        if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] < 1:
+        if avg_data['tasks_done'] == 0 and avg_data['percent_idle'] < 1:
             return self.STATUS_BAD_IS_STUCK  # This shouldn't happen, hard kill should be triggered
-        if avg_data['tasks_done'] < 1 and avg_data['percent_idle'] > 98:
+        if avg_data['tasks_done'] == 0 and avg_data['percent_idle'] > 99:
             return self.STATUS_OK_IDLE
 
         return self.STATUS_OK
 
+    @cache(wait_sec=5)
     def get_ping_avg(self, time_window=None):
-
+        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
         time_window = time_window if time_window else self.time_window_status
         tnow = time.time()
 
-        avg_data = dict(tasks_x_sec=-1, percent_idle=-1, time_window=time_window, tasks_done=-1)
+        avg_data = dict(tasks_x_sec=-1, percent_idle=-1, time_window=time_window, tasks_done=-1, pings_received=-1)
 
         pings = [p for p in self.stored_pings if tnow - p['timestamp'] <= time_window]
         if pings:
             avg_data['tasks_done'] = sum([p['tasks_done'] for p in pings])
             avg_data['tasks_x_sec'] = float(avg_data['tasks_done']) / time_window
             avg_data['percent_idle'] = float(sum([p['percert_idle'] for p in pings])) / len(pings)
+            avg_data['pings_received'] = len(pings)
 
         return avg_data
 
+    @cache(wait_sec=5)
     def get_status_summary(self, time_window=None):
+        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
         time_window = time_window if time_window else self.time_window_status
 
         return {
@@ -354,30 +452,48 @@ class ProcessPlus(Process):
             },
         }
 
+    @cache(wait_sec=5)
     def get_event_summary(self, time_window=None):
 
+        def sum_repeats(events):
+            return sum([e['repeats'] for e in events])
+
+        def group_by_origin(events):
+            events_by_origin = defaultdict(list)
+            for e in events:
+                events_by_origin[e['origin']].append(e)
+            return events_by_origin
+
+        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
         if not time_window:
             # if time_window not given we search from the first stored event
             time_window = time.time() - self.stored_events[0]['timestamp'] + 5 if self.stored_events else 0
 
         all_events = self.get_events(time_window=time_window)
         actions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, time_window=time_window)
-        errors = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR)
-        exceptions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION)
-
-        events_by_origin = defaultdict(list)
-        for e in all_events:
-            events_by_origin[e['origin']].append(e)
+        errors = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, time_window=time_window)
+        # exceptions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, time_window=time_window)
 
         return {
             'time_window': time_window,
             'events_total': {
-                'num_events': len(all_events),
-                'num_actions': len(actions),
-                'num_errors': len(errors),
-                'num_exceptions': len(exceptions),
+                'num_events': sum_repeats(all_events),
+                'num_actions': sum_repeats(actions),
+                'num_errors': sum_repeats(errors),
+                # 'num_exceptions': sum_repeats(exceptions),
             },
-            'events_totals_by_origin': {origin: len(elist) for origin, elist in events_by_origin.items()},
+            'events_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
+                                        group_by_origin(all_events).items()},
+            'actions_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
+                                         group_by_origin(actions).items()},
+            'errors_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
+                                        group_by_origin(errors).items()},
+            # 'exceptions_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
+            #                                 group_by_origin(exceptions).items()},
+
+            'actions_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, limit=5),
+            'errors_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, limit=5),
+            # 'exceptions_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, limit=5),
         }
 
     def is_monitored(self):
@@ -387,7 +503,7 @@ class ProcessPlus(Process):
         try:
             assert event['type'] in self.event_types, 'Unrecognized event type: {}'.format(event['type'])
             assert set(event.keys()) == set(self._event_template.keys()), 'Malformed data: {}'.format(event)
-            # assert not [1 for v in event.values() if v is None]
+            assert not [1 for v in event.values() if v is None], 'event {} with None value is not valid'.format(event)
         except:
             self.logger.exception('Bad event: ')
             raise
@@ -473,63 +589,6 @@ class ProcessPlus(Process):
         return self.__repr__()
 
 
-class SimpleMethodCacheInMemory(object):
-    """
-    Simple cache-like decorator to mark methods of ProcessGroup that will run in the action loop in certain intervals
-    """
-
-    decorated_functions = defaultdict(set)  # {region => set(func_id1, func_id2, ...)}
-    returned = {}  # {cache_key => returned}
-    t_last_exec = {}  # {cache_key => time }
-
-    def __init__(self, region='', wait_sec=5, action_flag=None):
-        self.region = region
-        self.wait_sec = wait_sec
-        self.action_flag = action_flag if action_flag else MONITOR_NONE
-
-    @classmethod
-    def make_key(cls, region, self_received, func, args, kwargs):
-        return '{}-{}-{}-{}-{}'.format(region, id(self_received), id(func), args, sorted((k, v) for k, v in
-                                                                                         kwargs.items()))
-
-    def __call__(self, f):
-        self.decorated_functions[self.region].add(id(f))
-
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-
-            class_instance = args[0]  # TODO: detect case where f is not bounded to support functions
-
-            key = self.make_key(self.region, class_instance, f, args[1:], kwargs)
-
-            t_last = self.t_last_exec.get(key)
-
-            if not t_last or (time.time() - t_last >= self.wait_sec):
-                r = f(*args, **kwargs)
-                self.returned[key] = r
-                self.t_last_exec[key] = time.time()
-                return r
-            else:
-                return self.returned[key]
-
-        wrapper.action_flag = self.action_flag
-        wrapper.wrapped_func = f
-        return wrapper
-
-    @classmethod
-    def get_registered_by_obj(cls, obj, region=''):
-        methods = []
-        for name in dir(obj):
-            f = getattr(obj, name)
-            if callable(f) and hasattr(f, 'wrapped_func') and id(getattr(f, 'wrapped_func')) in \
-                    cls.decorated_functions.get(region, set()):
-                methods.append(f)
-        return methods
-
-
-register = SimpleMethodCacheInMemory
-
-
 class ProcessGroup(IterableUserDict):
     """
     Dict-like container of ProcessPlus objects: {process_name => process}
@@ -551,11 +610,11 @@ class ProcessGroup(IterableUserDict):
 
         self.max_processes = max_processes
 
-        self.limbo_data = {}
-        self.dead_stats = []
-        self.dead_repr = []
+        self.__limbo_group = None  # Must access through property
+        self.__dead_group = None  # Must access through property
 
-        self._num_keep_dead = 1000
+        self._num_keep_dead = 100
+        self._num_deleted_dead = 0
 
         self.logger = logging.getLogger(__name__)
 
@@ -573,6 +632,24 @@ class ProcessGroup(IterableUserDict):
     @classmethod
     def _curate_flags(cls, flags=None):
         return flags2num(flags) if isinstance(flags, Iterable) else (flags or MONITOR_NONE)
+
+    @property
+    def limbo_group(self):
+        if self.__limbo_group is None:
+            self.__limbo_group = ProcessGroup(group_name='limbo')
+            self.__limbo_group.stop_action_loop()
+        return self.__limbo_group
+
+    @property
+    def dead_group(self):
+        if self.__dead_group is None:
+            self.__dead_group = ProcessGroup(group_name='dead')
+            self.__dead_group.stop_action_loop()
+        return self.__dead_group
+
+    @property
+    def dead_stats(self):
+        return [proc.stats for proc in self.dead_group.values()]
 
     def add(self, process):
         self[process.name] = process
@@ -613,7 +690,6 @@ class ProcessGroup(IterableUserDict):
         return n_success == N  # TODO: better return n_success
 
     def get_by_pid(self, pid):
-        # TODO: cache {pid => proc_name}? PIDs reused slowly in linux (PIDs wrap around ~32768)
         for name, proc in self.items():
             if proc.pid == pid:
                 return proc
@@ -642,12 +718,11 @@ class ProcessGroup(IterableUserDict):
             raise Exception('Process {} not found'.format(proc_name))
         try:
             proc.terminate_plus(kill_wait)
-            self.dead_stats.append(dict(proc.stats))  # store stats
-            self.dead_repr.append(repr(proc))  # store representation
+            self.dead_group.add(proc)
         except Exception:
             self.logger.exception('Fatal exception: ')
             # adding proc to limbo to preserve it for second chance to kill
-            self.limbo_data[proc_name] = proc
+            self.limbo_group.add(proc)
             raise
 
     def mark_for_termination(self, proc_names=(), pids=()):
@@ -659,44 +734,89 @@ class ProcessGroup(IterableUserDict):
         if proc:
             proc.add_ping(data)
 
-    def status(self, time_window=None):
-        # TODO: add aggregated events
+    def add_events(self, pid, events):
+        proc = self.get_by_pid(pid) or self.dead_group.get_by_pid(pid)
+        if proc and events:
+            for ev in events:
+                proc.add_event(ev)
 
-        time_window = time_window or 60 * 5  # TODO add default value in constructor ?
+    @cache(wait_sec=30)
+    def process_view(self):
+        running_list = []
+        dead_list = []
+
+        for name, proc in self.items() + self.dead_group.items():
+            plist = running_list if proc.is_alive() else dead_list
+            plist.append(proc.to_dict(serialize_all=True))
+
+        return {
+            'running': running_list,
+            'dead': dead_list,
+        }
+
+    @cache(wait_sec=30)
+    def status_view(self, time_window=None):
+
+        time_window = time_window or 60 * 5  # TODO add default value in constructor
 
         total_processes = self.total_processes()
+        total_dead_processes = self.total_dead_processes()
         total_monitored = 0
         total_tasks_done = 0
         total_tasks_x_sec = 0
         avg_percent_idle = 0
 
-        status_summary_list = []
+        num_events = 0
+        num_actions = 0
+        num_errors = 0
 
-        for name, proc in self.items():
+        status_alive_list = []
+        status_dead_list = []
+
+        idle_procs = []
+
+        for name, proc in self.items() + self.dead_group.items():
             if proc.is_monitored():
                 total_monitored += 1
                 status_summary = proc.get_status_summary(time_window=time_window)
-                ping_avg = status_summary['ping']['ping_avg']
+                status_summary_list = status_alive_list if proc.is_alive() else status_dead_list
                 status_summary_list.append(status_summary)
+                ping_avg = proc.get_ping_avg(time_window=time_window)
                 total_tasks_done += ping_avg['tasks_done'] if ping_avg['tasks_done'] > 0 else 0
                 avg_percent_idle += ping_avg['percent_idle'] if ping_avg['percent_idle'] > 0 else 0
+                event_summary = status_summary['event']['event_summary']
+                num_events += event_summary['events_total']['num_events']
+                num_actions += event_summary['events_total']['num_actions']
+                num_errors += event_summary['events_total']['num_errors']
+                if proc.get_ping_status(time_window=proc.time_window_status) == proc.STATUS_OK_IDLE:
+                    idle_procs.append({'name': name, 'pid': proc.pid})
 
         total_tasks_x_sec = (total_tasks_done * 1.0) / time_window if time_window > 1e-2 else total_tasks_x_sec
-        avg_percent_idle = int(round((avg_percent_idle * 1.0) / total_monitored)) if total_monitored else 0
+        avg_percent_idle = (avg_percent_idle * 1.0) / total_monitored if total_monitored else 0
 
         return {
-            'running': status_summary_list,
+            'running': status_alive_list,
+            'dead': status_dead_list,
+            'idle': {
+                'time_window': ProcessPlus.time_window_status,
+                'num_idle_procs': len(idle_procs),
+                'idle_procs': idle_procs,
+            },
             'totals': {
                 'time_window': time_window,
                 'total_processes': total_processes,
-                'total_monitored': total_monitored,
-                'total_unmonitored': total_processes - total_monitored,
+                'total_dead_processes': total_dead_processes,
+                'total_monitored_processes': total_monitored,
+                'total_unmonitored_processes': total_processes - total_monitored,
                 'total_tasks_done': total_tasks_done,
                 'total_tasks_x_sec': total_tasks_x_sec,
                 'avg_percent_idle': avg_percent_idle,
             },
-            'events': {
-
+            'events': {  # TODO: put events inside totals ???
+                'time_window': time_window,
+                'num_events': num_events,
+                'num_actions': num_actions,
+                'num_errors': num_errors,
             },
         }
 
@@ -706,14 +826,18 @@ class ProcessGroup(IterableUserDict):
     def total_monitored_processes(self):
         return len([name for name, proc in self.items() if proc.is_monitored()])
 
+    def total_dead_processes(self):
+        return len(self.dead_group) + self._num_deleted_dead
+
+    @cache(wait_sec=30)
     def is_healthy(self):
         num_ok, total = 0, 0
         for name, proc in self.items():
-            status = proc.get_ping_status()
-            if status != ProcessPlus.STATUS_NOT_TRACKED:
+            if proc.is_monitored():
                 total += 1
-            if status.startswith('OK'):
-                num_ok += 1
+                status = proc.get_ping_status()
+                if status.startswith('OK'):
+                    num_ok += 1
         return num_ok * 2 > total  # current definition: is healthy if half the monitored processes plus one are OK
 
     def terminate_many(self, proc_names=(), pids=(), kill_wait=None):
@@ -728,9 +852,9 @@ class ProcessGroup(IterableUserDict):
 
     def terminate_all(self, kill_wait=None):
         self.terminate_many(proc_names=self.keys(), kill_wait=kill_wait)
-        if self.limbo_data:
-            limbo_info = [str(proc) for name, proc in self.limbo_data.items()]
-            self.logger.error('Fatal: processes left in alive in limbo %s', limbo_info)
+        if self.limbo_group:
+            limbo_info = [proc.pid for name, proc in self.limbo_group.items()]
+            self.logger.error('Fatal: processes left in alive in limbo. PIDs: %s', limbo_info)
 
     def respawn_process(self, proc_name, kill_wait=None):
         """Terminate process and spawn another process with same arguments"""
@@ -765,6 +889,8 @@ class ProcessGroup(IterableUserDict):
         """
         for name, proc in self.items():
             if not self.stop_action and proc.should_terminate() and proc.has_flag(MONITOR_KILL_REQ):
+                proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION',
+                                        'Kill request received for %s' % name)
                 self.respawn_process(name)
 
     @register('action', wait_sec=2)
@@ -774,7 +900,9 @@ class ProcessGroup(IterableUserDict):
         """
         for name, proc in self.items():
             if not self.stop_action and not proc.is_alive() and proc.has_flag(MONITOR_RESTART):
-                self.logger.warn('Detected abnormal termination of pid: %s ... Attempting restart', proc.pid)
+                msg = 'Detected abnormal termination of pid: %s ... Restarting' % proc.pid
+                self.logger.warn(msg)
+                proc.add_event_explicit('ProcessGroup(%s)._action_restart_dead' % self.group_name, 'ACTION', msg)
                 self.respawn_process(name)
 
     @register('action', wait_sec=300)
@@ -782,14 +910,14 @@ class ProcessGroup(IterableUserDict):
         """
         Clean limbo procs
         """
-        for name, proc in self.limbo_data.items():
+        for name, proc in self.limbo_group.items():
             if self.stop_action:
                 break
             if proc.is_alive():
                 self.logger.error('Fatal: process in limbo in undead state!!!!!')
                 proc.terminate_plus()
             else:
-                self.limbo_data.pop(name, None)
+                self.limbo_group.pop(name, None)
                 self.logger.info('Limbo proc was terminated: %s', proc)
 
     @register('action', wait_sec=600)
@@ -797,8 +925,13 @@ class ProcessGroup(IterableUserDict):
         """
         Remove old stats from dead processes to avoid high memory usage
         """
-        self.dead_repr = self.dead_repr[-self._num_keep_dead:]
-        self.dead_stats = self.dead_stats[-self._num_keep_dead:]
+        num_eliminate = len(self.dead_group) - self._num_keep_dead
+        if num_eliminate > 0:
+            t_p = sorted([(proc.start_time, name) for name, proc in self.dead_group.items()])
+            names_eliminate = [tp[1] for tp in t_p[0:num_eliminate]]
+            for name in names_eliminate:
+                self.dead_group.pop(name, None)
+                self._num_deleted_dead += 1
 
     def _action_loop(self):
         """

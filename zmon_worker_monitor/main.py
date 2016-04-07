@@ -10,7 +10,7 @@ import requests
 
 import settings
 import rpc_server
-from .consts import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
+from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
 from .web_server.start import start_web
 
 

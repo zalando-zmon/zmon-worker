@@ -12,7 +12,7 @@ from process_controller import ProcessController
 import worker
 import rpc_utils
 
-from .consts import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
+from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
 
 
 def sigterm_handler(signum, frame):
@@ -37,7 +37,8 @@ class ProcessControllerProxy(rpc_utils.RpcProxy):
     valid_methods = ['spawn_many', 'list_running', 'list_stats', 'start_action_loop', 'stop_action_loop',
                      'is_action_loop_running', 'get_dynamic_num_processes', 'set_dynamic_num_processes',
                      'get_action_policy', 'set_action_policy', 'available_action_policies', 'terminate_all_processes',
-                     'terminate_process', 'mark_for_termination', 'ping', 'status', 'health_state']
+                     'terminate_process', 'mark_for_termination', 'ping', 'add_events', 'process_view', 'status_view',
+                     'health_state', 'single_process_view']
 
     def on_exit(self):
         self.get_exposed_obj().terminate_all_processes()
