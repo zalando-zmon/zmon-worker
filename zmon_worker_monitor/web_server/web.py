@@ -55,13 +55,14 @@ def single_process_view(proc_id, by='name'):
     by = 'name' if by in ('name', 'proc_name') else 'pid'
     return common_rpc_call('single_process_view', proc_id, by)
 
+
 @app.route('/status/')
 @app.route('/status/time_window/<int:time_window>/')
 @app.route('/status/time_window/<float:time_window>/')
 @app.route('/status/time_window/<unit>/<int:time_window>/')
 @app.route('/status/time_window/<unit>/<float:time_window>/')
 def status(unit='sec', time_window=None):
-    time_window = time_window if time_window else 60*60*24*365  # TODO: better default for time_window
+    time_window = time_window if time_window else 60 * 60 * 24 * 365  # TODO: better default for time_window
     time_window = time_window * 3600 if str(unit).lower() in ('hours', 'hour', 'h') else time_window
     return common_rpc_call('status_view', time_window=time_window)
 

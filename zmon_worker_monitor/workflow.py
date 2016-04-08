@@ -262,7 +262,7 @@ class FlowControlReactor(object):
         self.task_received(taskname, t_hard, t_soft)
         try:
             yield self
-        except Exception as e:
+        except Exception:
             self.task_ended(exc=format_exc())  # self.task_ended(exc=e)
             raise
         else:
@@ -340,7 +340,7 @@ class FlowControlReactor(object):
             try:
                 for action in self._actions:
                     action()
-            except Exception as e:
+            except Exception:
                 self.add_event('FlowControlReactor.action_loop', 'ERROR', format_exc())
                 logger.exception('Scary Error in FlowControlReactor.action_loop(): ')
 
