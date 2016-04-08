@@ -31,6 +31,30 @@ def get_logger():
     return logging.getLogger(__name__)
 
 
+time_conversions = [
+    dict(ends=[''], f=lambda x: float(x)),  # conversion if no ending units
+    dict(ends=['s', 'sec', 'secs', 'seconds'], f=lambda x: float(x)),  # conversion ending units secs
+    dict(ends=['m', 'min', 'mins', 'minutes'], f=lambda x: float(x) * 60),  # conversion ending units min
+    dict(ends=['h', 'hour', 'hours'], f=lambda x: float(x) * 3600),  # conversion ending units hours
+]
+
+
+def convert_with_units(val, units=None):
+    units = time_conversions if not units else units
+    val = str(val)
+    for d in units:
+        try:
+            end = [e for e in d['ends'][::-1] if val.endswith(e)][0]
+            return d['f'](val[:len(val) - len(end)])
+        except:
+            pass
+    return None
+
+
+def error_response(e, status=500, mimetype='application/json'):
+    return Response(response=json.dumps({'error': str(e)}), status=status, mimetype=mimetype)
+
+
 @app.route('/')
 def root():
     return 'Hello World!'
@@ -44,27 +68,29 @@ def list_running_redirects():
     return redirect(url_for('process_view'))
 
 
+# TODO: add query parm ?fields=(running,dead)
 @app.route('/processes/')
 def process_view():
     return common_rpc_call('process_view')
 
 
-@app.route('/processes/<proc_id>/')
-@app.route('/processes/<by>/<proc_id>/')
-def single_process_view(proc_id, by='name'):
-    by = 'name' if by in ('name', 'proc_name') else 'pid'
-    return common_rpc_call('single_process_view', proc_id, by)
+@app.route('/processes/<string:proc_id>/')
+def single_process_view(proc_id):
+    key = request.args.get('key', 'name')
+    return common_rpc_call('single_process_view', proc_id, key)
 
 
+# TODO: change to /status/?interval=1h
 @app.route('/status/')
-@app.route('/status/time_window/<int:time_window>/')
-@app.route('/status/time_window/<float:time_window>/')
-@app.route('/status/time_window/<unit>/<int:time_window>/')
-@app.route('/status/time_window/<unit>/<float:time_window>/')
-def status(unit='sec', time_window=None):
-    time_window = time_window if time_window else 60 * 60 * 24 * 365  # TODO: better default for time_window
-    time_window = time_window * 3600 if str(unit).lower() in ('hours', 'hour', 'h') else time_window
-    return common_rpc_call('status_view', time_window=time_window)
+def status():
+
+    default_interval = 60 * 60 * 24 * 365  # TODO: better default for time_window
+    interval = request.args.get('interval', default_interval)
+    interval = convert_with_units(interval, units=time_conversions)
+    if not interval:
+        return error_response('Invalid interval {}'.format(request.args.get('interval')))
+
+    return common_rpc_call('status_view', interval=interval)
 
 
 @app.route('/health')

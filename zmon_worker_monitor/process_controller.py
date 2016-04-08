@@ -111,20 +111,16 @@ class ProcessController(object):
     def process_view(self):
         return self.proc_group.process_view()
 
-    def single_process_view(self, proc_id, by=None):
-        by = str(by).lower()
-        proc = self.proc_group.get_by_name(proc_id) if by in ('name', 'proc_name') else \
-            (self.proc_group.get_by_pid(int(proc_id)) if by == 'pid' else None)
+    def single_process_view(self, proc_id, key=None):
+        key = str(key).lower()
+        proc = self.proc_group.get_by_name(proc_id) if key in ('name', 'proc_name') else \
+            (self.proc_group.get_by_pid(int(proc_id)) if key == 'pid' and str(proc_id).isdigit() else None)
         if not proc:
-            raise Exception('No process located with {}={}'.format(by, proc_id))
+            raise Exception('No process located with {}={}'.format(key, proc_id))
         return proc.to_dict(serialize_all=True)
 
-    def one_process_view_by_pid(self, pid):
-        # TODO: fill logic
-        return self.proc_group.process_view()
-
-    def status_view(self, time_window=None):
-        return self.proc_group.status_view(time_window)
+    def status_view(self, interval=None):
+        return self.proc_group.status_view(time_window=interval)
 
     def health_state(self):
         return self.proc_group.is_healthy()
