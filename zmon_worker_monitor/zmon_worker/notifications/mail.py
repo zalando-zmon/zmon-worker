@@ -32,18 +32,32 @@ class Mail(BaseNotification):
         cc = kwargs.get('cc', [])
         hide_recipients = kwargs.get('hide_recipients', True)
         repeat = kwargs.get('repeat', 0)
+        include_value = kwargs.get('include_value', True)
+        include_definition = kwargs.get('include_definition', True)
+        include_captures = kwargs.get('include_captures', True)
+        include_entity = kwargs.get('include_entity', True)
         expanded_alert_name = cls._get_expanded_alert_name(alert)
 
         try:
             tmpl = jinja_env.get_template('alert.txt')
-            body_plain = tmpl.render(expanded_alert_name=expanded_alert_name, **alert)
+            body_plain = tmpl.render(expanded_alert_name=expanded_alert_name,
+                                     include_value=include_value,
+                                     include_definition=include_definition,
+                                     include_captures=include_captures,
+                                     include_entity=include_entity,
+                                     **alert)
         except Exception:
             logger.exception('Error parsing email template for alert %s with id %s', alert_def['name'], alert_def['id'])
         else:
             if html:
                 msg = MIMEMultipart('alternative')
                 tmpl = jinja_env.get_template('alert.html')
-                body_html = tmpl.render(expanded_alert_name=expanded_alert_name, **alert)
+                body_html = tmpl.render(expanded_alert_name=expanded_alert_name,
+                                        include_value=include_value,
+                                        include_definition=include_definition,
+                                        include_captures=include_captures,
+                                        include_entity=include_entity,
+                                        **alert)
                 part1 = MIMEText(body_plain.encode('utf-8'), 'plain', 'utf-8')
                 part2 = MIMEText(body_html.encode('utf-8'), 'html', 'utf-8')
                 msg.attach(part1)
