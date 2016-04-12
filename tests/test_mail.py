@@ -8,6 +8,84 @@ import jinja2
 import zmon_worker_monitor.zmon_worker.notifications.mail as m
 import smtplib
 import unittest
+import os
+
+template_dir = "zmon_worker_monitor/zmon_worker/templates/mail"
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
+                                trim_blocks=True,
+                                lstrip_blocks=True)
+alert = {
+    'id': 'a1',
+    'period': '',
+    'name': 'test_alert',
+    'check_id': 1,
+    'entity': {'id': 'e1'},
+}
+
+class TestTemplate(unittest.TestCase):
+
+    def test_render_all(self):
+        tmpl = jinja_env.get_template('alert.txt')
+        body = tmpl.render(alert_def=alert,
+                            captures={'foobar': 4},
+                            changed=True,
+                            duration=datetime.timedelta(0),
+                            entity=alert['entity'],
+                            expanded_alert_name=alert['name'],
+                            include_captures=True,
+                            include_definition=True,
+                            include_entity=True,
+                            include_value=True,
+                            is_alert=True,
+                            value={'value': 1.0})
+        expected = """New alert on e1: test_alert
+
+Current value: 1.0
+
+Worker: 
+
+Captures:
+foobar: 4
+
+Alert Definition
+Name (ID):     test_alert (ID: a1)
+Priority:      
+Check ID:      1
+Condition      
+Team:          
+Resp. Team:    
+Notifications: 
+
+Entity
+id: e1
+"""
+        self.assertEqual(expected, body)
+
+    def test_render_capture_only(self):
+        tmpl = jinja_env.get_template('alert.txt')
+        body = tmpl.render(alert_def=alert,
+                            captures={'foobar': 4},
+                            changed=True,
+                            duration=datetime.timedelta(0),
+                            entity=alert['entity'],
+                            expanded_alert_name=alert['name'],
+                            include_captures=True,
+                            include_definition=False,
+                            include_entity=False,
+                            include_value=False,
+                            is_alert=True,
+                            value={'value': 1.0})
+        expected = """New alert on e1: test_alert
+
+
+Worker: 
+
+Captures:
+foobar: 4
+
+
+"""
+        self.assertEqual(expected, body)
 
 class TestMail(unittest.TestCase):
 

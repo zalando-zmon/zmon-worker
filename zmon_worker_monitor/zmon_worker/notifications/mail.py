@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 thisdir = os.path.join(os.path.dirname(__file__))
 
 template_dir = os.path.join(thisdir, '../templates/mail')
-jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir))
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
+                               trim_blocks=True,
+                               lstrip_blocks=True)
 
 
 class Mail(BaseNotification):
