@@ -9,7 +9,6 @@ import zmon_worker_monitor.zmon_worker.notifications.mail as m
 import smtplib
 import unittest
 
-
 class TestMail(unittest.TestCase):
 
     def setUp(self):
@@ -33,6 +32,9 @@ class TestMail(unittest.TestCase):
         }
         s = Mock()
         mock_smtp.return_value = s
+        mock_tmpl = Mock()
+        mock_tmpl.render.return_value = ''
+        mock_jinja.get_template.return_value = mock_tmpl
 
         # Regular send
         repeat = m.Mail.send({
@@ -43,11 +45,23 @@ class TestMail(unittest.TestCase):
             'is_alert': True,
             'alert_def': alert,
             'duration': datetime.timedelta(seconds=0),
-        }, 'test@example.org')
+        }, 'test@example.org', include_value=False, include_definition=False, include_entity=False)
         self.assertEqual(0, repeat)
         mock_jinja.get_template.assert_called_with('alert.txt')
         mock_smtp.assert_called_with('test_host', 25)
         s.sendmail.assert_called_with('test_sender', ['test@example.org'], ANY)
+        mock_tmpl.render.assert_called_with(alert_def=alert,
+                                            captures={},
+                                            changed=True,
+                                            duration=datetime.timedelta(0),
+                                            entity=alert['entity'],
+                                            expanded_alert_name=alert['name'],
+                                            include_captures=True,
+                                            include_definition=False,
+                                            include_entity=False,
+                                            include_value=False,
+                                            is_alert=True,
+                                            value={'value': 1.0})
 
         # Send with repeat in HTML
         repeat = m.Mail.send({
