@@ -49,6 +49,15 @@ class CloudwatchWrapper(object):
 
     def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None):
         '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
+        if period < 60 or period % 60 != 0:
+            raise ValueError('Period must be greater than and a multiple of 60')
+
+        # special case to gather all types at once
+        if statistics is None:
+            statistics = ['Sum', 'Average', 'Maximum', 'SampleCount', 'Minimum']
+        elif isinstance(statistics, basestring):
+            statistics = [statistics]
+
         end = end or datetime.datetime.utcnow()
         start = start or (end - datetime.timedelta(minutes=minutes))
         if isinstance(dimensions, dict):
@@ -58,11 +67,14 @@ class CloudwatchWrapper(object):
         response = self.client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
                                                      Dimensions=dimensions,
                                                      StartTime=start, EndTime=end, Period=period,
-                                                     Statistics=[statistics])
+                                                     Statistics=statistics)
         data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
         if not data_points:
             return None
-        return data_points[-1][statistics]
+        if len(statistics) == 1:
+            return data_points[-1][statistics[0]]
+        else:
+            return {s: v for s, v in data_points[-1].items() if s in statistics}
 
     def query(self, dimensions, metric_name, statistics='Sum', namespace=None, period=60, minutes=5):
         '''Query one or more metric statistics; allows finding dimensions with wildcards'''
