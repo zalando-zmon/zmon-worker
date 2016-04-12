@@ -1,4 +1,5 @@
 import datetime
+import pytest
 from zmon_worker_monitor.builtins.plugins.cloudwatch import CloudwatchWrapper
 
 from mock import MagicMock
@@ -30,6 +31,17 @@ def test_cloudwatch(monkeypatch):
     elb_data = cloudwatch.query({'AvailabilityZone': 'NOT_SET', 'LoadBalancerName': 'pierone-*'}, 'Latency', 'Average',
                                 namespace='ELB')
     assert {'Latency': 100.25, 'dimensions': {'LoadBalancerName': {'pierone-1': 100.25}}} == elb_data
+
+
+def test_cloudwatch_query_one_bad_period(monkeypatch):
+    client = MagicMock()
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'myregion'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    cloudwatch = CloudwatchWrapper()
+    with pytest.raises(ValueError):
+        cloudwatch.query_one({'LoadBalancerName': 'pierone-1'}, 'Latency', 'Average', 'AWS/ELB', period=90)
 
 
 def test_cloudwatch_query_one(monkeypatch):

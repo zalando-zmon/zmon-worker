@@ -49,6 +49,9 @@ class CloudwatchWrapper(object):
 
     def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None):
         '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
+        if period < 60 or period % 60 != 0:
+            raise ValueError('Period must be greater than and a multiple of 60')
+
         end = end or datetime.datetime.utcnow()
         start = start or (end - datetime.timedelta(minutes=minutes))
         if isinstance(dimensions, dict):
