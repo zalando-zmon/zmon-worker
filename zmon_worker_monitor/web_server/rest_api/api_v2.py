@@ -1,0 +1,120 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import logging
+# from flask import current_app, Blueprint, Response, request, url_for, redirect, jsonify, got_request_exception
+from flask import Blueprint
+from flask_restful import reqparse, Resource
+from .commons import ApiExtended, get_rpc_client
+from .errors import ServerError, UserError
+from traceback import format_exc
+
+
+API_VERSION_V2 = 2
+API_VERSION = API_VERSION_V2
+
+
+# Create the Api as a blueprint
+
+api_v2_bp = Blueprint('api_v2_bp', __name__)
+api_v2 = ApiExtended(api_v2_bp)
+
+
+def get_logger():
+    return logging.getLogger(__name__)
+
+
+#
+# Api Resources definition
+#
+
+
+class ProcessListApi(Resource):
+
+    def get(self):
+
+        try:
+            client = get_rpc_client()
+            r = client.processes_view()
+        except Exception as e:
+            raise ServerError(message='Error: {}'.format(e), previous_tb=format_exc())
+
+        return r
+
+
+class ProcessApi(Resource):
+
+    def __init__(self):
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument('key', choices=('name', 'proc_name', 'pid'), default='name')
+        super(ProcessApi, self).__init__()
+
+    def get(self, id):
+
+        args = self.parser.parse_args(strict=True)
+
+        try:
+            client = get_rpc_client()
+            r = client.single_process_view(id, args['key'])
+        except Exception as e:
+            raise ServerError(message='Error: {}'.format(e), previous_tb=format_exc())
+
+        if not r:
+            raise UserError(message='Not Found Process by %s=%s' % (args['key'], id), code=404)
+        return r
+
+
+class StatusListApi(Resource):
+
+    default_interval = 60 * 60 * 24 * 365  # TODO: better default for time_window
+
+    units_to_secs = dict(seconds=1, minutes=60, hours=3600, days=3600 * 24)
+
+    def __init__(self):
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument('interval', type=float, default=self.default_interval,
+                                 help='time interval given in time units (defaults to %s)' % self.default_interval)
+        self.parser.add_argument('units', choices=('seconds', 'minutes', 'hours', 'days'), default='seconds',
+                                 help='choices=(seconds, minutes, hours, days). defaults to seconds')
+        super(StatusListApi, self).__init__()
+
+    def get(self):
+        args = self.parser.parse_args(strict=True)
+        interval = args['interval'] * self.units_to_secs[args['units']]
+
+        try:
+            client = get_rpc_client()
+            r = client.status_view(interval=interval)
+        except Exception as e:
+            raise ServerError(message='Error: {}'.format(e), previous_tb=format_exc())
+
+        return r
+
+
+class StatusApi(Resource):
+    # TODO: view single process status???
+    pass
+
+
+class HealthApi(Resource):
+
+    def get(self):
+
+        try:
+            client = get_rpc_client()
+            value = client.health_state()
+            assert value, 'Bad health state'
+        except Exception as e:
+            raise ServerError(message='Error in health state: {}'.format(e), code=503, previous_tb=format_exc())
+
+        return {'value': value}
+
+
+#
+# Add resources to the Api
+#
+
+api_v2.add_resource(ProcessListApi, '/processes')
+api_v2.add_resource(ProcessApi, '/processes/<string:id>')
+api_v2.add_resource(StatusListApi, '/status')
+api_v2.add_resource(HealthApi, '/health')

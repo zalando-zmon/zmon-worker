@@ -108,15 +108,21 @@ class ProcessController(object):
     def add_events(self, pid, events):
         self.proc_group.add_events(pid, events)
 
-    def process_view(self):
-        return self.proc_group.process_view()
+    def processes_view(self):
+        return self.proc_group.processes_view()
 
-    def single_process_view(self, proc_id, key=None):
+    def single_process_view(self, id, key=None):
         key = str(key).lower()
-        proc = self.proc_group.get_by_name(proc_id) if key in ('name', 'proc_name') else \
-            (self.proc_group.get_by_pid(int(proc_id)) if key == 'pid' and str(proc_id).isdigit() else None)
+
+        proc = None
+        if key in ('name', 'proc_name'):
+            proc = self.proc_group.get_by_name(id)
+        elif key in ('pid', ) and str(id).isdigit():
+            proc = self.proc_group.get_by_pid(int(id))
+
         if not proc:
-            raise Exception('No process located with {}={}'.format(key, proc_id))
+            return None
+
         return proc.to_dict(serialize_all=True)
 
     def status_view(self, interval=None):
@@ -737,7 +743,7 @@ class ProcessGroup(IterableUserDict):
                 proc.add_event(ev)
 
     @cache(wait_sec=30)
-    def process_view(self):
+    def processes_view(self):
         running_list = []
         dead_list = []
 
