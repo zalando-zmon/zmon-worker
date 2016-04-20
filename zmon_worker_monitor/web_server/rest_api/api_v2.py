@@ -5,6 +5,8 @@ import logging
 # from flask import current_app, Blueprint, Response, request, url_for, redirect, jsonify, got_request_exception
 from flask import Blueprint
 from flask_restful import reqparse, Resource
+from flask_restful_swagger import swagger
+
 from .commons import ApiExtended, get_rpc_client
 from .errors import ServerError, UserError
 from traceback import format_exc
@@ -19,6 +21,9 @@ API_VERSION = API_VERSION_V2
 api_v2_bp = Blueprint('api_v2_bp', __name__)
 api_v2 = ApiExtended(api_v2_bp)
 
+# Wrap the Api with swagger docs
+api_v2 = swagger.docs(api_v2, apiVersion=API_VERSION, api_spec_url='/spec')
+
 
 def get_logger():
     return logging.getLogger(__name__)
@@ -31,6 +36,11 @@ def get_logger():
 
 class ProcessListApi(Resource):
 
+    @swagger.operation(
+        summary='All Processes View',
+        notes='Get view of all processes. Notice this returns a big json object.',
+        responseMessages=[{'code': 500, 'message': 'System error'}],
+    )
     def get(self):
 
         try:
@@ -49,6 +59,31 @@ class ProcessApi(Resource):
         self.parser.add_argument('key', choices=('name', 'proc_name', 'pid'), default='name')
         super(ProcessApi, self).__init__()
 
+    @swagger.operation(
+        summary='Get Process by ID',
+        notes='Get one process',
+        parameters=[
+            {
+                'name': 'id',
+                'description': 'id of the process',
+                'required': True,
+                'dataType': 'string',
+                'paramType': 'path',
+            },
+            {
+                'name': 'key',
+                'description': 'key to use to locate the process. Can be name or PID. Defaults to name.',
+                'required': False,
+                'dataType': 'string',
+                'paramType': 'query',
+            },
+        ],
+        responseMessages=[
+            {'code': 400, 'message': 'Bad query parameter'},
+            {'code': 404, 'message': 'Process with given id not found'},
+            {'code': 500, 'message': 'System error'}
+        ],
+    )
     def get(self, id):
 
         args = self.parser.parse_args(strict=True)
@@ -57,10 +92,10 @@ class ProcessApi(Resource):
             client = get_rpc_client()
             r = client.single_process_view(id, args['key'])
         except Exception as e:
-            raise ServerError(message='Error: {}'.format(e), previous_tb=format_exc())
+            raise ServerError(code=500, message='Error: {}'.format(e), previous_tb=format_exc())
 
         if not r:
-            raise UserError(message='Not Found Process by %s=%s' % (args['key'], id), code=404)
+            raise UserError(code=404, message='Not Found Process by %s=%s' % (args['key'], id))
         return r
 
 
@@ -78,6 +113,11 @@ class StatusListApi(Resource):
                                  help='choices=(seconds, minutes, hours, days). defaults to seconds')
         super(StatusListApi, self).__init__()
 
+    @swagger.operation(
+        summary='System Summary View',
+        notes='Get status of all processes',
+        responseMessages=[{'code': 500, 'message': 'System error'}],
+    )
     def get(self):
         args = self.parser.parse_args(strict=True)
         interval = args['interval'] * self.units_to_secs[args['units']]
@@ -86,7 +126,7 @@ class StatusListApi(Resource):
             client = get_rpc_client()
             r = client.status_view(interval=interval)
         except Exception as e:
-            raise ServerError(message='Error: {}'.format(e), previous_tb=format_exc())
+            raise ServerError(code=500, message='Error: {}'.format(e), previous_tb=format_exc())
 
         return r
 
@@ -98,6 +138,11 @@ class StatusApi(Resource):
 
 class HealthApi(Resource):
 
+    @swagger.operation(
+        summary='Health State of ZMON-Worker system',
+        notes='Get health state of the system',
+        responseMessages=[{'code': 503, 'message': 'System in bad health state'}],
+    )
     def get(self):
 
         try:
@@ -105,7 +150,7 @@ class HealthApi(Resource):
             value = client.health_state()
             assert value, 'Bad health state'
         except Exception as e:
-            raise ServerError(message='Error in health state: {}'.format(e), code=503, previous_tb=format_exc())
+            raise ServerError(code=503, message='Error in health state: {}'.format(e), previous_tb=format_exc())
 
         return {'value': value}
 
