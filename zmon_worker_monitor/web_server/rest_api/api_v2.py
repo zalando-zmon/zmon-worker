@@ -6,10 +6,10 @@ import logging
 from flask import Blueprint
 from flask_restful import reqparse, Resource
 from flask_restful_swagger import swagger
+from traceback import format_exc
 
 from .commons import ApiExtended, get_rpc_client
 from .errors import ServerError, UserError
-from traceback import format_exc
 
 
 API_VERSION_V2 = 2
@@ -21,7 +21,7 @@ API_VERSION = API_VERSION_V2
 api_v2_bp = Blueprint('api_v2_bp', __name__)
 api_v2 = ApiExtended(api_v2_bp)
 
-# Wrap the Api with swagger docs
+# Wrap the Api with swagger docs. Create endpoints: {url_prefix}/spec.html and {url_prefix}/spec.json
 api_v2 = swagger.docs(api_v2, apiVersion=API_VERSION, api_spec_url='/spec')
 
 
@@ -39,6 +39,7 @@ class ProcessListApi(Resource):
     @swagger.operation(
         summary='All Processes View',
         notes='Get view of all processes. Notice this returns a big json object.',
+        # responseClass=ProcessesResponse.__name__,
         responseMessages=[{'code': 500, 'message': 'System error'}],
     )
     def get(self):
@@ -78,6 +79,7 @@ class ProcessApi(Resource):
                 'paramType': 'query',
             },
         ],
+        # responseClass=OneProcessResponse.__name__,
         responseMessages=[
             {'code': 400, 'message': 'Bad query parameter'},
             {'code': 404, 'message': 'Process with given id not found'},
@@ -101,14 +103,14 @@ class ProcessApi(Resource):
 
 class StatusListApi(Resource):
 
-    default_interval = 60 * 60 * 24 * 365  # TODO: better default for time_window
+    default_interval = 60 * 5
 
     units_to_secs = dict(seconds=1, minutes=60, hours=3600, days=3600 * 24)
 
     def __init__(self):
         self.parser = reqparse.RequestParser()
         self.parser.add_argument('interval', type=float, default=self.default_interval,
-                                 help='time interval given in time units (defaults to %s)' % self.default_interval)
+                                 help='time interval given in time units (defaults to %s s)' % self.default_interval)
         self.parser.add_argument('units', choices=('seconds', 'minutes', 'hours', 'days'), default='seconds',
                                  help='choices=(seconds, minutes, hours, days). defaults to seconds')
         super(StatusListApi, self).__init__()
@@ -131,16 +133,12 @@ class StatusListApi(Resource):
         return r
 
 
-class StatusApi(Resource):
-    # TODO: view single process status???
-    pass
-
-
 class HealthApi(Resource):
 
     @swagger.operation(
-        summary='Health State of ZMON-Worker system',
-        notes='Get health state of the system',
+        summary='System Health State',
+        notes='Get health <strong>state</strong> of the system',
+        # responseClass=HealthResponse.__name__,
         responseMessages=[{'code': 503, 'message': 'System in bad health state'}],
     )
     def get(self):
@@ -159,7 +157,7 @@ class HealthApi(Resource):
 # Add resources to the Api
 #
 
-api_v2.add_resource(ProcessListApi, '/processes')
-api_v2.add_resource(ProcessApi, '/processes/<string:id>')
-api_v2.add_resource(StatusListApi, '/status')
-api_v2.add_resource(HealthApi, '/health')
+api_v2.add_resource(ProcessListApi, '/processes/')
+api_v2.add_resource(ProcessApi, '/processes/<string:id>/')
+api_v2.add_resource(StatusListApi, '/status/')
+api_v2.add_resource(HealthApi, '/health/')

@@ -26,11 +26,9 @@ def create_app(config):
     app = Flask(__name__)
     app.config.update(config)
 
-    from .rest_api.api_v1 import api_v1_bp
     from .rest_api.api_v2 import api_v2_bp
 
-    app.register_blueprint(api_v1_bp, url_prefix='/api/v1')
-    app.register_blueprint(api_v2_bp, url_prefix='/api/v2')
+    app.register_blueprint(api_v2_bp, url_prefix='')
     return app
 
 

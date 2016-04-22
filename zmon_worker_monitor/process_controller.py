@@ -16,10 +16,14 @@ from threading import Thread
 from UserDict import IterableUserDict
 from collections import defaultdict, Iterable
 from functools import wraps
+from datetime import timedelta
 
 
 from .flags import has_flag, flags2num
 from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING, MONITOR_NONE
+
+
+FLOAT_DIGITS = 5
 
 
 class ProcessController(object):
@@ -126,7 +130,7 @@ class ProcessController(object):
         return proc.to_dict(serialize_all=True)
 
     def status_view(self, interval=None):
-        return self.proc_group.status_view(time_window=interval)
+        return self.proc_group.status_view(interval=interval)
 
     def health_state(self):
         return self.proc_group.is_healthy()
@@ -216,7 +220,7 @@ class ProcessPlus(Process):
     """
 
     _pack_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'previous_proc',
-                    'ping_status', 'actions_last_5', 'errors_last_5', 'status_summary')
+                    'ping_status', 'actions_last_5', 'errors_last_5', 'task_counts', 'event_counts')
 
     keep_pings = 3000  # covers approx. 24 hours if pings sent every 30 secs
 
@@ -231,7 +235,11 @@ class ProcessPlus(Process):
         'percert_idle': 0,
     }
 
-    time_window_status = 60 * 5  # analyze only the pings received since now - this interval
+    default_status_interval = 60 * 5  # analyze only the pings received since now - this interval
+
+    default_ping_count_intervals = (60 * 5, 60 * 30, 60 * 60, 60 * 60 * 6)
+
+    default_event_count_intervals = (60 * 60 * 24, )
 
     STATUS_OK = 'OK'
     STATUS_OK_IDLE = 'OK-IDLE'
@@ -318,20 +326,8 @@ class ProcessPlus(Process):
         return end_time - self.stats['start_time'] if self.stats['start_time'] else 0
 
     @property
-    def ping_avg_5_min(self):
-        return self.get_ping_avg(time_window=300)
-
-    @property
-    def ping_avg_10_min(self):
-        return self.get_ping_avg(time_window=600)
-
-    @property
-    def ping_avg_30_min(self):
-        return self.get_ping_avg(time_window=1800)
-
-    @property
     def ping_status(self):
-        return self.get_ping_status(time_window=self.time_window_status)
+        return self.get_ping_status()
 
     @property
     def actions_last_5(self):
@@ -346,8 +342,12 @@ class ProcessPlus(Process):
         return self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, limit=5)
 
     @property
-    def status_summary(self):
-        return self.get_status_summary()
+    def task_counts(self):
+        return self.get_ping_counts()
+
+    @property
+    def event_counts(self):
+        return self.get_event_counts()
 
     def is_rebel(self):
         return self._rebel
@@ -370,10 +370,10 @@ class ProcessPlus(Process):
         self.stored_events.append(data)
         self.stored_events = self.stored_events[-self.keep_events:]
 
-    def get_events(self, event_type=None, time_window=None, limit=-1):
+    def get_events(self, event_type=None, interval=None, limit=-1):
         r, tnow = [], time.time()
         for e in self.stored_events:
-            if (time_window and tnow - e['timestamp'] > time_window) or (event_type and e['type'] != event_type):
+            if (interval and tnow - e['timestamp'] > interval) or (event_type and e['type'] != event_type):
                 continue
             r.append(e)
         return r[-limit:] if limit and limit > 0 else r
@@ -383,14 +383,16 @@ class ProcessPlus(Process):
         self.stored_pings.append(data)
         self.stored_pings = self.stored_pings[-self.keep_pings:]
 
-    def get_pings(self, time_window=None, limit=-1):
+    def get_pings(self, interval=None, limit=-1):
         r = self.stored_pings
-        if time_window:
+        if interval:
             tnow = time.time()
-            r = [p for p in self.stored_pings if tnow - p['timestamp'] <= time_window]
+            r = [p for p in self.stored_pings if tnow - p['timestamp'] <= interval]
         return r[-limit:] if limit and limit > 0 else r
 
-    def get_ping_status(self, time_window=None):
+    def get_ping_status(self, interval=None):
+
+        interval = interval if interval is not None else self.default_status_interval
 
         if not self.is_alive():
             return self.STATUS_BAD_DEAD
@@ -401,61 +403,40 @@ class ProcessPlus(Process):
         if self.t_running_secs < self.initial_wait_pings:
             return self.STATUS_OK_INITIATING
 
-        avg_data = self.get_ping_avg(time_window=time_window)
+        agg_data = self.aggregate_pings(interval=interval)
 
-        if avg_data['tasks_done'] < 0 and avg_data['percent_idle'] < 0:
+        if agg_data['tasks_done'] < 0 and agg_data['percent_idle'] < 0:
             return self.STATUS_BAD_NO_PINGS
-        if avg_data['tasks_done'] == 0 and avg_data['percent_idle'] < 1:
+        if agg_data['tasks_done'] == 0 and agg_data['percent_idle'] < 1:
             return self.STATUS_BAD_IS_STUCK  # This shouldn't happen, hard kill should be triggered
-        if avg_data['tasks_done'] == 0 and avg_data['percent_idle'] > 99:
+        if agg_data['tasks_done'] == 0 and agg_data['percent_idle'] > 99:
             return self.STATUS_OK_IDLE
 
         return self.STATUS_OK
 
     @cache(wait_sec=5)
-    def get_ping_avg(self, time_window=None):
-        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
-        time_window = time_window if time_window else self.time_window_status
+    def aggregate_pings(self, interval=None):
+
         tnow = time.time()
 
-        avg_data = dict(tasks_x_sec=-1, percent_idle=-1, time_window=time_window, tasks_done=-1, pings_received=-1)
+        if interval is None:  # if time_window not given we aggregate all stored pings
+            interval = (tnow - self.stored_pings[0]['timestamp']) if self.stored_pings else 0
 
-        pings = [p for p in self.stored_pings if tnow - p['timestamp'] <= time_window]
+        agg_data = {'tasks_per_sec': -1, 'tasks_per_min': -1, 'percent_idle': -1, 'interval': interval,
+                    'tasks_done': -1, 'pings_received': -1}
+
+        pings = [p for p in self.stored_pings if tnow - p['timestamp'] <= interval]
         if pings:
-            avg_data['tasks_done'] = sum([p['tasks_done'] for p in pings])
-            avg_data['tasks_x_sec'] = float(avg_data['tasks_done']) / time_window
-            avg_data['percent_idle'] = float(sum([p['percert_idle'] for p in pings])) / len(pings)
-            avg_data['pings_received'] = len(pings)
+            agg_data['tasks_done'] = sum([p['tasks_done'] for p in pings])
+            agg_data['tasks_per_sec'] = round(float(agg_data['tasks_done']) / interval, FLOAT_DIGITS)
+            agg_data['tasks_per_min'] = round((float(agg_data['tasks_done']) / interval) * 60, FLOAT_DIGITS)
+            agg_data['percent_idle'] = round(float(sum([p['percert_idle'] for p in pings])) / len(pings), FLOAT_DIGITS)
+            agg_data['pings_received'] = len(pings)
 
-        return avg_data
-
-    @cache(wait_sec=5)
-    def get_status_summary(self, time_window=None):
-        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
-        time_window = time_window if time_window else self.time_window_status
-
-        return {
-            'name': self.name,
-            'pid': self.pid,
-            'ping_status': self.get_ping_status(time_window=time_window),
-            'ping': {
-                'ping_avg': self.get_ping_avg(time_window=time_window),
-                'ping_avg_5_min': self.get_ping_avg(time_window=300),
-                'ping_avg_10_min': self.get_ping_avg(time_window=600),
-                'ping_avg_30_min': self.get_ping_avg(time_window=1800),
-                'ping_avg_24_h': self.get_ping_avg(time_window=86400),
-            },
-            'event': {
-                'event_summary': self.get_event_summary(time_window=time_window),
-                'event_summary_5_min': self.get_event_summary(time_window=300),
-                'event_summary_10_min': self.get_event_summary(time_window=600),
-                'event_summary_30_min': self.get_event_summary(time_window=1800),
-                'event_summary_24_h': self.get_event_summary(time_window=86400),
-            },
-        }
+        return agg_data
 
     @cache(wait_sec=5)
-    def get_event_summary(self, time_window=None):
+    def aggregate_events(self, interval=None):
 
         def sum_repeats(events):
             return sum([e['repeats'] for e in events])
@@ -466,37 +447,36 @@ class ProcessPlus(Process):
                 events_by_origin[e['origin']].append(e)
             return events_by_origin
 
-        # TODO: No time window should return from self.time_window_status or from the beginning? Consistency!
-        if not time_window:
-            # if time_window not given we search from the first stored event
-            time_window = time.time() - self.stored_events[0]['timestamp'] + 5 if self.stored_events else 0
+        if interval is None:  # if time_window not given we aggregate all stored events
+            interval = (time.time() - self.stored_events[0]['timestamp']) if self.stored_events else 0
 
-        all_events = self.get_events(time_window=time_window)
-        actions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, time_window=time_window)
-        errors = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, time_window=time_window)
-        # exceptions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, time_window=time_window)
+        all_events = self.get_events(interval=interval)
+        actions = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, interval=interval)
+        errors = self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, interval=interval)
 
         return {
-            'time_window': time_window,
-            'events_total': {
-                'num_events': sum_repeats(all_events),
-                'num_actions': sum_repeats(actions),
-                'num_errors': sum_repeats(errors),
-                # 'num_exceptions': sum_repeats(exceptions),
+            'interval': interval,
+            'totals': {
+                'events': sum_repeats(all_events),
+                'actions': sum_repeats(actions),
+                'errors': sum_repeats(errors),
             },
-            'events_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
-                                        group_by_origin(all_events).items()},
-            'actions_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
-                                         group_by_origin(actions).items()},
-            'errors_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
-                                        group_by_origin(errors).items()},
-            # 'exceptions_totals_by_origin': {origin: sum_repeats(elist) for origin, elist in
-            #                                 group_by_origin(exceptions).items()},
-
-            'actions_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_ACTION, limit=5),
-            'errors_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_ERROR, limit=5),
-            # 'exceptions_last5': self.get_events(event_type=ProcessPlus.EVENT_TYPE_EXCEPTION, limit=5),
+            'by_origin': {
+                'events': {origin: sum_repeats(elist) for origin, elist in group_by_origin(all_events).items()},
+                'actions': {origin: sum_repeats(elist) for origin, elist in group_by_origin(actions).items()},
+                'errors': {origin: sum_repeats(elist) for origin, elist in group_by_origin(errors).items()},
+            },
         }
+
+    @cache(wait_sec=5)
+    def get_ping_counts(self, intervals=()):
+        intervals = intervals or self.default_ping_count_intervals
+        return {str(timedelta(seconds=ts)): self.aggregate_pings(interval=ts) for ts in intervals}
+
+    @cache(wait_sec=5)
+    def get_event_counts(self, intervals=()):
+        intervals = intervals or self.default_event_count_intervals
+        return {str(timedelta(seconds=ts)): self.aggregate_events(interval=ts) for ts in intervals}
 
     def is_monitored(self):
         return self.has_flag(MONITOR_PING)
@@ -757,9 +737,9 @@ class ProcessGroup(IterableUserDict):
         }
 
     @cache(wait_sec=30)
-    def status_view(self, time_window=None):
+    def status_view(self, interval=None):
 
-        time_window = time_window or 60 * 5  # TODO add default value in constructor
+        interval = interval or 60 * 5  # TODO add default value in constructor
 
         total_processes = self.total_processes()
         total_dead_processes = self.total_dead_processes()
@@ -772,50 +752,46 @@ class ProcessGroup(IterableUserDict):
         num_actions = 0
         num_errors = 0
 
-        status_alive_list = []
-        status_dead_list = []
-
         idle_procs = []
 
         for name, proc in self.items() + self.dead_group.items():
             if proc.is_monitored():
                 total_monitored += 1
-                status_summary = proc.get_status_summary(time_window=time_window)
-                status_summary_list = status_alive_list if proc.is_alive() else status_dead_list
-                status_summary_list.append(status_summary)
-                ping_avg = proc.get_ping_avg(time_window=time_window)
-                total_tasks_done += ping_avg['tasks_done'] if ping_avg['tasks_done'] > 0 else 0
-                avg_percent_idle += ping_avg['percent_idle'] if ping_avg['percent_idle'] > 0 else 0
-                event_summary = status_summary['event']['event_summary']
-                num_events += event_summary['events_total']['num_events']
-                num_actions += event_summary['events_total']['num_actions']
-                num_errors += event_summary['events_total']['num_errors']
-                if proc.get_ping_status(time_window=proc.time_window_status) == proc.STATUS_OK_IDLE:
+                ping_agg = proc.aggregate_pings(interval=interval)
+                total_tasks_done += ping_agg['tasks_done'] if ping_agg['tasks_done'] > 0 else 0
+                avg_percent_idle += ping_agg['percent_idle'] if ping_agg['percent_idle'] > 0 else 0
+
+                event_agg = proc.aggregate_events(interval=interval)
+
+                num_events += event_agg['totals']['events']
+                num_actions += event_agg['totals']['actions']
+                num_errors += event_agg['totals']['errors']
+
+                if proc.ping_status == proc.STATUS_OK_IDLE:
                     idle_procs.append({'name': name, 'pid': proc.pid})
 
-        total_tasks_x_sec = (total_tasks_done * 1.0) / time_window if time_window > 1e-2 else total_tasks_x_sec
+        total_tasks_x_sec = (total_tasks_done * 1.0) / interval if interval > 1e-2 else total_tasks_x_sec
         avg_percent_idle = (avg_percent_idle * 1.0) / total_monitored if total_monitored else 0
 
         return {
-            'running': status_alive_list,
-            'dead': status_dead_list,
             'idle': {
-                'time_window': ProcessPlus.time_window_status,
+                'interval': ProcessPlus.default_status_interval,
                 'num_idle_procs': len(idle_procs),
                 'idle_procs': idle_procs,
             },
             'totals': {
-                'time_window': time_window,
+                'interval': interval,
                 'total_processes': total_processes,
                 'total_dead_processes': total_dead_processes,
                 'total_monitored_processes': total_monitored,
                 'total_unmonitored_processes': total_processes - total_monitored,
                 'total_tasks_done': total_tasks_done,
-                'total_tasks_x_sec': total_tasks_x_sec,
-                'avg_percent_idle': avg_percent_idle,
+                'total_tasks_per_sec': round(total_tasks_x_sec, FLOAT_DIGITS),
+                'total_tasks_per_min': round(total_tasks_x_sec * 60, FLOAT_DIGITS),
+                'avg_percent_idle': round(avg_percent_idle, FLOAT_DIGITS),
             },
-            'events': {  # TODO: put events inside totals ???
-                'time_window': time_window,
+            'events': {
+                'interval': interval,
                 'num_events': num_events,
                 'num_actions': num_actions,
                 'num_errors': num_errors,
