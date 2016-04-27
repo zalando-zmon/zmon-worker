@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import logging
-# from flask import current_app, Blueprint, Response, request, url_for, redirect, jsonify, got_request_exception
 from flask import Blueprint
 from flask_restful import reqparse, Resource
 from flask_restful_swagger import swagger
@@ -39,7 +38,6 @@ class ProcessListApi(Resource):
     @swagger.operation(
         summary='All Processes View',
         notes='Get view of all processes. Notice this returns a big json object.',
-        # responseClass=ProcessesResponse.__name__,
         responseMessages=[{'code': 500, 'message': 'System error'}],
     )
     def get(self):
@@ -79,7 +77,6 @@ class ProcessApi(Resource):
                 'paramType': 'query',
             },
         ],
-        # responseClass=OneProcessResponse.__name__,
         responseMessages=[
             {'code': 400, 'message': 'Bad query parameter'},
             {'code': 404, 'message': 'Process with given id not found'},
@@ -138,7 +135,6 @@ class HealthApi(Resource):
     @swagger.operation(
         summary='System Health State',
         notes='Get health <strong>state</strong> of the system',
-        # responseClass=HealthResponse.__name__,
         responseMessages=[{'code': 503, 'message': 'System in bad health state'}],
     )
     def get(self):

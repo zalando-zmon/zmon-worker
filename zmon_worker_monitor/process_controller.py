@@ -158,6 +158,8 @@ class SimpleMethodCacheInMemory(object):
     # { region => { class_instance_id => { func_id => { args_key => timestamp } } } }
     t_last_exec = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
 
+    shortcut_cache = False  # useful to deactivate all cache during testing
+
     def __init__(self, region='', wait_sec=5, action_flag=None):
         assert '-' not in region, "'-' char not allowed in regions"
         self.region = region
@@ -177,7 +179,7 @@ class SimpleMethodCacheInMemory(object):
             id_class_instance = id(args[0])  # TODO: detect case where f is not bounded to support functions
             args_key = self.make_args_key(args[1:], kwargs)
             t_last = self.t_last_exec[self.region][id_class_instance][id_f].get(args_key, 0)
-            if time.time() - t_last >= self.wait_sec:
+            if time.time() - t_last >= self.wait_sec or self.shortcut_cache:
                 r = f(*args, **kwargs)
                 self.returned[self.region][id_class_instance][id_f][args_key] = r
                 self.t_last_exec[self.region][id_class_instance][id_f][args_key] = time.time()
@@ -245,7 +247,7 @@ class ProcessPlus(Process):
     STATUS_OK_IDLE = 'OK-IDLE'
     STATUS_OK_INITIATING = 'OK-INITIATING'
     STATUS_BAD_NO_PINGS = 'BAD-NO-PINGS'
-    STATUS_BAD_IS_STUCK = 'BAD-IS-STUCK'
+    STATUS_WARN_LONG_TASK = 'WARN_LONG_TASK'
     STATUS_BAD_MALFORMED = 'BAD-MALFORMED-PINGS'
     STATUS_BAD_DEAD = 'BAD-DEAD'
     STATUS_NOT_TRACKED = 'NOT-TRACKED'
@@ -270,7 +272,8 @@ class ProcessPlus(Process):
         self.target = target if callable(target) else self._str2func(target)
         self.args = args or ()
         self.kwargs = kwargs or {}
-        self.flags = flags  # proc_flags = FLAG_A|FLAG_B|FLAG_X
+        # flags = FLAG_A | FLAG_B | FLAG_X  or  flags = (FLAG_A, FLAG_B, FLAG_X)
+        self.flags = flags2num(flags) if isinstance(flags, Iterable) else (flags or MONITOR_NONE)
         self.tags = tags
 
         # extra info we generate
@@ -371,11 +374,9 @@ class ProcessPlus(Process):
         self.stored_events = self.stored_events[-self.keep_events:]
 
     def get_events(self, event_type=None, interval=None, limit=-1):
-        r, tnow = [], time.time()
-        for e in self.stored_events:
-            if (interval and tnow - e['timestamp'] > interval) or (event_type and e['type'] != event_type):
-                continue
-            r.append(e)
+        tnow = time.time()
+        r = [e for e in self.stored_events if ((not interval or tnow - e['timestamp'] <= interval) and
+                                               (not event_type or e['type'] == event_type))]
         return r[-limit:] if limit and limit > 0 else r
 
     def add_ping(self, data):
@@ -385,7 +386,7 @@ class ProcessPlus(Process):
 
     def get_pings(self, interval=None, limit=-1):
         r = self.stored_pings
-        if interval:
+        if interval is not None:
             tnow = time.time()
             r = [p for p in self.stored_pings if tnow - p['timestamp'] <= interval]
         return r[-limit:] if limit and limit > 0 else r
@@ -408,7 +409,7 @@ class ProcessPlus(Process):
         if agg_data['tasks_done'] < 0 and agg_data['percent_idle'] < 0:
             return self.STATUS_BAD_NO_PINGS
         if agg_data['tasks_done'] == 0 and agg_data['percent_idle'] < 1:
-            return self.STATUS_BAD_IS_STUCK  # This shouldn't happen, hard kill should be triggered
+            return self.STATUS_WARN_LONG_TASK  # this case should self heal, as hard kill should be triggered
         if agg_data['tasks_done'] == 0 and agg_data['percent_idle'] > 99:
             return self.STATUS_OK_IDLE
 
@@ -484,18 +485,19 @@ class ProcessPlus(Process):
     def _assert_valid_event(self, event):
         try:
             assert event['type'] in self.event_types, 'Unrecognized event type: {}'.format(event['type'])
+            assert event['repeats'] >= 1, 'Not valid repeat number: Must be greater than 1'
             assert set(event.keys()) == set(self._event_template.keys()), 'Malformed data: {}'.format(event)
             assert not [1 for v in event.values() if v is None], 'event {} with None value is not valid'.format(event)
-        except:
+        except Exception as e:
             self.logger.exception('Bad event: ')
-            raise
+            raise AssertionError(str(e))
 
     def _assert_valid_ping(self, data):
         try:
             assert set(data.keys()) == set(self._ping_template.keys()), 'Malformed data: {}'.format(data)
-        except:
+        except Exception as e:
             self.logger.exception('Bad ping: ')
-            raise
+            raise AssertionError(str(e))
 
     def start(self):
         self.stats['start_time'] = time.time()
