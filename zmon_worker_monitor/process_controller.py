@@ -580,7 +580,7 @@ class ProcessGroup(IterableUserDict):
     """
 
     def __init__(self, group_name=None, default_target=None, default_args=None, default_kwargs=None,
-                 default_flags=None, default_kill_wait=0.5, max_processes=1000):
+                 default_flags=None, default_kill_wait=0.5, max_processes=1000, process_plus_impl=None):
 
         self.group_name = group_name
 
@@ -593,6 +593,11 @@ class ProcessGroup(IterableUserDict):
         )
 
         self.max_processes = max_processes
+
+        if process_plus_impl:
+            assert issubclass(process_plus_impl, ProcessPlus)
+
+        self.ProcessPlusImpl = ProcessPlus if not process_plus_impl else process_plus_impl
 
         self.__limbo_group = None  # Must access through property
         self.__dead_group = None  # Must access through property
@@ -651,7 +656,7 @@ class ProcessGroup(IterableUserDict):
         self.logger.debug('spawning process: target=%s, args=%s, kwargs=%s, flags=%s', repr(target), args, kwargs,
                           flags)
         try:
-            proc = ProcessPlus(target=target, args=args, kwargs=kwargs, flags=flags, **extra)
+            proc = self.ProcessPlusImpl(target=target, args=args, kwargs=kwargs, flags=flags, **extra)
             proc.start()
             self.add(proc)
             return proc.name
@@ -743,9 +748,9 @@ class ProcessGroup(IterableUserDict):
 
         interval = interval or 60 * 5  # TODO add default value in constructor
 
-        total_processes = self.total_processes()
+        total_running_processes = self.total_processes()
         total_dead_processes = self.total_dead_processes()
-        total_monitored = 0
+        total_monitored = self.total_monitored_processes()
         total_tasks_done = 0
         total_tasks_x_sec = 0
         avg_percent_idle = 0
@@ -757,8 +762,11 @@ class ProcessGroup(IterableUserDict):
         idle_procs = []
 
         for name, proc in self.items() + self.dead_group.items():
+            if proc.ping_status == proc.STATUS_OK_IDLE:  # only alive & monitored procs may have STATUS_OK_IDLE
+                idle_procs.append({'name': name, 'pid': proc.pid})
+
+            # aggregations should include alive and dead processes, the inclusion is by time interval
             if proc.is_monitored():
-                total_monitored += 1
                 ping_agg = proc.aggregate_pings(interval=interval)
                 total_tasks_done += ping_agg['tasks_done'] if ping_agg['tasks_done'] > 0 else 0
                 avg_percent_idle += ping_agg['percent_idle'] if ping_agg['percent_idle'] > 0 else 0
@@ -768,9 +776,6 @@ class ProcessGroup(IterableUserDict):
                 num_events += event_agg['totals']['events']
                 num_actions += event_agg['totals']['actions']
                 num_errors += event_agg['totals']['errors']
-
-                if proc.ping_status == proc.STATUS_OK_IDLE:
-                    idle_procs.append({'name': name, 'pid': proc.pid})
 
         total_tasks_x_sec = (total_tasks_done * 1.0) / interval if interval > 1e-2 else total_tasks_x_sec
         avg_percent_idle = (avg_percent_idle * 1.0) / total_monitored if total_monitored else 0
@@ -783,10 +788,10 @@ class ProcessGroup(IterableUserDict):
             },
             'totals': {
                 'interval': interval,
-                'total_processes': total_processes,
+                'total_processes': total_running_processes,
                 'total_dead_processes': total_dead_processes,
                 'total_monitored_processes': total_monitored,
-                'total_unmonitored_processes': total_processes - total_monitored,
+                'total_unmonitored_processes': total_running_processes - total_monitored,
                 'total_tasks_done': total_tasks_done,
                 'total_tasks_per_sec': round(total_tasks_x_sec, FLOAT_DIGITS),
                 'total_tasks_per_min': round(total_tasks_x_sec * 60, FLOAT_DIGITS),
@@ -848,7 +853,7 @@ class ProcessGroup(IterableUserDict):
 
             was_alive = proc1.is_alive()
             self.terminate_process(proc_name, kill_wait=kill_wait)
-            proc2 = ProcessPlus(**proc1.to_dict())
+            proc2 = self.ProcessPlusImpl(**proc1.to_dict())
             proc2.start()
             self.add(proc2)
             self.logger.debug('Respawned process full details: %s --> New process: %s', proc1, proc2)

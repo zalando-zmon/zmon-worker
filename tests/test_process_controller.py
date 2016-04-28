@@ -169,13 +169,14 @@ class NonSpawningProcessPlus(process_controller.ProcessPlus):
     __created_mocks = 0
 
     def __init__(self, *args, **kwargs):
+        self._testlogger = logging.getLogger(__name__)
         NonSpawningProcessPlus.__created_mocks += 1
         self.id = self.__created_mocks
         self.alive = False
         self.mock_exitcode = None
         super(NonSpawningProcessPlus, self).__init__(*args, **kwargs)
         self.name = '{}-{}'.format(self.__class__.__name__, self.id)
-        print 'Mock Process {} instantiated with args={}, kwargs={}'.format(self.name, args, kwargs)
+        self._testlogger.info('Mock Process %s instantiated with args=%s, kwargs=%s', self.name, args, kwargs)
 
     @property
     def pid(self):
@@ -192,15 +193,19 @@ class NonSpawningProcessPlus(process_controller.ProcessPlus):
         self.stats['start_time'] = time.time()
         self.stats['start_time_str'] = self._time2str(self.stats['start_time'])
         self.alive = True
-        print 'Mock Process with name={}, pid={} started'.format(self.name, self.pid)
+        self._testlogger.info('Mock Process with name=%s, pid=%s started', self.name, self.pid)
 
     def terminate(self):
         self.alive = False
         self.mock_exitcode = 0
-        print 'Mock Process with name={}, pid={} terminated'.format(self.name, self.pid)
+        self._testlogger.info('Mock Process with name=%s, pid=%s terminated', self.name, self.pid)
+
+    @staticmethod
+    def reset_mock_counter():
+        NonSpawningProcessPlus.__created_mocks = 0
 
 
-def target(*args):
+def target(*args, **kwargs):
     assert 0, "target should never be executed by our mocked ProcessPlus"
 
 
@@ -750,3 +755,154 @@ def test_process_plus_event_aggregations(monkeypatch):
     monkeypatch.undo()
 
     # assert 0
+
+
+def test_process_group(monkeypatch):
+
+    # Deactivate cache. Actions are decorated with register(), which is a reference of our cache decorator
+    monkeypatch.setattr('zmon_worker_monitor.process_controller.SimpleMethodCacheInMemory.shortcut_cache', True)
+
+    # Reset the Mock counter, this test rely on mock generation counter starting from 1
+    NonSpawningProcessPlus.reset_mock_counter()
+
+    action_interval = 0.1
+    num_procs = 3
+
+    # create our process_group, a dict like object mapping proc_name -> objProcessPlus
+    pg = process_controller.ProcessGroup(group_name='main', process_plus_impl=NonSpawningProcessPlus)
+
+    # start action loop to supervise and monitor
+    pg.start_action_loop(interval=action_interval)
+
+    # group has no running processes yet
+    assert len(pg) == pg.total_processes() == 0
+
+    # spawn a num_procs-1 processes with monitoring and supervision capabilities (this is how we start the workers)
+    pg.spawn_many(num_procs - 1, target=target, args=(1,2), kwargs={"a": 1, "b": 2},
+                  flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
+
+    # spawn 1 last process only with restart supervision capability (this is how we start the web server)
+    pg.spawn_process(target=target, args=(3,4), flags=MONITOR_RESTART)
+
+    # now the group should have num_procs processes running
+    assert len(pg) == pg.total_processes() == num_procs
+
+    # we recognize all processes are monitored for pings except the last one
+    for i, p_name in enumerate(sorted(pg)):
+        assert pg[p_name].is_monitored() == (True if i < len(pg) - 1 else False)
+
+    # lets kill the first process, that should be named NonSpawningProcessPlus-1
+    proc_name = 'NonSpawningProcessPlus-1'
+    proc_ref = pg[proc_name]  # keep a reference to be able to use it later
+    proc_name_next = 'NonSpawningProcessPlus-{}'.format(num_procs + 1)  # this is not alive yet
+
+    assert pg[proc_name].is_alive() == True  # proc is alive
+
+    assert proc_name_next not in pg  # not spawned, it was out of the range of specified num_procs
+
+    # kill selected process directly (without informing the group)
+    pg[proc_name].terminate()
+
+    assert pg[proc_name].is_alive() == False  # process is immediately dead
+    # action has not kicked in yet
+    assert len(pg) == pg.total_processes() == 3
+    assert len(pg.dead_group) == pg.total_dead_processes() == 0
+
+    time.sleep(action_interval + 0.1)  # wait enough time for the actions to kick in
+
+    # now the action loop moved the dead process to dead_group and a new process took its place
+    assert len(pg) == pg.total_processes() == 3
+    assert len(pg.dead_group) == pg.total_dead_processes() == 1
+
+    # check the proc in dead_group is really the one we killed
+    assert pg.dead_group[proc_name] == proc_ref
+
+    # check we filled in correctly the previous_proc info in the new proc
+    assert proc_name_next in pg and pg[proc_name_next].previous_proc['dead_name'] == proc_ref.name and \
+           pg[proc_name_next].previous_proc['dead_pid'] == proc_ref.pid
+
+    # stop all processes
+    pg.stop_action_loop()
+    pg.terminate_all()
+
+    assert len(pg) == pg.total_processes() == 0
+
+
+def test_process_group_health(monkeypatch):
+
+    # Deactivate cache. Actions are decorated with register(), which is a reference of our cache decorator
+    monkeypatch.setattr('zmon_worker_monitor.process_controller.SimpleMethodCacheInMemory.shortcut_cache', True)
+
+    # Reset the Mock counter, this test rely on mock generation counter starting from 1
+    NonSpawningProcessPlus.reset_mock_counter()
+
+    action_interval = 0.1
+    num_procs = 4
+
+    # create our process_group, a dict like object mapping proc_name -> objProcessPlus
+    pg = process_controller.ProcessGroup(group_name='main', process_plus_impl=NonSpawningProcessPlus)
+
+    # start action loop to supervise and monitor
+    pg.start_action_loop(interval=action_interval)
+
+    # spawn a num_procs processes with monitoring and supervision capabilities
+    pg.spawn_many(num_procs, target=target, args=(1,2), kwargs={"a": 1, "b": 2},
+                  flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
+
+    # kill half of the processes directly (without informing the group)
+    names_to_kill = [p_name for i, p_name in enumerate(sorted(pg.keys())) if i % 2 == 0]
+
+    for name in names_to_kill:
+        pg[name].terminate()
+
+    # now the health of the group is compromised
+    assert pg.is_healthy() == False
+
+    time.sleep(action_interval + 0.1)  # wait enough time for the actions to kick in
+
+    # check the health status of the process group
+    assert pg.is_healthy() == True
+
+    #
+    # check process_view is correct
+    #
+
+    process_view = pg.processes_view()
+
+    assert len(process_view['running']) == num_procs
+    assert len(process_view['dead']) == len(names_to_kill)
+
+    assert set([d['name'] for d in process_view['dead']]) == set(names_to_kill)
+
+    # check the ping_status is reported correctly
+    for p in process_view['dead']:
+        # check events are reported in the process: a supervised process death is an event of type ACTION, not ERROR
+        assert len(p['actions_last_5']) == 1 and len(p['errors_last_5']) == 0
+
+        # check that the action event is correct
+        action = p['actions_last_5'][0]
+        assert action['type'] == 'ACTION' and action['repeats'] == 1
+        assert action['origin'].endswith('_action_restart_dead')
+        assert action['body'].startswith('Detected abnormal termination')
+
+    #
+    # check status_view is correct
+    #
+
+    status_view = pg.status_view()
+
+    assert status_view['events']['num_events'] == status_view['events']['num_actions'] == len(names_to_kill)
+    assert status_view['events']['num_errors'] == 0
+
+    assert status_view['totals']['total_dead_processes'] == len(names_to_kill)
+    assert status_view['totals']['total_processes'] == num_procs
+    assert status_view['totals']['total_monitored_processes'] == num_procs
+
+    # the process are not reported as idle because they are in the warm up time
+    assert status_view['idle']['idle_procs'] == [] and status_view['idle']['num_idle_procs'] == 0
+
+    # stop all processes
+    pg.stop_action_loop()
+    pg.terminate_all()
+
+    assert len(pg) == pg.total_processes() == 0
