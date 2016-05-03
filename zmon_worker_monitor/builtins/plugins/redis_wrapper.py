@@ -72,6 +72,9 @@ class RedisWrapper(object):
     def hgetall(self, key):
         return self.__con.hgetall(key)
 
+    def scan(self, cursor, pattern=None, count=None):
+        return self.__con.scan(cursor, pattern=pattern, count=count)
+
     def statistics(self):
         '''
         Return general Redis statistics such as operations/s
