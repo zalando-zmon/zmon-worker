@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import logging
-import logging.config
 from ..settings import LOGGING
+
+
+def _set_logging(log_conf):
+    import logging
+    reload(logging)  # prevents process freeze when logging._lock is acquired by the parent process when fork starts
+    import logging.config
+    logging.config.dictConfig(log_conf)
 
 
 def start_web(listen_on="0.0.0.0", port=8080, threaded=False, log_conf=None, rpc_url=None):
@@ -18,7 +23,7 @@ def start_web(listen_on="0.0.0.0", port=8080, threaded=False, log_conf=None, rpc
     :param rpc_url: internal RPC server endpoint
     """
 
-    logging.config.dictConfig(log_conf if log_conf else LOGGING)
+    _set_logging(log_conf if log_conf else LOGGING)
 
     from . import web  # imported here to avoid flask related modules loaded in workers' memory
 

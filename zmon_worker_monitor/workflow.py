@@ -337,12 +337,12 @@ class FlowControlReactor(object):
     def action_loop(self):
 
         while self.action_on:
-            try:
-                for action in self._actions:
+            for action in self._actions:
+                try:
                     action()
-            except Exception:
-                self.add_event('FlowControlReactor.action_loop', 'ERROR', format_exc())
-                logger.exception('Scary Error in FlowControlReactor.action_loop(): ')
+                except Exception:
+                    self.add_event('FlowControlReactor.action_loop', 'ERROR', format_exc())
+                    logger.exception('Scary Error in FlowControlReactor.action_loop(): ')
 
             time.sleep(self.t_wait)
 

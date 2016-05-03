@@ -3,7 +3,6 @@ from __future__ import print_function
 import json
 import time
 import traceback
-import fcntl
 from zmon_worker_monitor.main import main
 from mock import MagicMock
 
@@ -42,9 +41,7 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     def lpush(key, val):
         data[key] = val
         with open(str(tmpdir) + 'data.json', 'w') as fd:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             json.dump(data, fd)
-            fcntl.flock(fd, fcntl.LOCK_UN)
 
     redis = MagicMock()
     redis.blpop = blpop

@@ -765,7 +765,7 @@ def test_process_group(monkeypatch):
     # Reset the Mock counter, this test rely on mock generation counter starting from 1
     NonSpawningProcessPlus.reset_mock_counter()
 
-    action_interval = 0.1
+    action_interval = 0.2
     num_procs = 3
 
     # create our process_group, a dict like object mapping proc_name -> objProcessPlus
@@ -808,7 +808,7 @@ def test_process_group(monkeypatch):
     assert len(pg) == pg.total_processes() == 3
     assert len(pg.dead_group) == pg.total_dead_processes() == 0
 
-    time.sleep(action_interval + 0.1)  # wait enough time for the actions to kick in
+    time.sleep(action_interval * 2)  # wait enough time for the actions to kick in
 
     # now the action loop moved the dead process to dead_group and a new process took its place
     assert len(pg) == pg.total_processes() == 3
@@ -836,14 +836,11 @@ def test_process_group_health(monkeypatch):
     # Reset the Mock counter, this test rely on mock generation counter starting from 1
     NonSpawningProcessPlus.reset_mock_counter()
 
-    action_interval = 0.1
+    action_interval = 0.2
     num_procs = 4
 
     # create our process_group, a dict like object mapping proc_name -> objProcessPlus
     pg = process_controller.ProcessGroup(group_name='main', process_plus_impl=NonSpawningProcessPlus)
-
-    # start action loop to supervise and monitor
-    pg.start_action_loop(interval=action_interval)
 
     # spawn a num_procs processes with monitoring and supervision capabilities
     pg.spawn_many(num_procs, target=target, args=(1,2), kwargs={"a": 1, "b": 2},
@@ -858,7 +855,10 @@ def test_process_group_health(monkeypatch):
     # now the health of the group is compromised
     assert pg.is_healthy() == False
 
-    time.sleep(action_interval + 0.1)  # wait enough time for the actions to kick in
+    # start action loop to supervise and monitor
+    pg.start_action_loop(interval=action_interval)
+
+    time.sleep(action_interval * 2)  # wait enough time for the actions to finish
 
     # check the health status of the process group
     assert pg.is_healthy() == True

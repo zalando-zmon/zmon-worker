@@ -102,7 +102,7 @@ def start_RPC_server(host, port, rpc_path, rpc_proxy):
 
     logger = logging.getLogger(__name__)
     logger.info('Starting RPC server on http://%s:%d%s ..', host, port, rpc_path)
-    server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True)
+    server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True, logRequests=False)
     server.register_introspection_functions()
 
     server.register_instance(rpc_proxy)

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from flask import Blueprint
+from flask import Blueprint, redirect
 from flask_restful import reqparse, Resource
 from flask_restful_swagger import swagger
 from traceback import format_exc
@@ -149,10 +149,16 @@ class HealthApi(Resource):
         return {'value': value}
 
 
+class Welcome(Resource):
+
+    def get(self):
+        return redirect('/spec.html')
+
 #
 # Add resources to the Api
 #
 
+api_v2.add_resource(Welcome, '/')
 api_v2.add_resource(ProcessListApi, '/processes/')
 api_v2.add_resource(ProcessApi, '/processes/<string:id>/')
 api_v2.add_resource(StatusListApi, '/status/')
