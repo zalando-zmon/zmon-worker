@@ -146,7 +146,7 @@ class HealthApi(Resource):
         except Exception as e:
             raise ServerError(code=503, message='Error in health state: {}'.format(e), previous_tb=format_exc())
 
-        return {'value': value}
+        return {'healthy': value}
 
 
 class Welcome(Resource):
