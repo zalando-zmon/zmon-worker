@@ -160,6 +160,6 @@ class Welcome(Resource):
 
 api_v2.add_resource(Welcome, '/')
 api_v2.add_resource(ProcessListApi, '/processes')
-api_v2.add_resource(ProcessApi, '/processes/<string:id>/')
+api_v2.add_resource(ProcessApi, '/processes/<string:id>')
 api_v2.add_resource(StatusListApi, '/status')
 api_v2.add_resource(HealthApi, '/health')
