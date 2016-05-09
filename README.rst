@@ -47,7 +47,13 @@ Start the ZMON worker process:
 
     $ python2 -m zmon_worker_monitor
 
-You can query the worker monitor via RPC:
+You can query the worker monitor via the REST API:
+
+.. code-block:: bash
+
+    $ curl http://localhost:8080/status
+
+You can also query the worker monitor via RPC:
 
 .. code-block:: bash
 
