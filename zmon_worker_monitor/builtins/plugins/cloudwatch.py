@@ -91,8 +91,16 @@ class CloudwatchWrapper(object):
         args = {'Dimensions': dimension_kvpairs, 'MetricName': metric_name}
         if namespace:
             args['Namespace'] = namespace
-        metrics = self.client.list_metrics(**args)
-        metrics = metrics['Metrics']
+
+        metrics = []
+        while True:
+            res = self.client.list_metrics(**args)
+            metrics.extend(res['Metrics'])
+            if 'NextToken' in res:
+                args['NextToken'] = res['NextToken']
+            else:
+                break
+
         end = datetime.datetime.utcnow()
         start = end - datetime.timedelta(minutes=minutes)
         data = collections.defaultdict(int)
