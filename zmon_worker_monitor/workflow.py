@@ -213,7 +213,7 @@ class FlowControlReactor(object):
         'timestamp': None,
         'timedelta': None,
         'tasks_done': 0,
-        'percert_idle': 0,
+        'percent_idle': 0,
     }
 
     _event_template = {
@@ -293,7 +293,7 @@ class FlowControlReactor(object):
 
             data['timestamp'] = t_now
             data['timedelta'] = t_now - self._t_last_ping
-            data['percert_idle'] = (idle * 100.0) / total if total > 0 else 0
+            data['percent_idle'] = (idle * 100.0) / total if total > 0 else 0
 
             # send ping data
             if self._num_ping_sent >= 0:

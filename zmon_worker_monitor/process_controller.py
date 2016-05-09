@@ -234,7 +234,7 @@ class ProcessPlus(Process):
         'timestamp': 0,
         'timedelta': 0,
         'tasks_done': 0,
-        'percert_idle': 0,
+        'percent_idle': 0,
     }
 
     default_status_interval = 60 * 5  # analyze only the pings received since now - this interval
@@ -431,7 +431,7 @@ class ProcessPlus(Process):
             agg_data['tasks_done'] = sum([p['tasks_done'] for p in pings])
             agg_data['tasks_per_sec'] = round(float(agg_data['tasks_done']) / interval, FLOAT_DIGITS)
             agg_data['tasks_per_min'] = round((float(agg_data['tasks_done']) / interval) * 60, FLOAT_DIGITS)
-            agg_data['percent_idle'] = round(float(sum([p['percert_idle'] for p in pings])) / len(pings), FLOAT_DIGITS)
+            agg_data['percent_idle'] = round(float(sum([p['percent_idle'] for p in pings])) / len(pings), FLOAT_DIGITS)
             agg_data['pings_received'] = len(pings)
 
         return agg_data
