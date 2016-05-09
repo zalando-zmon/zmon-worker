@@ -141,7 +141,7 @@ class RedisConnHandler(object):
 
     @staticmethod
     def calculate_wait_time_per_server(retries_per_server, t_wait0):
-        return t_wait0 * (2**(retries_per_server + 1) - 1)
+        return t_wait0 * (2 ** (retries_per_server + 1) - 1)
 
     @staticmethod
     def calculate_retries_per_server(wait_time_per_server, t_wait0):

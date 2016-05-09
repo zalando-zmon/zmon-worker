@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import os
-
 import argparse
-import settings
 import yaml
 import logging
 import logging.config
 import requests
+
+import settings
 import rpc_server
+from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
+from .web_server.start import start_web
+
 
 # env vars get droped via zompy startup
 os.environ["ORACLE_HOME"] = "/opt/oracle/instantclient_12_1/"
@@ -42,6 +45,7 @@ def process_config(config):
 
 
 def main(args=None):
+
     args = parse_args(args)
 
     main_proc = rpc_server.MainProcess()
@@ -73,17 +77,37 @@ def main(args=None):
 
     logging.config.dictConfig(settings.RPC_SERVER_CONF['LOGGING'])
 
+    logger = logging.getLogger(__name__)
+
     # start the process controller
     main_proc.start_proc_control()
 
-    # start some processes per queue according to the config
+    # start worker processes per queue according to the config
     queues = config['zmon.queues']
     for qn in queues.split(','):
         queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
-        main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"})
+        main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"},
+                                          flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
+
+    # start web server process under supervision
+    main_proc.proc_control.spawn_process(
+        target=start_web,
+        kwargs=dict(
+            listen_on=config.get('webserver.listen_on', '0.0.0.0'),
+            port=int(config.get('webserver.port', '8080')),
+            log_conf=None,
+            threaded=True,
+            rpc_url='http://{host}:{port}{path}'.format(host='localhost', port=config.get('server.port'),
+                                                        path=settings.RPC_SERVER_CONF['RPC_PATH']),
+        ),
+        flags=MONITOR_RESTART,  # web server will be restarted if dies
+    )
 
     if not args.no_rpc:
-        main_proc.start_rpc_server()
+        try:
+            main_proc.start_rpc_server()
+        except (KeyboardInterrupt, SystemExit):
+            logger.info('RPC server stopped. Exiting main')
 
     return main_proc
 

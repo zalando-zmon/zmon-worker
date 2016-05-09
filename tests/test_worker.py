@@ -3,7 +3,7 @@ from __future__ import print_function
 import json
 import time
 import traceback
-from zmon_worker_monitor.web import main
+from zmon_worker_monitor.main import main
 from mock import MagicMock
 
 
@@ -22,12 +22,15 @@ def build_redis_queue_item(check_command):
 def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     data = {}
 
-    def get_data():
-        try:
-            with open(str(tmpdir) + 'data.json') as fd:
-                data = json.load(fd)
-        except:
-            data = None
+    def get_data(timeout=60):
+        data, start = None, time.time()
+        while not data and time.time() < start + timeout:
+            try:
+                with open(str(tmpdir) + 'data.json') as fd:
+                    data = json.load(fd)
+            except:
+                time.sleep(0.2)
+                data = None
         return data
 
     def blpop(key, timeout):
@@ -53,18 +56,13 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
     monkeypatch.setattr('zmon_worker_monitor.workflow.logger.exception', exc)
 
     proc = main(['-c', 'tests/config-test.yaml', '--no-rpc'])
-    start = time.time()
-    # make sure the worker processes get enough time to execute our check
-    # wait up to 20 seconds
-    while not get_data() and time.time() < start + 20:
-        time.sleep(0.2)
-    # print('Executed check in {:.2f}s'.format(time.time() - start))
-    proc.proc_control.terminate_all_processes()
-    # print('Check + Terminate in {:.2f}s'.format(time.time() - start))
 
-    data = get_data()
+    # wait for processed data to be pushed to our Mocked redis by a worker
+    data = get_data(timeout=120)
+
+    proc.proc_control.terminate_all_processes()
+
     assert data is not None
-    # print(data)
     for string in expected_strings:
         assert string in data['zmon:checks:123:77']
 

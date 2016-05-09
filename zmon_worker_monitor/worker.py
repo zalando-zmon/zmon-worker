@@ -7,6 +7,8 @@ import settings
 
 
 def _set_logging(log_conf):
+    import logging
+    reload(logging)  # prevents process freeze when logging._lock is acquired by the parent process when fork starts
     import logging.config
     logging.config.dictConfig(log_conf)
 
