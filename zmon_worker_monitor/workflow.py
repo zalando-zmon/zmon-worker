@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import base64
 import json
 import logging
+import setproctitle
 import time
 import threading
 from copy import deepcopy
@@ -382,6 +383,7 @@ def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:defa
 
     logger.info("Starting worker with pid=%s, flow type: %s, queue: %s, execution_context: %s", os.getpid(), flow,
                 queue, execution_context)
+    setproctitle.setproctitle('zmon-worker {} {}'.format(flow, queue))
 
     # init the plugin manager
     plugin_manager.init_plugin_manager()

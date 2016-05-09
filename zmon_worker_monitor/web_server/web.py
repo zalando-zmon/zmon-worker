@@ -12,6 +12,7 @@ parent process.
 """
 
 import logging
+import setproctitle
 
 from flask import Flask
 
@@ -33,6 +34,7 @@ def create_app(config):
 
 
 def run(listen_on="0.0.0.0", port=8080, threaded=False, rpc_url=None):
+    setproctitle.setproctitle('zmon-worker web-server {}:{}'.format(listen_on, port))
 
     config = dict(
         DEBUG=False,
