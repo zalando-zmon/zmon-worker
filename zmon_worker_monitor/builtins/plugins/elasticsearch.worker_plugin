@@ -1,0 +1,11 @@
+[Core]
+Name = elasticsearch
+Module = elasticsearch
+
+[Documentation]
+Author = Mohab Usama
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides Elasticsearch query capabilities
+
+[Configuration]
