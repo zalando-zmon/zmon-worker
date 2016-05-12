@@ -389,7 +389,7 @@ def test_process_plus_pings(monkeypatch):
         'timestamp': t_real + pp.initial_wait_pings / 2.0,
         'timedelta': 10.0,
         'tasks_done': 1,
-        'percert_idle': 95.0,
+        'percent_idle': 95.0,
     }
     pp.add_ping(ping_worker_ok)
 
@@ -400,7 +400,7 @@ def test_process_plus_pings(monkeypatch):
         'timestamp': t_real + pp.initial_wait_pings / 2.0,
         'timedelta': 10.0,
         'tasks_done': 0,
-        'percert_idle': 99.9,
+        'percent_idle': 99.9,
     }
     pp.stored_pings = [ping_worker_idle]
 
@@ -411,7 +411,7 @@ def test_process_plus_pings(monkeypatch):
         'timestamp': t_real + pp.initial_wait_pings / 2.0,
         'timedelta': 10.0,
         'tasks_done': 0,
-        'percert_idle': 0.1,
+        'percent_idle': 0.1,
     }
     pp.stored_pings = [ping_worker_idle]
 
@@ -434,14 +434,14 @@ def test_process_plus_pings(monkeypatch):
         'timestamp': t_ping1,
         'timedelta': 30.0,
         'tasks_done': 5,
-        'percert_idle': 15.7,
+        'percent_idle': 15.7,
     }
 
     ping_data2 = {
         'timestamp': t_ping2,
         'timedelta': 30.0,
         'tasks_done': 1,
-        'percert_idle': 91.2,
+        'percent_idle': 91.2,
     }
 
     # lets add 2 pings
@@ -569,7 +569,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
             'timestamp': t_ping_start + i * ping_delta,
             'timedelta': ping_delta,
             'tasks_done': 1,
-            'percert_idle': 85.0,
+            'percent_idle': 85.0,
         }
         for i in range(num_pings)
     ]
