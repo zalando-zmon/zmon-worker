@@ -47,3 +47,6 @@ plugin.mssql.pass: '--secret--'
 
 plugin.elasticsearch.url: 'https://es-cluster'
 # plugin.elasticsearch.oauth2_scopes: read
+
+plugin.appdynamics.user: 'zmon@customer1'
+plugin.appdynamics.pass: '--secret--'
