@@ -165,8 +165,3 @@ def test_appdynamics_healthrule_violations_errors(monkeypatch, fx_exception):
 
     with pytest.raises(raised):
         cli.healthrule_violations(application, time_range_type=BEFORE_NOW, duration_in_mins=5)
-
-
-def test_appdynamics_healthrule_violations_no_creds():
-    with pytest.raises(Exception):
-        AppdynamicsWrapper('https://appdynamics')

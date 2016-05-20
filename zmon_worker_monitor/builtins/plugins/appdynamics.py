@@ -6,6 +6,8 @@ import logging
 
 import requests
 
+import tokens
+
 from zmon_worker_monitor.zmon_worker.errors import HttpError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
@@ -35,6 +37,13 @@ SEVERITIES = (
 )
 
 
+# will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
+# will try to read application credentials from CREDENTIALS_DIR
+tokens.configure()
+tokens.manage('uid', ['uid'])
+tokens.start()
+
+
 class AppdynamicsFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(AppdynamicsFactory, self).__init__()
@@ -47,8 +56,8 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        self._user = conf['user']
-        self._pass = conf['pass']
+        self._user = conf.get('user')
+        self._pass = conf.get('pass')
 
     def create(self, factory_ctx):
         """
@@ -64,15 +73,13 @@ class AppdynamicsWrapper(object):
         self.url = url
         self.timeout = 3
 
-        self._username = username
-        self._password = password
-
-        if not username or not password:
-            raise Exception('AppDynamics requires "username" and "password".')
-
         self._session = requests.Session()
 
-        self._session.auth = (username, password)
+        if not username or not password:
+            self._session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+        else:
+            self._session.auth = (username, password)
+
         self._session.headers.update({'User-Agent': get_user_agent()})
         self._session.params = {'output': 'json'}
         self._session.timeout = 3
@@ -82,7 +89,7 @@ class AppdynamicsWrapper(object):
         return self._session
 
     def healthrule_violations_url(self, application):
-        return os.path.join(self.url, application, 'problems', 'healthrule-violations')
+        return os.path.join(self.url, 'applications', application, 'problems', 'healthrule-violations')
 
     def healthrule_violations(self, application, time_range_type='', duration_in_mins=None, start_time=None,
                               end_time=None, severity=None):
