@@ -843,8 +843,8 @@ class MainTask(object):
                 if serialized_data is not None:
                     r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
                     r.raise_for_status()
-        except Exception:
-            logger.exception("Unexpected error in data service post")
+        except Exception as ex:
+            logger.error("Error in data service send: url={} ex={}".format(cls._dataservice_url, ex))
             raise
 
     def check_and_notify(self, req, alerts, task_context=None):
