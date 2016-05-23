@@ -33,12 +33,14 @@ class ElasticsearchFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(ElasticsearchFactory, self).__init__()
 
+        self._url = None
+
     def configure(self, conf):
         """
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        return
+        self._url = conf.get('url')
 
     def create(self, factory_ctx):
         """
@@ -46,11 +48,14 @@ class ElasticsearchFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(ElasticsearchWrapper)
+        return propartial(ElasticsearchWrapper, url=self._url)
 
 
 class ElasticsearchWrapper(object):
-    def __init__(self, url, timeout=10, oauth2=False):
+    def __init__(self, url=None, timeout=10, oauth2=False):
+        if not url:
+            raise RuntimeError('Elasticsearch plugin improperly configured. URL is required!')
+
         self.url = url
         self.timeout = timeout
         self.oauth2 = oauth2
