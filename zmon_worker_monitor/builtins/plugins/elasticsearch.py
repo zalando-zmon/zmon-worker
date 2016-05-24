@@ -48,7 +48,12 @@ class ElasticsearchFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(ElasticsearchWrapper, url=self._url)
+        url = factory_ctx.get('entity_url')
+
+        if not url and self._url:
+            url = self._url
+
+        return propartial(ElasticsearchWrapper, url=url)
 
 
 class ElasticsearchWrapper(object):
