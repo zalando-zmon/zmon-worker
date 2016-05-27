@@ -74,6 +74,13 @@ def fx_exception(request):
     return request.param
 
 
+def assert_client(cli):
+    # hack to access __session obj.
+    assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
+    assert get_user_agent() == cli._AppdynamicsWrapper__session.headers['User-Agent']
+    assert 'json' == cli._AppdynamicsWrapper__session.params['output']
+
+
 @pytest.fixture(params=[
     {'time_range_type': BEFORE_NOW},
     {'time_range_type': BEFORE_TIME, 'duration_in_mins': 5},
@@ -105,9 +112,7 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
     res = cli.healthrule_violations(application, **kwargs)
 
     assert violations == res
-    assert (USER, PASS) == cli.session.auth
-    assert get_user_agent() == cli.session.headers['User-Agent']
-    assert 'json' == cli.session.params['output']
+    assert_client(cli)
 
     params = kwargs_to_params(kwargs)
 
@@ -115,7 +120,6 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
 
 
 def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, fx_severity):
-    print fx_violations, fx_severity
     kwargs, violations = fx_violations
 
     # URL params
@@ -134,9 +138,7 @@ def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, 
     res = cli.healthrule_violations(application, severity=fx_severity, **kwargs)
 
     assert [v for v in violations if v['severity'] == fx_severity] == res
-    assert (USER, PASS) == cli.session.auth
-    assert get_user_agent() == cli.session.headers['User-Agent']
-    assert 'json' == cli.session.params['output']
+    assert_client(cli)
 
     get.assert_called_with(cli.healthrule_violations_url(application), params=params)
 

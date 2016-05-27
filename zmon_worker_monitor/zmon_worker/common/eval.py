@@ -40,6 +40,12 @@ def check_ast_node_is_safe(node, source):
     >>> node == check_ast_node_is_safe(node, '<source>')
     True
 
+    >>> node = ast.parse('instance._Instance__request')
+    >>> check_ast_node_is_safe(node, '<source>')
+    Traceback (most recent call last):
+        ...
+    InvalidEvalExpression: <source> should not try to access hidden attributes (for example '__class__')
+
     >>> check_ast_node_is_safe(ast.parse('def m(): return ().__class__'), '<hidden>')
     Traceback (most recent call last):
         ...
@@ -50,12 +56,11 @@ def check_ast_node_is_safe(node, source):
     Traceback (most recent call last):
         ...
     InvalidEvalExpression: <horror> should not try to execute arbitrary code
-
     '''
 
     for n in ast.walk(node):
         if isinstance(n, ast.Attribute):
-            if n.attr.startswith('__'):
+            if '__' in n.attr:
                 raise InvalidEvalExpression(
                     "{} should not try to access hidden attributes (for example '__class__')".format(source))
         elif isinstance(n, ast.Exec):

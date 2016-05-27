@@ -73,20 +73,16 @@ class AppdynamicsWrapper(object):
         self.url = url
         self.timeout = 3
 
-        self._session = requests.Session()
+        self.__session = requests.Session()
 
         if not username or not password:
-            self._session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+            self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
         else:
-            self._session.auth = (username, password)
+            self.__session.auth = (username, password)
 
-        self._session.headers.update({'User-Agent': get_user_agent()})
-        self._session.params = {'output': 'json'}
-        self._session.timeout = 3
-
-    @property
-    def session(self):
-        return self._session
+        self.__session.headers.update({'User-Agent': get_user_agent()})
+        self.__session.params = {'output': 'json'}
+        self.__session.timeout = 3
 
     def healthrule_violations_url(self, application):
         return os.path.join(self.url, 'applications', application, 'problems', 'healthrule-violations')
@@ -144,7 +140,7 @@ class AppdynamicsWrapper(object):
 
             params['time-range-type'] = time_range_type
 
-            resp = self.session.get(self.healthrule_violations_url(application), params=params)
+            resp = self.__session.get(self.healthrule_violations_url(application), params=params)
 
             resp.raise_for_status()
 
