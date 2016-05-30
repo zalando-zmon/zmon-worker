@@ -258,3 +258,8 @@ def test_elasticsearch_search_error(monkeypatch):
         es.search()
 
         assert ex is not HttpError
+
+
+def test_elasticsearch_no_url():
+    with pytest.raises(RuntimeError):
+        ElasticsearchWrapper()

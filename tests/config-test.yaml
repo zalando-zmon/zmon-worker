@@ -44,3 +44,6 @@ plugin.mysql.pass: '--secret--'
 
 plugin.mssql.user: 'zmon'
 plugin.mssql.pass: '--secret--'
+
+plugin.elasticsearch.url: 'https://es-cluster'
+# plugin.elasticsearch.oauth2_scopes: read
