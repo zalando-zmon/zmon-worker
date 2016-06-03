@@ -695,6 +695,7 @@ class MainTask(object):
     _timezone = None
     _account = None
     _team = None
+    _region = None
     _dataservice_url = None
 
     _dataservice_poster = None
@@ -725,10 +726,14 @@ class MainTask(object):
 
         cls._timezone = pytz.timezone('Europe/Berlin')
 
-        cls._account = config.get('account')
-        cls._team = config.get('team')
+        cls._account = config.get('account', '')
+        cls._team = config.get('team', '')
+        cls._region = config.get('region', '')
 
         cls._dataservice_url = config.get('dataservice.url')
+        if cls._dataservice_url is not None and cls._dataservice_url.endswith('/api/v1/data/'):
+            cls._dataservice_url = cls._dataservice_url.replace('/api/v1/data/', '').rstrip('/')
+
         cls._dataservice_oauth2 = config.get('dataservice.oauth2', True)
 
         if cls._dataservice_url:
@@ -813,8 +818,9 @@ class MainTask(object):
         if cls._dataservice_oauth2:
             headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-        team = cls._team if cls._team is not None else ''
-        account = cls._account if cls._account is not None else ''
+        team = cls._team
+        account = cls._account
+        region = cls._region
 
         try:
             # group check_results by check_id
@@ -825,11 +831,13 @@ class MainTask(object):
             # make separate posts per check_id
             for check_id, results in results_by_id.items():
 
-                url = '{url}/{account}/{check_id}/'.format(url=cls._dataservice_url.rstrip('/'),
-                                                           account=urllib.quote(account), check_id=check_id)
+                url = '{url}/api/v1/data/{account}/{check_id}/'.format(url=cls._dataservice_url,
+                                                                       account=urllib.quote(account),
+                                                                       check_id=check_id)
                 worker_result = {
                     'team': team,
                     'account': account,
+                    'region': region,
                     'results': results,
                 }
 
@@ -1539,7 +1547,8 @@ class MainTask(object):
                 headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
             try:
-                requests.put(self._dataservice_url + "trial-run/", data=json.dumps(val, cls=JsonDataEncoder),
+                requests.put(self._dataservice_url + "/api/v1/data/trial-run/",
+                             data=json.dumps(val, cls=JsonDataEncoder),
                              headers=headers)
             except Exception:
                 self.logger.exception("Posting trial run failed")
