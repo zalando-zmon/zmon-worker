@@ -48,7 +48,7 @@ class CassandraWrapper(object):
 
     def execute(self, stmt):
         auth_provider = None
-        if self.__username is not None and self.__password is not None:
+        if self.__username and self.__password:
             auth_provider = PlainTextAuthProvider(username=self.__username, password=self.__password)
 
         cl = Cluster([self.node], connect_timeout=self.connect_timeout, auth_provider=auth_provider)
