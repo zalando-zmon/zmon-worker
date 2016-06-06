@@ -140,14 +140,18 @@ class HttpWrapper(object):
     def __init__(
             self,
             url,
+            method='GET',
             params=None,
             base_url=None,
             timeout=10,
             max_retries=0,
+            allow_redirects=None,
             verify=True,
             oauth2=False,
             headers=None,
     ):
+        if method.lower() not in ('get', 'head'):
+            raise RuntimeError('Invalid method. Only GET and HEAD are supported!')
 
         self.url = (base_url + url if not absolute_http_url(url) else url)
         self.clean_url = None
@@ -157,6 +161,12 @@ class HttpWrapper(object):
         self.verify = verify
         self._headers = headers or {}
         self.oauth2 = oauth2
+        self.method = method.lower()
+
+        self.allow_redirects = True if allow_redirects is None else allow_redirects
+        if self.method == 'head' and allow_redirects is None:
+            self.allow_redirects = False
+
         self.__r = None
 
     def __request(self, raise_error=True, post_data=None):
@@ -185,8 +195,10 @@ class HttpWrapper(object):
 
             try:
                 if post_data is None:
-                    self.__r = s.get(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
-                                     headers=self._headers, auth=basic_auth)
+                    # GET or HEAD
+                    get_method = getattr(s, self.method)
+                    self.__r = get_method(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
+                                          headers=self._headers, auth=basic_auth, allow_redirects=self.allow_redirects)
                 else:
                     self.__r = s.post(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
                                       headers=self._headers, auth=basic_auth, data=json.dumps(post_data))
