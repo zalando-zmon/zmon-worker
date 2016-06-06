@@ -5,6 +5,7 @@ import logging
 
 # from cassandra.io.libevreactor import LibevConnection
 from cassandra.cluster import Cluster
+from cassandra.auth import PlainTextAuthProvider
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -20,6 +21,10 @@ class CassandraFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
+
+        self._username = conf.get('username', conf.get('user', None))
+        self._password = conf.get('password', None)
+
         return
 
     def create(self, factory_ctx):
@@ -28,19 +33,25 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(CassandraWrapper, node=factory_ctx.get('host'))
+        return propartial(CassandraWrapper, node=factory_ctx.get('host'), username=self._username, password=self._password)
 
 
 class CassandraWrapper(object):
-    def __init__(self, node, keyspace, port=9042, connect_timeout=1):
+    def __init__(self, node, keyspace, username=None, password=None, port=9042, connect_timeout=1):
         # for now using a single host / node should be seed nodes or at least available nodes
         self.node = node
         self.port = port
+        self.__username = username
+        self.__password = password
         self.keyspace = keyspace
         self.connect_timeout = connect_timeout
 
     def execute(self, stmt):
-        cl = Cluster([self.node], connect_timeout=self.connect_timeout)
+        auth_provider = None
+        if self.__username is not None and self.__password is not None:
+            auth_provider = PlainTextAuthProvider(username=self.__username, password=self.__password)
+
+        cl = Cluster([self.node], connect_timeout=self.connect_timeout, auth_provider=auth_provider)
         # cl.connection_class = LibevConnection
 
         session = None
