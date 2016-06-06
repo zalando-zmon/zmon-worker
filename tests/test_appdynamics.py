@@ -34,8 +34,22 @@ def requests_mock(resp, failure=None):
     return req
 
 
-def kwargs_to_params(kwargs):
-    return {k.replace('_', '-'): v for k, v in kwargs.items()}
+def kwargs_to_params(kwargs, start_time, end_time):
+    res = {k.replace('_', '-'): v for k, v in kwargs.items()}
+
+    if not kwargs:
+        res['time-range-type'] = BEFORE_NOW
+
+    if 'duration-in-mins' not in res and res['time-range-type'] in (BEFORE_NOW, AFTER_TIME, BEFORE_TIME):
+        res['duration-in-mins'] = 5
+
+    if 'start-time' not in res and res['time-range-type'] in (AFTER_TIME, BETWEEN_TIMES):
+        res['start-time'] = start_time * 1000
+
+    if 'end-time' not in res and res['time-range-type'] in (BEFORE_TIME, BETWEEN_TIMES):
+        res['end-time'] = end_time * 1000
+
+    return res
 
 
 @pytest.fixture(params=[
@@ -44,7 +58,19 @@ def kwargs_to_params(kwargs):
         [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]  # output
     ),
     (
+        {},
+        [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
+    ),
+    (
+        {'time_range_type': BEFORE_NOW},
+        [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
+    ),
+    (
         {'time_range_type': BEFORE_TIME, 'duration_in_mins': 5, 'end_time': 112233},
+        [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
+    ),
+    (
+        {'time_range_type': BEFORE_TIME},
         [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
     ),
     (
@@ -52,7 +78,15 @@ def kwargs_to_params(kwargs):
         [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
     ),
     (
+        {'time_range_type': AFTER_TIME},
+        [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
+    ),
+    (
         {'time_range_type': BETWEEN_TIMES, 'end_time': 112233, 'start_time': 112233},
+        [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
+    ),
+    (
+        {'time_range_type': BETWEEN_TIMES},
         [{'name': 'incident', 'severity': 'CRITICAL'}, {'name': 'incident', 'severity': 'WARNING'}]
     )
 ])
@@ -82,15 +116,9 @@ def assert_client(cli):
 
 
 @pytest.fixture(params=[
-    {'time_range_type': BEFORE_NOW},
-    {'time_range_type': BEFORE_TIME, 'duration_in_mins': 5},
-    {'time_range_type': BEFORE_TIME, 'end_time': 112233},
-    {'time_range_type': AFTER_TIME, 'duration_in_mins': 5},
-    {'time_range_type': AFTER_TIME, 'start_time': 112233},
-    {'time_range_type': BETWEEN_TIMES, 'end_time': 112233},
-    {'time_range_type': BETWEEN_TIMES, 'start_time': 112233},
-    {'time_range_type': BETWEEN_TIMES, 'duration_in_mins': 5},
+    {'time_range_type': BEFORE_NOW, 'duration_in_mins': None},
     {'time_range_type': BEFORE_NOW, 'duration_in_mins': 5, 'severity': 'WRONG'},
+    {'time_range_type': 'WRONG', 'duration_in_mins': 5},
 ])
 def fx_invalid_kwargs(request):
     return request.param
@@ -104,6 +132,16 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
 
     monkeypatch.setattr('requests.Session.get', get)
 
+    start_time = 12345
+    end_time = 23456
+
+    mktime_mock = MagicMock()
+    time_mock = MagicMock()
+    mktime_mock.return_value = start_time
+    time_mock.return_value = end_time
+    monkeypatch.setattr('time.mktime', mktime_mock)
+    monkeypatch.setattr('time.time', time_mock)
+
     url = 'https://appdynamics'
     application = 'App 1'
 
@@ -114,7 +152,7 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
     assert violations == res
     assert_client(cli)
 
-    params = kwargs_to_params(kwargs)
+    params = kwargs_to_params(kwargs, start_time, end_time)
 
     get.assert_called_with(cli.healthrule_violations_url(application), params=params)
 
@@ -122,13 +160,20 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
 def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, fx_severity):
     kwargs, violations = fx_violations
 
-    # URL params
-    params = kwargs_to_params(kwargs)
-
     resp = resp_mock(violations)
     get = requests_mock(resp)
 
     monkeypatch.setattr('requests.Session.get', get)
+
+    start_time = 12345
+    end_time = 23456
+
+    mktime_mock = MagicMock()
+    time_mock = MagicMock()
+    mktime_mock.return_value = start_time
+    time_mock.return_value = end_time
+    monkeypatch.setattr('time.mktime', mktime_mock)
+    monkeypatch.setattr('time.time', time_mock)
 
     url = 'https://appdynamics'
     application = 'App 1'
@@ -139,6 +184,8 @@ def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, 
 
     assert [v for v in violations if v['severity'] == fx_severity] == res
     assert_client(cli)
+
+    params = kwargs_to_params(kwargs, start_time, end_time)
 
     get.assert_called_with(cli.healthrule_violations_url(application), params=params)
 
