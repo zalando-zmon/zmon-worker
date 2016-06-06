@@ -161,10 +161,10 @@ class HttpWrapper(object):
         self.verify = verify
         self._headers = headers or {}
         self.oauth2 = oauth2
-        self.method = method.lower()
+        self.__method = method.lower()
 
         self.allow_redirects = True if allow_redirects is None else allow_redirects
-        if self.method == 'head' and allow_redirects is None:
+        if self.__method == 'head' and allow_redirects is None:
             self.allow_redirects = False
 
         self.__r = None
@@ -196,7 +196,7 @@ class HttpWrapper(object):
             try:
                 if post_data is None:
                     # GET or HEAD
-                    get_method = getattr(s, self.method)
+                    get_method = getattr(s, self.__method)
                     self.__r = get_method(base_url, params=self.params, timeout=self.timeout, verify=self.verify,
                                           headers=self._headers, auth=basic_auth, allow_redirects=self.allow_redirects)
                 else:
