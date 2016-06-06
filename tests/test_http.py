@@ -111,6 +111,16 @@ def get_test_data():
             tuple(get_spring_boot_metrics())]
 
 
+@pytest.fixture(params=[
+    ({'method': 'HEAD'}, 302),
+    ({'method': 'HEAD', 'allow_redirects': False}, 302),
+    ({'method': 'HEAD', 'allow_redirects': True}, 200),
+    ({'method': 'get', 'allow_redirects': False}, 302),
+])
+def fx_redirects(request):
+    return request.param
+
+
 def test_http(monkeypatch):
     resp = MagicMock()
     resp.status_code = 200
@@ -125,10 +135,46 @@ def test_http(monkeypatch):
     assert '"foo"' == http.text()
     assert 'foo' == http.json()
     assert 5 == http.content_size()
+
+    get.assert_called_once_with('http://example.org', auth=None, headers={'User-Agent': get_user_agent()},
+                                params=None, timeout=10, verify=True, allow_redirects=True)
+
     resp.json.side_effect = Exception('JSON fail')
     with pytest.raises(HttpError) as ex:
         http.json()
     assert 'JSON fail' == ex.value.message
+
+
+def test_http_redirects(monkeypatch, fx_redirects):
+    kwargs, code = fx_redirects
+    exp_allow_redirects = False if 'allow_redirects' not in kwargs else kwargs['allow_redirects']
+
+    resp = MagicMock()
+    resp.status_code = code
+    resp.text = ''
+    redirect_url = 'http://example.org/some-file'
+    resp.headers = {'Location': redirect_url}
+
+    method = MagicMock()
+    method.return_value = resp
+
+    patch = 'requests.{}'.format(kwargs['method'].lower())
+    monkeypatch.setattr(patch, method)
+
+    http = HttpWrapper('http://example.org', **kwargs)
+
+    assert code == http.code()
+    assert '' == http.text()
+    assert redirect_url == http.headers()['Location']
+
+    method.assert_called_once_with('http://example.org', auth=None, headers={'User-Agent': get_user_agent()},
+                                   params=None, timeout=10, verify=True, allow_redirects=exp_allow_redirects)
+
+
+@pytest.mark.parametrize('method', ('post', 'POST', 'put', 'PUT', 'delete', 'DELETE'))
+def test_http_invalid_method(method):
+    with pytest.raises(RuntimeError):
+        HttpWrapper('http://example.org', method=method)
 
 
 def test_retries(monkeypatch):
@@ -150,8 +196,8 @@ def test_basicauth(monkeypatch):
     http = HttpWrapper('http://user:pass@example.org', timeout=2)
     assert 'OK' == http.text()
     get.assert_called_with('http://example.org', auth=('user', 'pass'),
-            headers={'User-Agent': 'zmon-worker/0.1'},
-            params=None, timeout=2, verify=True)
+                           headers={'User-Agent': get_user_agent()},
+                           params=None, timeout=2, verify=True, allow_redirects=True)
 
     get.side_effect = requests.Timeout('timed out')
     http = HttpWrapper('http://user:pass@example.org')
@@ -173,8 +219,8 @@ def test_oauth2(monkeypatch):
     assert 218 == http.code()
     assert 'OK' == http.text()
     get.assert_called_once_with('http://example.org', auth=None,
-            headers={'Authorization': 'Bearer mytok', 'User-Agent': 'zmon-worker/0.1'},
-            params=None, timeout=2, verify=True)
+                                headers={'Authorization': 'Bearer mytok', 'User-Agent': get_user_agent()},
+                                params=None, timeout=2, verify=True, allow_redirects=True)
 
 
 def test_http_errors(monkeypatch):
@@ -280,4 +326,3 @@ http_request_count{method="post",code="400"}    3 1395066363000
     expected = {u'http_request_count': [({u'code': u'200', u'method': u'post'}, 1027.0),
                                         ({u'code': u'400', u'method': u'post'}, 3.0)]}
     assert expected == http.prometheus()
-
