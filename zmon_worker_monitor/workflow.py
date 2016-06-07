@@ -20,10 +20,10 @@ import settings
 import eventloghttp
 import snappy
 
-import plugin_manager
 from redis_context_manager import RedisConnHandler
 from tasks import configure_tasks
 from tasks import check_and_notify, trial_run, cleanup
+
 
 logger = logging.getLogger(__name__)
 
@@ -384,12 +384,6 @@ def start_worker_for_queue(flow='simple_queue_processor', queue='zmon:queue:defa
     logger.info("Starting worker with pid=%s, flow type: %s, queue: %s, execution_context: %s", os.getpid(), flow,
                 queue, execution_context)
     setproctitle.setproctitle('zmon-worker {} {}'.format(flow, queue))
-
-    # init the plugin manager
-    plugin_manager.init_plugin_manager()
-
-    # load external plugins (should be run only once)
-    plugin_manager.collect_plugins(global_config=get_config(), load_builtins=True, load_env=True)
 
     # start Flow Reactor here
     FlowControlReactor.get_instance().start()
