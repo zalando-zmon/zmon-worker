@@ -61,6 +61,7 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         """
         self._user = conf.get('user')
         self._pass = conf.get('pass')
+        self._url = conf.get('url')
 
     def create(self, factory_ctx):
         """
@@ -68,11 +69,14 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(AppdynamicsWrapper, username=self._user, password=self._pass)
+        return propartial(AppdynamicsWrapper, url=self._url, username=self._user, password=self._pass)
 
 
 class AppdynamicsWrapper(object):
-    def __init__(self, url, username=None, password=None):
+    def __init__(self, url=None, username=None, password=None):
+        if not url:
+            raise RuntimeError('AppDynamics plugin improperly configured. URL is required!')
+
         self.url = url
         self.timeout = 3
 
