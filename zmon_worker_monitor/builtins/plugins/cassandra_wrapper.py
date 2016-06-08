@@ -22,7 +22,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param conf: configuration dictionary
         """
 
-        self._username = conf.get('username', conf.get('user', None))
+        self._username = conf.get('user', None)
         self._password = conf.get('password', None)
 
         return
