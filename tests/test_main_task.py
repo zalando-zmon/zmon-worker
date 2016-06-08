@@ -136,7 +136,7 @@ def test_send_to_dataservice(monkeypatch):
                         'dataservice.url': 'https://example.org', 'dataservice.oauth2': True})
     MainTask.send_to_dataservice(check_results)
     args, kwargs = put.call_args
-    assert args[0] == 'https://example.org/myacc/123/'
+    assert args[0] == 'https://example.org/api/v1/data/myacc/123/'
     assert expected == json.loads(kwargs['data'])
 
 
