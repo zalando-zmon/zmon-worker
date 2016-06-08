@@ -9,6 +9,7 @@ import logging.config
 import requests
 
 import settings
+import plugin_manager
 import rpc_server
 from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
 from .web_server.start import start_web
@@ -82,13 +83,6 @@ def main(args=None):
     # start the process controller
     main_proc.start_proc_control()
 
-    # start worker processes per queue according to the config
-    queues = config['zmon.queues']
-    for qn in queues.split(','):
-        queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
-        main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"},
-                                          flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
-
     # start web server process under supervision
     main_proc.proc_control.spawn_process(
         target=start_web,
@@ -102,6 +96,19 @@ def main(args=None):
         ),
         flags=MONITOR_RESTART,  # web server will be restarted if dies
     )
+
+    # init the plugin manager
+    plugin_manager.init_plugin_manager()
+
+    # load external plugins (should be run only once)
+    plugin_manager.collect_plugins(global_config=config, load_builtins=True, load_env=True)
+
+    # start worker processes per queue according to the config
+    queues = config['zmon.queues']
+    for qn in queues.split(','):
+        queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
+        main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"},
+                                          flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
     if not args.no_rpc:
         try:

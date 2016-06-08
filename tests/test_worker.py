@@ -8,15 +8,21 @@ from mock import MagicMock
 
 
 def build_redis_queue_item(check_command):
-    return {'properties': {'body_encoding': 'nested'},
-            'body': {
-                 'task': 'check_and_notify',
-                 'args': [{'check_id': 123, 'check_name': 'Test Check',
-                           'entity': {'id': '77', 'type': 'test'}, 'command': check_command, 'interval': 10},
-                        []],
-                 'kwargs': {},
-                 'timelimit': [90, 60],
-           }}
+    return {
+        'properties': {'body_encoding': 'nested'},
+        'body': {
+            'task': 'check_and_notify',
+            'args': [{
+                'check_id': 123,
+                'check_name': 'Test Check',
+                'entity': {'id': '77', 'type': 'test'},
+                'command': check_command, 'interval': 10},
+                []
+            ],
+            'kwargs': {},
+            'timelimit': [90, 60],
+        }
+    }
 
 
 def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
@@ -49,11 +55,17 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
 
     # to help debugging: print any worker exceptions
     def exc(*args, **kwargs):
-        print(args, kwargs)
         traceback.print_exc()
 
     monkeypatch.setattr('zmon_worker_monitor.redis_context_manager.RedisConnHandler.get_conn', lambda x: redis)
     monkeypatch.setattr('zmon_worker_monitor.workflow.logger.exception', exc)
+
+    start_web = MagicMock()
+    monkeypatch.setattr('zmon_worker_monitor.main.start_web', start_web)
+
+    # Reset plugin manager!
+    monkeypatch.setattr('zmon_worker_monitor.plugin_manager._initialized', {})
+    monkeypatch.setattr('zmon_worker_monitor.plugin_manager._collected', False)
 
     proc = main(['-c', 'tests/config-test.yaml', '--no-rpc'])
 
@@ -68,14 +80,16 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
 
 
 def test_check_failure(tmpdir, monkeypatch):
-    execute_check(tmpdir, monkeypatch, 'invalid_python_code', ['"value": "name \'invalid_python_code\' is not defined"', '"exc": 1'])
+    execute_check(tmpdir, monkeypatch, 'invalid_python_code',
+                  ['"value": "name \'invalid_python_code\' is not defined"', '"exc": 1'])
+
 
 def test_check_success(tmpdir, monkeypatch):
     execute_check(tmpdir, monkeypatch, '"test-result"', ['"value": "test-result"'])
+
 
 def test_check_http(tmpdir, monkeypatch):
     response = MagicMock()
     response.json.return_value = {'foo': 'bar'}
     monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.http.requests.get', lambda *args, **kwargs: response)
     execute_check(tmpdir, monkeypatch, 'http("https://example.org/").json()', ['"value": {"foo": "bar"}'])
-

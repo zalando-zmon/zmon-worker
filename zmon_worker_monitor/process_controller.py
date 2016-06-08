@@ -18,7 +18,6 @@ from collections import defaultdict, Iterable
 from functools import wraps
 from datetime import timedelta
 
-
 from .flags import has_flag, flags2num
 from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING, MONITOR_NONE
 
