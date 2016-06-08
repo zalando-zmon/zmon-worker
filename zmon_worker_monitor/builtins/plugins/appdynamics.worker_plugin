@@ -1,0 +1,14 @@
+[Core]
+Name = appdynamics
+Module = appdynamics
+
+[Documentation]
+Author = Mohab Usama
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that enables AppDynamics Health Rule Violations check
+
+[Configuration]
+url = https://local-appdynamics
+user = zmon@customer1
+pass = --secret--
