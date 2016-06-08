@@ -126,7 +126,7 @@ def test_notify(monkeypatch):
 
 def test_send_to_dataservice(monkeypatch):
     check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
-    expected = {'account': 'myacc', 'team': 'myteam', 'results': check_results}
+    expected = {'account': 'myacc', 'team': 'myteam', 'region': None, 'results': check_results}
 
     put = MagicMock()
     monkeypatch.setattr('requests.put', put)

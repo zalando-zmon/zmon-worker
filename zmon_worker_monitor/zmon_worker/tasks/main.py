@@ -728,7 +728,7 @@ class MainTask(object):
 
         cls._account = config.get('account', '')
         cls._team = config.get('team', '')
-        cls._region = config.get('region', '')
+        cls._region = config.get('region', None)
 
         cls._dataservice_url = config.get('dataservice.url')
         if cls._dataservice_url is not None and cls._dataservice_url.endswith('/api/v1/data/'):
