@@ -56,5 +56,5 @@ plugin.elasticsearch.url: 'https://es-cluster'
 # plugin.elasticsearch.oauth2_scopes: read
 
 plugin.appdynamics.url: 'https://appdynamics'
-plugin.appdynamics.user: 'zmon@customer1'
-plugin.appdynamics.pass: '--secret--'
+# plugin.appdynamics.user: 'zmon@customer1'
+# plugin.appdynamics.pass: '--secret--'
