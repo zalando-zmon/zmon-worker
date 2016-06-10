@@ -10,4 +10,4 @@ Description = Builtin plugin that provides Elasticsearch query capabilities
 
 [Configuration]
 
-url = https://es-cluster/
+;; url = https://es-cluster/
