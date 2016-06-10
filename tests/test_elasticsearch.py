@@ -76,7 +76,7 @@ def test_elasticsearch_count(monkeypatch):
 
     get.assert_called_with(get_full_url(url, query_type=TYPE_COUNT),
                            headers={'User-Agent': get_user_agent()},
-                           params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
+                           params={'q': ''},
                            timeout=10)
 
 
