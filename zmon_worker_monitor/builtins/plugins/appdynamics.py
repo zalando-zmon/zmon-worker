@@ -67,7 +67,8 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         self._user = conf.get('user')
         self._pass = conf.get('pass')
         self._url = conf.get('url')
-        self._es_url = conf.get('es_es_url')
+        self._es_url = conf.get('es_url')
+        self._index_prefix = conf.get('index_prefix')
 
     def create(self, factory_ctx):
         """
@@ -76,16 +77,19 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
         return propartial(
-            AppdynamicsWrapper, url=self._url, username=self._user, password=self._pass, es_url=self._es_url)
+            AppdynamicsWrapper, url=self._url, username=self._user, password=self._pass, es_url=self._es_url,
+            index_prefix=self._index_prefix)
 
 
 class AppdynamicsWrapper(object):
-    def __init__(self, url=None, username=None, password=None, es_url=None):
+    def __init__(self, url=None, username=None, password=None, es_url=None, index_prefix=''):
         if not url:
             raise RuntimeError('AppDynamics plugin improperly configured. URL is required!')
 
         self.url = url
         self.es_url = es_url
+
+        self.index_prefix = index_prefix
 
         self.__oauth2 = False
 
@@ -200,8 +204,10 @@ class AppdynamicsWrapper(object):
             raise RuntimeError('AppDynamics plugin improperly configured. ES URL is required to query logs!')
 
         q = '{} sourceType:{}'.format(q, source_type)
+        indices = ['{}*'.format(self.index_prefix)]
 
-        res = ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2).search(q=q, body=body, size=size)
+        res = (ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2)
+               .search(indices=indices, q=q, body=body, size=size))
 
         return res['hits']['hits']
 
@@ -226,7 +232,9 @@ class AppdynamicsWrapper(object):
 
         q = '{} sourceType:{}'.format(q, source_type)
 
-        res = ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2).count(q=q, body=body)
+        indices = ['{}*'.format(self.index_prefix)]
+
+        res = ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2).count(indices=indices, q=q, body=body)
 
         logger.debug('Received ES count result: {}'.format(res))
 
