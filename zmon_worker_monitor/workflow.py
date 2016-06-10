@@ -17,7 +17,7 @@ from rpc_client import get_rpc_client
 from contextlib import contextmanager
 from traceback import format_exc
 import settings
-import eventloghttp
+from zmon_worker_monitor import eventloghttp
 import snappy
 
 from redis_context_manager import RedisConnHandler

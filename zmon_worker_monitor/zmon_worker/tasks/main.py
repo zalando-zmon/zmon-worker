@@ -15,7 +15,7 @@ import time
 import urllib
 
 import eventlog
-import eventloghttp
+from zmon_worker_monitor import eventloghttp
 
 from bisect import bisect_left
 from collections import Callable, Counter
