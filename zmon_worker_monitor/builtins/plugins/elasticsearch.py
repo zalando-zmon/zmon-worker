@@ -26,8 +26,10 @@ tokens.start()
 DEFAULT_SIZE = 10
 MAX_SIZE = 1000
 MAX_INDICES = 10
+
 TYPE_SEARCH = '_search'
 TYPE_COUNT = '_count'
+
 
 class ElasticsearchFactory(IFunctionFactoryPlugin):
     def __init__(self):
@@ -60,7 +62,6 @@ class ElasticsearchWrapper(object):
         self.timeout = timeout
         self.oauth2 = oauth2
         self._headers = {'User-Agent': get_user_agent()}
-
 
     def count(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
         return self.__query(TYPE_COUNT, indices, q, body, source, size)
