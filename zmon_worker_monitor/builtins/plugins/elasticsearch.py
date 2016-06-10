@@ -63,10 +63,10 @@ class ElasticsearchWrapper(object):
 
 
     def count(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
-        return __query(self, TYPE_COUNT, indices, q, body, source, size)
+        return self.__query(TYPE_COUNT, indices, q, body, source, size)
 
     def search(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
-        return __query(self, TYPE_SEARCH, indices, q, body, source, size)
+        return self.__query(TYPE_SEARCH, indices, q, body, source, size)
 
     def __query(self, query_type, indices, q, body, source, size):
         """
