@@ -1,4 +1,3 @@
-import eventlog
 import json
 import requests
 import datetime
@@ -19,24 +18,16 @@ def enable_http(enable=True):
     _enable_http = enable
 
 
-def register_all(events, path=None):
-    eventlog.register_all(events, path)
-
-
 def log(e_id, **kwargs):
-    # for now forward everything
-    eventlog.log(e_id, **kwargs)
 
     if not _enable_http:
         return
 
     now = datetime.datetime.now()
-
     headers = {'content-type': 'application/json'}
-
     event = {'typeId': e_id, 'attributes': kwargs, 'time': now.strftime("%Y-%m-%dT%H:%M:%S.") + now.strftime("%f")[:3]}
 
     try:
-        requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers)
+        requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers, timeout=1)
     except Exception:
         pass
