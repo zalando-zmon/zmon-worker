@@ -23,10 +23,12 @@ tokens.configure()
 tokens.manage('uid', ['uid'])
 tokens.start()
 
-
 DEFAULT_SIZE = 10
 MAX_SIZE = 1000
 MAX_INDICES = 10
+
+TYPE_SEARCH = '_search'
+TYPE_COUNT = '_count'
 
 
 class ElasticsearchFactory(IFunctionFactoryPlugin):
@@ -61,7 +63,13 @@ class ElasticsearchWrapper(object):
         self.oauth2 = oauth2
         self._headers = {'User-Agent': get_user_agent()}
 
+    def count(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
+        return self.__query(TYPE_COUNT, indices, q, body, source, size)
+
     def search(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
+        return self.__query(TYPE_SEARCH, indices, q, body, source, size)
+
+    def __query(self, query_type, indices, q, body, source, size):
         """
         Search ES cluster using URI search. If ``body`` is None then GET request will be used.
 
@@ -128,7 +136,7 @@ class ElasticsearchWrapper(object):
         if type(indices) is list:
             indices_str = ','.join(indices)
 
-        url = os.path.join(self.url, indices_str, '_search')
+        url = os.path.join(self.url, indices_str, query_type)
 
         if body is None:
             return self.__request(url, params={'q': q, 'size': size, '_source': str(source).lower()})

@@ -9,10 +9,11 @@ from zmon_worker_monitor.zmon_worker.errors import HttpError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.builtins.plugins.elasticsearch import ElasticsearchWrapper
-from zmon_worker_monitor.builtins.plugins.elasticsearch import DEFAULT_SIZE, MAX_SIZE, MAX_INDICES
+from zmon_worker_monitor.builtins.plugins.elasticsearch import (
+    DEFAULT_SIZE, MAX_SIZE, MAX_INDICES, TYPE_COUNT, TYPE_SEARCH)
 
 
-def get_full_url(url, indices=None, health=False):
+def get_full_url(url, indices=None, query_type=TYPE_SEARCH, health=False):
     if health:
         return os.path.join(url, '_cluster', 'health')
 
@@ -20,7 +21,7 @@ def get_full_url(url, indices=None, health=False):
     if indices:
         indices_str = ','.join(indices)
 
-    return os.path.join(url, indices_str, '_search')
+    return os.path.join(url, indices_str, query_type)
 
 
 def resp_mock(failure=False):
@@ -56,6 +57,24 @@ def test_elasticsearch_search(monkeypatch):
     assert result == resp.json.return_value
 
     get.assert_called_with(get_full_url(url),
+                           headers={'User-Agent': get_user_agent()},
+                           params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
+                           timeout=10)
+
+
+def test_elasticsearch_count(monkeypatch):
+    resp = resp_mock()
+    get = requests_mock(resp)
+    monkeypatch.setattr('requests.get', get)
+
+    url = 'http://es/'
+    es = ElasticsearchWrapper(url)
+
+    result = es.count()
+
+    assert result == resp.json.return_value
+
+    get.assert_called_with(get_full_url(url, query_type=TYPE_COUNT),
                            headers={'User-Agent': get_user_agent()},
                            params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
                            timeout=10)
