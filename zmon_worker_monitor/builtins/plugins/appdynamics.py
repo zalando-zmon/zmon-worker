@@ -16,6 +16,9 @@ from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
+from zmon_worker_monitor.builtins.plugins.elasticsearch import ElasticsearchWrapper
+
+
 logger = logging.getLogger('zmon-worker.appdynamics-function')
 
 
@@ -38,6 +41,8 @@ SEVERITIES = (
     WARNING,
     CRITICAL,
 )
+
+SOURCE_TYPE_APPLICATION_LOG = 'application-log'
 
 
 # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
@@ -62,6 +67,7 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         self._user = conf.get('user')
         self._pass = conf.get('pass')
         self._url = conf.get('url')
+        self._es_url = conf.get('es_es_url')
 
     def create(self, factory_ctx):
         """
@@ -69,20 +75,24 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(AppdynamicsWrapper, url=self._url, username=self._user, password=self._pass)
+        return propartial(
+            AppdynamicsWrapper, url=self._url, username=self._user, password=self._pass, es_url=self._es_url)
 
 
 class AppdynamicsWrapper(object):
-    def __init__(self, url=None, username=None, password=None):
+    def __init__(self, url=None, username=None, password=None, es_url=None):
         if not url:
             raise RuntimeError('AppDynamics plugin improperly configured. URL is required!')
 
         self.url = url
-        self.timeout = 3
+        self.es_url = es_url
+
+        self.__oauth2 = False
 
         self.__session = requests.Session()
 
         if not username or not password:
+            self.__oauth2 = True
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
         else:
             self.__session.auth = (username, password)
@@ -166,3 +176,58 @@ class AppdynamicsWrapper(object):
         except:
             logger.exception('AppDynamics request failed')
             raise
+
+    def query_logs(self, q='', body=None, size=100, source_type=SOURCE_TYPE_APPLICATION_LOG):
+        """
+        Perform search query on AppDynamics ES logs.
+
+        :param q: Query string used in search.
+        :type q: str
+
+        :param body: (dict) holding an ES query DSL.
+        :type body: dict
+
+        :param size: Number of hits to return. Default is 100.
+        :type size: int
+
+        :param source_type: ``sourceType`` field filtering. Default to application-log, and will be part of ``q``.
+        :type source_type: str
+
+        :return: ES query result ``hits``.
+        :rtype: list
+        """
+        if not self.es_url:
+            raise RuntimeError('AppDynamics plugin improperly configured. ES URL is required to query logs!')
+
+        q = '{} sourceType:{}'.format(q, source_type)
+
+        res = ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2).search(q=q, body=body, size=size)
+
+        return res['hits']['hits']
+
+    def count_logs(self, q='', body=None, source_type=SOURCE_TYPE_APPLICATION_LOG):
+        """
+        Perform count query on AppDynamics ES logs.
+
+        :param q: Query string used in search.
+        :type q: str
+
+        :param body: (dict) holding an ES query DSL.
+        :type body: dict
+
+        :param source_type: ``sourceType`` field filtering. Default to application-log, and will be part of ``q``.
+        :type source_type: str
+
+        :return: Query match count.
+        :rtype: int
+        """
+        if not self.es_url:
+            raise RuntimeError('AppDynamics plugin improperly configured. ES URL is required to query logs!')
+
+        q = '{} sourceType:{}'.format(q, source_type)
+
+        res = ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2).count(q=q, body=body)
+
+        logger.debug('Received ES count result: {}'.format(res))
+
+        return res['count']

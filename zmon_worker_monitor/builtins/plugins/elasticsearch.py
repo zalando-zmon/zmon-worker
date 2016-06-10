@@ -63,8 +63,8 @@ class ElasticsearchWrapper(object):
         self.oauth2 = oauth2
         self._headers = {'User-Agent': get_user_agent()}
 
-    def count(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
-        return self.__query(TYPE_COUNT, indices, q, body, source, size)
+    def count(self, indices=None, q='', body=None):
+        return self.__query(TYPE_COUNT, indices, q, body, source=False, size=0)
 
     def search(self, indices=None, q='', body=None, source=True, size=DEFAULT_SIZE):
         return self.__query(TYPE_SEARCH, indices, q, body, source, size)
@@ -139,13 +139,18 @@ class ElasticsearchWrapper(object):
         url = os.path.join(self.url, indices_str, query_type)
 
         if body is None:
-            return self.__request(url, params={'q': q, 'size': size, '_source': str(source).lower()})
+            params = {'q': q}
+            if query_type == TYPE_SEARCH:
+                params['size'] = size
+                params['_source'] = str(source).lower()
+            return self.__request(url, params=params)
         else:
             # Force size limitations in request body.
-            body['size'] = size
+            if query_type == TYPE_SEARCH:
+                body['size'] = size
 
-            if source is False and '_source' not in body:
-                body['_source'] = False
+                if source is False and '_source' not in body:
+                    body['_source'] = False
 
             return self.__request(url, body=body)
 

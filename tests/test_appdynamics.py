@@ -7,6 +7,7 @@ from zmon_worker_monitor.zmon_worker.errors import HttpError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.builtins.plugins.appdynamics import CRITICAL, WARNING
+from zmon_worker_monitor.builtins.plugins.appdynamics import SOURCE_TYPE_APPLICATION_LOG
 from zmon_worker_monitor.builtins.plugins.appdynamics import BEFORE_TIME, BEFORE_NOW, AFTER_TIME, BETWEEN_TIMES
 from zmon_worker_monitor.builtins.plugins.appdynamics import AppdynamicsWrapper
 
@@ -108,6 +109,24 @@ def fx_exception(request):
     return request.param
 
 
+@pytest.fixture(params=[
+    ('https://es-url', {'q': 'application_id:my-app'}, {'hits': {'hits': ['res1', 'res2']}}),
+    ('https://es-url', {'q': 'application_id:my-app', 'source_type': 'syslog'}, {'hits': {'hits': ['res1', 'res2']}}),
+    ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'hits': {'hits': ['res1']}}),
+])
+def fx_log_hits(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    ('https://es-url', {'q': 'application_id:my-app'}, {'count': 2}),
+    ('https://es-url', {'q': 'application_id:my-app', 'source_type': 'syslog'}, {'count': 3}),
+    ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'count': 1}),
+])
+def fx_log_count(request):
+    return request.param
+
+
 def assert_client(cli):
     # hack to access __session obj.
     assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
@@ -190,6 +209,19 @@ def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, 
     get.assert_called_with(cli.healthrule_violations_url(application), params=params)
 
 
+def test_appdynamics_oauth2(monkeypatch):
+    # mock tokens
+    token = 'TOKEN-123'
+    monkeypatch.setattr('tokens.get', lambda x: token)
+
+    url = 'https://appdynamics'
+
+    cli = AppdynamicsWrapper(url=url)
+
+    assert 'Bearer {}'.format(token) == cli._AppdynamicsWrapper__session.headers['Authorization']
+    assert True is cli._AppdynamicsWrapper__oauth2
+
+
 def test_appdynamics_healthrule_violations_kwargs_error(monkeypatch, fx_invalid_kwargs):
     url = 'https://appdynamics'
     application = 'App 1'
@@ -219,3 +251,67 @@ def test_appdynamics_healthrule_violations_errors(monkeypatch, fx_exception):
 def test_appdynamics_no_url():
     with pytest.raises(RuntimeError):
         AppdynamicsWrapper()
+
+
+def test_appdynamics_log_query(monkeypatch, fx_log_hits):
+    es_url, kwargs, res = fx_log_hits
+
+    search = MagicMock()
+    search.return_value = res
+
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.appdynamics.ElasticsearchWrapper.search', search)
+
+    url = 'https://appdynamics'
+    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS)
+
+    exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
+    exp_q = '{} sourceType:{}'.format(kwargs.get('q', ''), exp_source_type)
+
+    result = cli.query_logs(**kwargs)
+
+    assert result == res['hits']['hits']
+
+    kwargs.pop('source_type', None)
+    kwargs['q'] = exp_q
+    kwargs['size'] = 100
+    if 'body' not in kwargs:
+        kwargs['body'] = None
+
+    search.assert_called_with(**kwargs)
+
+
+def test_appdynamics_log_count(monkeypatch, fx_log_count):
+    es_url, kwargs, res = fx_log_count
+
+    search = MagicMock()
+    search.return_value = res
+
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.appdynamics.ElasticsearchWrapper.count', search)
+
+    url = 'https://appdynamics'
+    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS)
+
+    exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
+    exp_q = '{} sourceType:{}'.format(kwargs.get('q', ''), exp_source_type)
+
+    result = cli.count_logs(**kwargs)
+
+    assert result == res['count']
+
+    kwargs.pop('source_type', None)
+    kwargs['q'] = exp_q
+    if 'body' not in kwargs:
+        kwargs['body'] = None
+
+    search.assert_called_with(**kwargs)
+
+
+def test_appdynamics_log_error(monkeypatch):
+    url = 'https://appdynamics'
+    cli = AppdynamicsWrapper(url=url, username=USER, password=PASS)
+
+    with pytest.raises(RuntimeError):
+        cli.query_logs(q='application:my-app')
+
+    with pytest.raises(RuntimeError):
+        cli.count_logs(q='application:my-app')
