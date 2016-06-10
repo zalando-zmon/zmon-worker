@@ -13,6 +13,10 @@ import socket
 import sys
 import time
 import urllib
+
+import eventlog
+from zmon_worker_monitor import eventloghttp
+
 from bisect import bisect_left
 from collections import Callable, Counter
 from collections import defaultdict
@@ -64,32 +68,30 @@ KAIROS_ID_FORBIDDEN_RE = re.compile(r'[^a-zA-Z0-9\-_\.]')
 HOST_GROUP_PREFIX = re.compile(r'^([a-z]+)')
 INSTANCE_PORT_SUFFIX = re.compile(r':([0-9]+)$')
 
-# EVENTS = {
-#     'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
-#     'ALERT_ENDED': eventlog.Event(0x34002, ['checkId', 'alertId', 'value']),
-#     'ALERT_ENTITY_STARTED': eventlog.Event(0x34003, ['checkId', 'alertId', 'value', 'entity']),
-#     'ALERT_ENTITY_ENDED': eventlog.Event(0x34004, ['checkId', 'alertId', 'value', 'entity']),
-#     'DOWNTIME_STARTED': eventlog.Event(0x34005, [
-#         'alertId',
-#         'entity',
-#         'startTime',
-#         'endTime',
-#         'userName',
-#         'comment',
-#     ]),
-#     'DOWNTIME_ENDED': eventlog.Event(0x34006, [
-#         'alertId',
-#         'entity',
-#         'startTime',
-#         'endTime',
-#         'userName',
-#         'comment',
-#     ]),
-#     'SMS_SENT': eventlog.Event(0x34007, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
-#     'ACCESS_DENIED': eventlog.Event(0x34008, ['userName', 'entity']),
-# }
-#
-# eventlog.register_all(EVENTS)
+EVENTS = {
+    'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
+    'ALERT_ENDED': eventlog.Event(0x34002, ['checkId', 'alertId', 'value']),
+    'ALERT_ENTITY_STARTED': eventlog.Event(0x34003, ['checkId', 'alertId', 'value', 'entity']),
+    'ALERT_ENTITY_ENDED': eventlog.Event(0x34004, ['checkId', 'alertId', 'value', 'entity']),
+    'DOWNTIME_STARTED': eventlog.Event(0x34005, [
+        'alertId',
+        'entity',
+        'startTime',
+        'endTime',
+        'userName',
+        'comment',
+    ]),
+    'DOWNTIME_ENDED': eventlog.Event(0x34006, [
+        'alertId',
+        'entity',
+        'startTime',
+        'endTime',
+        'userName',
+        'comment',
+    ]),
+    'SMS_SENT': eventlog.Event(0x34007, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
+    'ACCESS_DENIED': eventlog.Event(0x34008, ['userName', 'entity']),
+}
 
 get_value = itemgetter('value')
 
@@ -481,8 +483,7 @@ def _log_event(event_name, alert, result, entity=None):
     if entity:
         params['entity'] = entity
 
-        # TODO: file-based eventlog will not work anymore
-        # eventlog.log(EVENTS[event_name].id, **params)
+    eventloghttp.log(EVENTS[event_name].id, **params)
 
 
 def _convert_captures(worker_name, alert_id, entity_id, timestamp, captures):
