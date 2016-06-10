@@ -11,5 +11,6 @@ Description = Builtin plugin that enables AppDynamics Health Rule Violations che
 [Configuration]
 ;; url = https://local-appdynamics
 ;; es_url = https://local-appdynamics-es
+;; index_prefix = logstash-
 ;; user = zmon@customer1
 ;; pass = --secret--

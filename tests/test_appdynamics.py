@@ -274,6 +274,7 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
     kwargs.pop('source_type', None)
     kwargs['q'] = exp_q
     kwargs['size'] = 100
+    kwargs['indices'] = ['*']
     if 'body' not in kwargs:
         kwargs['body'] = None
 
@@ -300,6 +301,7 @@ def test_appdynamics_log_count(monkeypatch, fx_log_count):
 
     kwargs.pop('source_type', None)
     kwargs['q'] = exp_q
+    kwargs['indices'] = ['*']
     if 'body' not in kwargs:
         kwargs['body'] = None
 
