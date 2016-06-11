@@ -2,8 +2,8 @@
 ZMON Worker
 ===========
 
-.. image:: https://travis-ci.org/zalando/zmon-worker.svg?branch=master
-   :target: https://travis-ci.org/zalando/zmon-worker
+.. image:: https://travis-ci.org/zalando-zmon/zmon-worker.svg?branch=master
+   :target: https://travis-ci.org/zalando-zmon/zmon-worker
    :alt: Build Status
 
 .. image:: https://coveralls.io/repos/zalando/zmon-worker/badge.svg
