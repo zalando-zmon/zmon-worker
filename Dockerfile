@@ -1,4 +1,4 @@
-FROM registry.opensource.zalan.do/stups/ubuntu:16.04-31
+FROM registry.opensource.zalan.do/stups/ubuntu:16.04-32
 
 #making this a cachable point as compile takes forever without -j
 
