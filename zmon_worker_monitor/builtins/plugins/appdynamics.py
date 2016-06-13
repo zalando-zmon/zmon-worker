@@ -58,6 +58,9 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         # Fields should be fetched from config
         self._user = None
         self._pass = None
+        self._url = None
+        self._es_url = None
+        self._index_prefix = None
 
     def configure(self, conf):
         """
@@ -67,8 +70,8 @@ class AppdynamicsFactory(IFunctionFactoryPlugin):
         self._user = conf.get('user')
         self._pass = conf.get('pass')
         self._url = conf.get('url')
-        self._es_url = conf.get('es_url')
-        self._index_prefix = conf.get('index_prefix')
+        self._es_url = conf.get('es.url')
+        self._index_prefix = conf.get('index.prefix')
 
     def create(self, factory_ctx):
         """
