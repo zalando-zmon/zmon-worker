@@ -126,7 +126,7 @@ def test_notify(monkeypatch):
 
 def test_send_to_dataservice(monkeypatch):
     check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
-    expected = {'account': 'myacc', 'team': 'myteam', 'results': check_results}
+    expected = {'account': 'myacc', 'team': 'myteam', 'region': None, 'results': check_results}
 
     put = MagicMock()
     monkeypatch.setattr('requests.put', put)
@@ -136,7 +136,7 @@ def test_send_to_dataservice(monkeypatch):
                         'dataservice.url': 'https://example.org', 'dataservice.oauth2': True})
     MainTask.send_to_dataservice(check_results)
     args, kwargs = put.call_args
-    assert args[0] == 'https://example.org/myacc/123/'
+    assert args[0] == 'https://example.org/api/v1/data/myacc/123/'
     assert expected == json.loads(kwargs['data'])
 
 
