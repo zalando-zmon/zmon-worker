@@ -127,13 +127,6 @@ def fx_log_count(request):
     return request.param
 
 
-def assert_client(cli):
-    # hack to access __session obj.
-    assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
-    assert get_user_agent() == cli._AppdynamicsWrapper__session.headers['User-Agent']
-    assert 'json' == cli._AppdynamicsWrapper__session.params['output']
-
-
 @pytest.fixture(params=[
     {'time_range_type': BEFORE_NOW, 'duration_in_mins': None},
     {'time_range_type': BEFORE_NOW, 'duration_in_mins': 5, 'severity': 'WRONG'},
@@ -141,6 +134,13 @@ def assert_client(cli):
 ])
 def fx_invalid_kwargs(request):
     return request.param
+
+
+def assert_client(cli):
+    # hack to access __session obj.
+    assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
+    assert get_user_agent() == cli._AppdynamicsWrapper__session.headers['User-Agent']
+    assert 'json' == cli._AppdynamicsWrapper__session.params['output']
 
 
 def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
@@ -261,11 +261,18 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
 
     monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.appdynamics.ElasticsearchWrapper.search', search)
 
+    timestamp = 1234
+    timestamp_mock = MagicMock()
+    timestamp_mock.return_value = timestamp
+    monkeypatch.setattr(AppdynamicsWrapper, '_AppdynamicsWrapper__get_timestamp', timestamp_mock)
+
     url = 'https://appdynamics'
-    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS)
+    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
     exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
-    exp_q = '{} sourceType:{}'.format(kwargs.get('q', ''), exp_source_type)
+    exp_q = ('{} AND sourceType:{} AND eventTimestamp:>{}'
+             .format(kwargs.get('q', ''), exp_source_type, timestamp)
+             .lstrip(' AND '))
 
     result = cli.query_logs(**kwargs)
 
@@ -274,7 +281,7 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
     kwargs.pop('source_type', None)
     kwargs['q'] = exp_q
     kwargs['size'] = 100
-    kwargs['indices'] = ['*']
+    kwargs['indices'] = ['PREFIX_*']
     if 'body' not in kwargs:
         kwargs['body'] = None
 
@@ -284,16 +291,23 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
 def test_appdynamics_log_count(monkeypatch, fx_log_count):
     es_url, kwargs, res = fx_log_count
 
-    search = MagicMock()
-    search.return_value = res
+    count = MagicMock()
+    count.return_value = res
 
-    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.appdynamics.ElasticsearchWrapper.count', search)
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.appdynamics.ElasticsearchWrapper.count', count)
+
+    timestamp = 1234
+    timestamp_mock = MagicMock()
+    timestamp_mock.return_value = timestamp
+    monkeypatch.setattr(AppdynamicsWrapper, '_AppdynamicsWrapper__get_timestamp', timestamp_mock)
 
     url = 'https://appdynamics'
-    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS)
+    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
     exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
-    exp_q = '{} sourceType:{}'.format(kwargs.get('q', ''), exp_source_type)
+    exp_q = ('{} AND sourceType:{} AND eventTimestamp:>{}'
+             .format(kwargs.get('q', ''), exp_source_type, timestamp)
+             .lstrip(' AND '))
 
     result = cli.count_logs(**kwargs)
 
@@ -301,11 +315,11 @@ def test_appdynamics_log_count(monkeypatch, fx_log_count):
 
     kwargs.pop('source_type', None)
     kwargs['q'] = exp_q
-    kwargs['indices'] = ['*']
+    kwargs['indices'] = ['PREFIX_*']
     if 'body' not in kwargs:
         kwargs['body'] = None
 
-    search.assert_called_with(**kwargs)
+    count.assert_called_with(**kwargs)
 
 
 def test_appdynamics_log_error(monkeypatch):
