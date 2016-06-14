@@ -52,13 +52,14 @@ def test_elasticsearch_search(monkeypatch):
     url = 'http://es/'
     es = ElasticsearchWrapper(url)
 
-    result = es.search()
+    q = 'my-search'
+    result = es.search(q=q)
 
     assert result == resp.json.return_value
 
     get.assert_called_with(get_full_url(url),
                            headers={'User-Agent': get_user_agent()},
-                           params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
+                           params={'q': q, 'size': DEFAULT_SIZE, '_source': 'true'},
                            timeout=10)
 
 
@@ -70,13 +71,14 @@ def test_elasticsearch_count(monkeypatch):
     url = 'http://es/'
     es = ElasticsearchWrapper(url)
 
-    result = es.count()
+    q = 'status:404'
+    result = es.count(q=q)
 
     assert result == resp.json.return_value
 
     get.assert_called_with(get_full_url(url, query_type=TYPE_COUNT),
                            headers={'User-Agent': get_user_agent()},
-                           params={'q': ''},
+                           params={'q': q},
                            timeout=10)
 
 
@@ -89,13 +91,14 @@ def test_elasticsearch_search_multiple_indices(monkeypatch):
     es = ElasticsearchWrapper(url)
 
     indices = ['logstash-2016-*', 'logstash-2015-*']
-    result = es.search(indices=indices)
+    q = 'my-search'
+    result = es.search(indices=indices, q=q)
 
     assert result == resp.json.return_value
 
     get.assert_called_with(get_full_url(url, indices=indices),
                            headers={'User-Agent': get_user_agent()},
-                           params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
+                           params={'q': q, 'size': DEFAULT_SIZE, '_source': 'true'},
                            timeout=10)
 
 
@@ -115,6 +118,7 @@ def test_elasticsearch_search_body(monkeypatch):
     body['size'] = DEFAULT_SIZE
 
     post.assert_called_with(get_full_url(url),
+                            params={},
                             json=body,
                             headers={'User-Agent': get_user_agent()},
                             timeout=10)
@@ -138,6 +142,7 @@ def test_elasticsearch_search_multiple_indices_body(monkeypatch):
     body['size'] = DEFAULT_SIZE
 
     post.assert_called_with(get_full_url(url, indices=indices),
+                            params={},
                             json=body,
                             headers={'User-Agent': get_user_agent()},
                             timeout=10)
@@ -157,7 +162,7 @@ def test_elasticsearch_search_no_source_with_size(monkeypatch):
 
     get.assert_called_with(get_full_url(url),
                            headers={'User-Agent': get_user_agent()},
-                           params={'q': '', 'size': 100, '_source': 'false'},
+                           params={'size': 100, '_source': 'false'},
                            timeout=10)
 
 
@@ -180,6 +185,7 @@ def test_elasticsearch_search_no_source_body_with_size(monkeypatch):
     body['_source'] = False
 
     post.assert_called_with(get_full_url(url, indices=indices),
+                            params={},
                             json=body,
                             headers={'User-Agent': get_user_agent()},
                             timeout=10)
@@ -203,7 +209,7 @@ def test_elasticsearch_search_oauth2(monkeypatch):
 
     get.assert_called_with(get_full_url(url),
                            headers={'User-Agent': get_user_agent(), 'Authorization': 'Bearer {}'.format(token)},
-                           params={'q': '', 'size': DEFAULT_SIZE, '_source': 'true'},
+                           params={'size': DEFAULT_SIZE, '_source': 'true'},
                            timeout=10)
 
 

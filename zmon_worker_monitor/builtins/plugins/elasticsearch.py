@@ -138,8 +138,11 @@ class ElasticsearchWrapper(object):
 
         url = os.path.join(self.url, indices_str, query_type)
 
+        params = {}
+        if q:
+            params['q'] = q
+
         if body is None:
-            params = {'q': q}
             if query_type == TYPE_SEARCH:
                 params['size'] = size
                 params['_source'] = str(source).lower()
@@ -152,7 +155,7 @@ class ElasticsearchWrapper(object):
                 if source is False and '_source' not in body:
                     body['_source'] = False
 
-            return self.__request(url, body=body)
+            return self.__request(url, params=params, body=body)
 
     def health(self):
         """Return ES cluster health."""
@@ -174,7 +177,7 @@ class ElasticsearchWrapper(object):
 
                 return response.json()
             else:
-                response = requests.post(url, json=body, timeout=self.timeout, headers=self._headers)
+                response = requests.post(url, params=params, json=body, timeout=self.timeout, headers=self._headers)
 
                 if not response.ok:
                     raise Exception(
