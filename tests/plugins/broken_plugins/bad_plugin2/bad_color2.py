@@ -4,8 +4,8 @@
 
 from tests.plugins.icolor_base_plugin import IColorPlugin
 
-
-from a_broken_import import imposible_function  # broken import to make module load fail
+# broken import to make module load fail
+from a_broken_import import imposible_function  # noqa
 
 
 class BadColorPlugin2(IColorPlugin):
@@ -33,4 +33,3 @@ class BadColorPlugin2(IColorPlugin):
         Example implementation of abstract method
         """
         return [(0, 0, 0)]
-

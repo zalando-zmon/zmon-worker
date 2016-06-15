@@ -35,4 +35,3 @@ class ColorSpainPlugin(IColorPlugin):
         :return:
         """
         return [(176, 23, 31), (238, 238, 0), (28, 134, 238)]  # indian red, yellow 2, dodgerblue 2
-

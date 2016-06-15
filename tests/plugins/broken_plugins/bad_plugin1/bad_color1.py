@@ -16,10 +16,8 @@ class BadColorPlugin1(IColorPlugin):
         self.country = 'germany'
         self.main_fashion_sites = None
 
-
     def get_season_colors(self):
         """
         Example implementation of abstract method
         """
         return [(0, 0, 0)]
-

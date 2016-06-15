@@ -16,7 +16,7 @@ class BadColorPlugin3(IColorPlugin):
         self.country = 'germany'
         self.main_fashion_sites = None
         # artificially produce a ZeroDivisionError on initialization
-        fractions = [1.0/i for i in range(3, -1, -1)]
+        self.fractions = [1.0 / i for i in range(3, -1, -1)]
 
     def configure(self, conf):
         """
@@ -32,4 +32,3 @@ class BadColorPlugin3(IColorPlugin):
         Example implementation of abstract method
         """
         return [(0, 0, 0)]
-

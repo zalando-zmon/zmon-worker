@@ -4,7 +4,7 @@
 import os
 import traceback
 import unittest
-from mock import Mock, patch
+from mock import patch
 import time
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin
@@ -67,7 +67,8 @@ class TestPluginManager(unittest.TestCase):
         # check city plugin object
         self.assertTrue(hasattr(http_plugin, 'plugin_object'), 'http.plugin_object exists')
         self.assertIsNotNone(http_plugin.plugin_object, 'http.plugin_object is not None')
-        self.assertTrue(isinstance(plugin_manager.get_plugin_obj_by_name(plugin_name, plugin_category), IFunctionFactoryPlugin),
+        self.assertTrue(isinstance(plugin_manager.get_plugin_obj_by_name(plugin_name, plugin_category),
+                        IFunctionFactoryPlugin),
                         'the entity plugin object is instance of IFunctionFactoryPlugin')
 
         # check that city plugin object is activated
@@ -75,7 +76,7 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(http_plugin.plugin_object.is_activated, http_plugin.is_activated)
 
         # check that the city plugin object was configured with the path to a data file
-        #self.assertIsNotNone(http_plugin.plugin_object.path, 'city was configured with the path to a data file')
+        # self.assertIsNotNone(http_plugin.plugin_object.path, 'city was configured with the path to a data file')
 
         # check that the city plugin can load its entities data
         # has_tokyo = False
@@ -219,7 +220,7 @@ class TestPluginManager(unittest.TestCase):
         self.assertTrue(set(known_plugin_names).issubset(plugin_names), 'All known test plugins are loaded')
 
         # check extra plugins
-        for name, category in zip(extra_plugins, ['Function']*len(extra_plugins)):
+        for name, category in zip(extra_plugins, ['Function'] * len(extra_plugins)):
 
             p = plugin_manager.get_plugin_by_name(name, category)
             p_obj = plugin_manager.get_plugin_obj_by_name(name, category)

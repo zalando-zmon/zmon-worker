@@ -22,12 +22,12 @@ def test_entity_results():
 def test_alert_series():
     con = MagicMock()
     con.lrange.return_value = ['{"value":0}', '{"value": 1}', '{"value": 2}']
-    assert alert_series(lambda x: x>-1, 3, con, 1, "ent-1")
-    assert not alert_series(lambda x: x>0, 3, con, 1, "ent-1")
+    assert alert_series(lambda x: x > -1, 3, con, 1, "ent-1")
+    assert not alert_series(lambda x: x > 0, 3, con, 1, "ent-1")
 
     con.lrange.return_value = ['{}']
     with pytest.raises(Exception) as ex:
-        alert_series(lambda x: x>-1, 1, con, 1, "ent-1")
+        alert_series(lambda x: x > -1, 1, con, 1, "ent-1")
     assert str(ex.value) == 'All alert evaluations failed!'
 
 

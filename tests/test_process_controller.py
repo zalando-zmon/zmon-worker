@@ -234,24 +234,24 @@ def test_process_plus_basic(monkeypatch):
     monkeypatch.setattr('zmon_worker_monitor.process_controller.time.time', lambda: middle_timestamp)
 
     # check that process stats are reported correctly, specially start and stop times
-    assert pp.stats['stats_closed'] == False  # stats are not closed until the process is terminated
+    assert pp.stats['stats_closed'] is False  # stats are not closed until the process is terminated
     assert pp.t_running_secs == middle_timestamp - start_timestamp  # this property always gives the proc running time
     assert pp.stats['t_running_secs'] == 0  # but inside stats the proc running time is not set until termination
     assert pp.stats['start_time'] == start_timestamp
     assert pp.stats['end_time'] is None  # end time is not set until process is terminated
-    assert pp.stats['alive'] == True
+    assert pp.stats['alive'] is True
 
     # advance more time and terminate the process
     monkeypatch.setattr('zmon_worker_monitor.process_controller.time.time', lambda: stop_timestamp)
 
     pp.terminate_plus()  # process termination trigger the update of some fields inside stats
 
-    assert pp.stats['stats_closed'] == True  # stats are closed after termination
+    assert pp.stats['stats_closed'] is True  # stats are closed after termination
     assert pp.t_running_secs == stop_timestamp - start_timestamp  # running time property is always right
     assert pp.stats['t_running_secs'] == stop_timestamp - start_timestamp  # running time is now set inside stats
     assert pp.stats['start_time'] == start_timestamp
     assert pp.stats['end_time'] == stop_timestamp  # end time is also set inside stats after termination
-    assert pp.stats['alive'] == False
+    assert pp.stats['alive'] is False
 
     # Check persisting object to dict works
     exported_fields = ('target', 'args', 'kwargs', 'flags', 'tags', 'stats', 'name', 'pid', 'previous_proc',
@@ -271,9 +271,9 @@ def test_process_plus_basic(monkeypatch):
     assert pp.exitcode == 0
 
     # terminating a process that is already dead is not an error, but it marks the process as abnormal_termination
-    assert pp.abnormal_termination == pp.stats['abnormal_termination'] == False
+    assert pp.abnormal_termination == pp.stats['abnormal_termination'] is False
     pp.terminate_plus()
-    assert pp.abnormal_termination == pp.stats['abnormal_termination'] == True
+    assert pp.abnormal_termination == pp.stats['abnormal_termination'] is True
 
     #
     # Now something fun: recreate a process from a dead one and check proc info is carried on
@@ -319,7 +319,7 @@ def test_process_plus_flags(monkeypatch):
     # Pass no flags or flags=MONITOR_NONE
     pp = NonSpawningProcessPlus(target=target, args=(1, 2))
     assert pp.has_flag(MONITOR_NONE) and not (pp.has_flag(MONITOR_RESTART) or pp.has_flag(MONITOR_PING))
-    assert pp.is_monitored() == False
+    assert pp.is_monitored() is False
 
     # Start unmonitored process (process controller will restart it if it dies)
     # Pass flags=MONITOR_RESTART
@@ -327,7 +327,7 @@ def test_process_plus_flags(monkeypatch):
     pp.start()  # starting / terminating the process does not alter flags
     pp.terminate_plus()
     assert pp.has_flag(MONITOR_RESTART)
-    assert pp.is_monitored() == False
+    assert pp.is_monitored() is False
 
     # Start a fully monitored, supervised process (all actions enabled, this is how we spawn our worker procs).
     # Pass flags=MONITOR_RESTART | MONITOR_PING | MONITOR_KILL_REQ  (flags separated by use bitwise OR, or pass a list)
@@ -341,7 +341,7 @@ def test_process_plus_flags(monkeypatch):
 
     assert pp1.has_flag(MONITOR_RESTART) and pp1.has_flag(MONITOR_PING) and pp1.has_flag(MONITOR_KILL_REQ)
     assert pp1.flags == pp2.flags
-    assert pp1.is_monitored() == pp2.is_monitored() == True  # processes with MONITOR_PING are monitored
+    assert pp1.is_monitored() == pp2.is_monitored() is True  # processes with MONITOR_PING are monitored
 
     # assert 0
 
@@ -368,7 +368,7 @@ def test_process_plus_pings(monkeypatch):
 
     pp = NonSpawningProcessPlus(target=target, args=(2, 3), flags=MONITOR_PING)
 
-    assert pp.is_monitored() == True  # this is a monitored process
+    assert pp.is_monitored() is True  # this is a monitored process
     assert pp.ping_status == pp.STATUS_BAD_DEAD  # process is not running yet
 
     pp.start()
@@ -731,9 +731,9 @@ def test_process_plus_event_aggregations(monkeypatch):
             'errors': 1,
         },
         'by_origin': {
-            'events': {'ori.{}'.format(last_index):  fake_repeats(last_index)},
+            'events': {'ori.{}'.format(last_index): fake_repeats(last_index)},
             'actions': {},
-            'errors': {'ori.{}'.format(last_index):  fake_repeats(last_index)},
+            'errors': {'ori.{}'.format(last_index): fake_repeats(last_index)},
         },
     }
 
@@ -745,12 +745,11 @@ def test_process_plus_event_aggregations(monkeypatch):
     # one of the aggregations persisted under event_counts is done with 1 day interval
     # notice event_counts is a dict that put aggregations under a human readable key
     # that human readable key format comes from str(datetime.timedelta(seconds=x))
-    assert pp.aggregate_events(interval=60*60*24) == dict_repr['event_counts']['1 day, 0:00:00']
+    assert pp.aggregate_events(interval=60 * 60 * 24) == dict_repr['event_counts']['1 day, 0:00:00']
 
     # check all persisted aggregations
     for k, v in dict_repr['event_counts'].items():
         assert pp.aggregate_events(interval=v['interval']) == v
-
 
     monkeypatch.undo()
 
@@ -778,11 +777,11 @@ def test_process_group(monkeypatch):
     assert len(pg) == pg.total_processes() == 0
 
     # spawn a num_procs-1 processes with monitoring and supervision capabilities (this is how we start the workers)
-    pg.spawn_many(num_procs - 1, target=target, args=(1,2), kwargs={"a": 1, "b": 2},
+    pg.spawn_many(num_procs - 1, target=target, args=(1, 2), kwargs={"a": 1, "b": 2},
                   flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
     # spawn 1 last process only with restart supervision capability (this is how we start the web server)
-    pg.spawn_process(target=target, args=(3,4), flags=MONITOR_RESTART)
+    pg.spawn_process(target=target, args=(3, 4), flags=MONITOR_RESTART)
 
     # now the group should have num_procs processes running
     assert len(pg) == pg.total_processes() == num_procs
@@ -796,14 +795,14 @@ def test_process_group(monkeypatch):
     proc_ref = pg[proc_name]  # keep a reference to be able to use it later
     proc_name_next = 'NonSpawningProcessPlus-{}'.format(num_procs + 1)  # this is not alive yet
 
-    assert pg[proc_name].is_alive() == True  # proc is alive
+    assert pg[proc_name].is_alive() is True  # proc is alive
 
     assert proc_name_next not in pg  # not spawned, it was out of the range of specified num_procs
 
     # kill selected process directly (without informing the group)
     pg[proc_name].terminate()
 
-    assert pg[proc_name].is_alive() == False  # process is immediately dead
+    assert pg[proc_name].is_alive() is False  # process is immediately dead
     # action has not kicked in yet
     assert len(pg) == pg.total_processes() == 3
     assert len(pg.dead_group) == pg.total_dead_processes() == 0
@@ -819,7 +818,7 @@ def test_process_group(monkeypatch):
 
     # check we filled in correctly the previous_proc info in the new proc
     assert proc_name_next in pg and pg[proc_name_next].previous_proc['dead_name'] == proc_ref.name and \
-           pg[proc_name_next].previous_proc['dead_pid'] == proc_ref.pid
+        pg[proc_name_next].previous_proc['dead_pid'] == proc_ref.pid
 
     # stop all processes
     pg.stop_action_loop()
@@ -843,7 +842,7 @@ def test_process_group_health(monkeypatch):
     pg = process_controller.ProcessGroup(group_name='main', process_plus_impl=NonSpawningProcessPlus)
 
     # spawn a num_procs processes with monitoring and supervision capabilities
-    pg.spawn_many(num_procs, target=target, args=(1,2), kwargs={"a": 1, "b": 2},
+    pg.spawn_many(num_procs, target=target, args=(1, 2), kwargs={"a": 1, "b": 2},
                   flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
     # kill half of the processes directly (without informing the group)
@@ -853,7 +852,7 @@ def test_process_group_health(monkeypatch):
         pg[name].terminate()
 
     # now the health of the group is compromised
-    assert pg.is_healthy() == False
+    assert pg.is_healthy() is False
 
     # start action loop to supervise and monitor
     pg.start_action_loop(interval=action_interval)
@@ -861,7 +860,7 @@ def test_process_group_health(monkeypatch):
     time.sleep(action_interval * 2)  # wait enough time for the actions to finish
 
     # check the health status of the process group
-    assert pg.is_healthy() == True
+    assert pg.is_healthy() is True
 
     #
     # check process_view is correct
