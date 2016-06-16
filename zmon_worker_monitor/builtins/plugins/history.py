@@ -33,7 +33,6 @@ class HistoryFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(HistoryFactory, self).__init__()
         # fields from configuration
-        self.kairosdb_history_enabled = None
 
     def configure(self, conf):
         """
@@ -41,8 +40,6 @@ class HistoryFactory(IFunctionFactoryPlugin):
         :param conf: configuration dictionary
         """
         self.url = conf.get('url')
-        self.kairosdb_history_enabled = (
-            True if conf.get('kairosdb_history_enabled') in (True, 'true', 'True', '1') else False)
 
     def create(self, factory_ctx):
         """
@@ -52,7 +49,6 @@ class HistoryFactory(IFunctionFactoryPlugin):
         """
         return propartial(HistoryWrapper,
                           url=self.url,
-                          history_enabled=self.kairosdb_history_enabled,
                           check_id=factory_ctx['check_id'],
                           entities=factory_ctx['entity_id_for_kairos'])
 
@@ -100,7 +96,7 @@ def get_request(check_id, entities, time_from, time_to, aggregator='avg', sampli
 
 
 class HistoryWrapper(object):
-    def __init__(self, url=None, history_enabled=False, check_id='', entities=None, oauth2=False):
+    def __init__(self, url=None, check_id='', entities=None, oauth2=False):
         if not url:
             raise RuntimeError('History wrapper improperly configure. URL is required.')
 
@@ -114,33 +110,22 @@ class HistoryWrapper(object):
         else:
             self.entities = [entities]
 
-        self.__enabled = bool(history_enabled)
-
         self.__session = requests.Session()
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
     def result(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # self.logger.info("history query %s %s %s", self.check_id, time_from, time_to)
         return self.__session.post(self.url,
                                    json=get_request(self.check_id, self.entities, int(time_from), int(time_to))).json()
 
     def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # self.logger.info("history get one %s %s %s", self.check_id, time_from, time_to)
         return (self.__session
                 .post(self.url, json=get_request(self.check_id, self.entities, int(time_from), int(time_to)))
                 .json()['queries'][0]['results'][0]['values'])
 
     def get_aggregated(self, key, aggregator, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # read the list of results
         query_result = (self.__session
                         .post(self.url, json=get_request(self.check_id, self.entities, int(time_from),
@@ -159,23 +144,14 @@ class HistoryWrapper(object):
         return return_value
 
     def get_avg(self, key, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # self.logger.info("history get avg %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'avg', time_from, time_to)
 
     def get_std_dev(self, key, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # self.logger.info("history get std %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'dev', time_from, time_to)
 
     def distance(self, weeks=4, snap_to_bin=True, bin_size='1h', dict_extractor_path=''):
-        if not self.__enabled:
-            raise Exception('History() function disabled for now')
-
         # self.logger.info("history distance %s %s ", self.check_id, weeks, bin_size)
         return DistanceWrapper(history_wrapper=self, weeks=weeks, bin_size=bin_size, snap_to_bin=snap_to_bin,
                                dict_extractor_path=dict_extractor_path)

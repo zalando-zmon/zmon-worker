@@ -12,12 +12,12 @@ FILTER_KEY = 'my-key'
 
 @pytest.fixture(params=[
     (
-        {'entities': ['1', '2'], 'check_id': '1', 'history_enabled': True},  # wrapper args
+        {'entities': ['1', '2'], 'check_id': '1'},  # wrapper args
         {},  # function args
         {'queries': [{'results': [{'values': [(1, 1), (2, 2), (3, 3)], 'tags': {}}]}]},  # result
     ),
     (
-        {'entities': ['1', '2'], 'check_id': '1', 'history_enabled': True},
+        {'entities': ['1', '2'], 'check_id': '1'},
         {'time_from': 1234, 'time_to': 123},
         {'queries': [
             {
@@ -31,7 +31,7 @@ FILTER_KEY = 'my-key'
         ]},
     ),
     (
-        {'entities': ['1', '2'], 'check_id': '1', 'history_enabled': True},
+        {'entities': ['1', '2'], 'check_id': '1'},
         {'time_from': 1234, 'time_to': 123},
         {'queries': [
             {
@@ -194,15 +194,6 @@ def test_history_result_oauth2(monkeypatch):
     cli = HistoryWrapper(url=URL, oauth2=True)
 
     assert 'Bearer {}'.format(token) == cli._HistoryWrapper__session.headers['Authorization']
-
-
-@pytest.mark.parametrize('method', ['result', 'get_aggregated', 'get_one', 'get_std_dev', 'distance'])
-def test_history_result_disabled(method):
-    cli = HistoryWrapper(url=URL, history_enabled=False)
-
-    with pytest.raises(Exception):
-        call = getattr(cli, method)
-        call()
 
 
 def test_history_result_error():
