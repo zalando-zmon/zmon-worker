@@ -1,5 +1,3 @@
-import os
-
 import requests
 import pytest
 
@@ -60,7 +58,7 @@ def requests_mock(resp, failure=None):
 
 
 def get_final_url():
-    return os.path.join(URL, DATAPOINTS_ENDPOINT)
+    return URL + '/' + DATAPOINTS_ENDPOINT
 
 
 def get_query(kwargs):

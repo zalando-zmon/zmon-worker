@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from mock import MagicMock
@@ -7,7 +5,7 @@ from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.history import ONE_WEEK, ONE_WEEK_AND_5MIN, DATAPOINTS_ENDPOINT
 from zmon_worker_monitor.builtins.plugins.history import HistoryWrapper
 
-URL = 'http://kairosdb/'
+URL = 'http://kairosdb'
 
 FILTER_KEY = 'my-key'
 
@@ -26,6 +24,20 @@ FILTER_KEY = 'my-key'
                 'results': [
                     {
                         'values': [(1, 1), (2, 2), (3, 3)],
+                        'tags': {'key': [FILTER_KEY]}
+                    }
+                ]
+            }
+        ]},
+    ),
+    (
+        {'entities': ['1', '2'], 'check_id': '1', 'history_enabled': True},
+        {'time_from': 1234, 'time_to': 123},
+        {'queries': [
+            {
+                'results': [
+                    {
+                        'values': [],  # no values!
                         'tags': {'key': [FILTER_KEY]}
                     }
                 ]
@@ -57,7 +69,7 @@ def requests_mock(resp, failure=None):
 
 
 def get_final_url():
-    return os.path.join(URL, DATAPOINTS_ENDPOINT)
+    return URL + '/' + DATAPOINTS_ENDPOINT
 
 
 def mock_all(monkeypatch, res):
@@ -86,7 +98,7 @@ def assert_get_request(get_request, kwargs, wrapper_kwargs, aggregator=None):
 
 
 def assert_aggregator_result(res, result):
-    if len(res['queries'][0]['results'][0]['tags']):
+    if len(res['queries'][0]['results'][0]['tags']) and len(res['queries'][0]['results'][0]['values']):
         assert result == [res['queries'][0]['results'][0]['values'][0][1]]
     else:
         assert result == []

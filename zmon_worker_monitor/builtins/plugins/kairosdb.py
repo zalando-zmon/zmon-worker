@@ -16,7 +16,7 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 logger = logging.getLogger('zmon-worker.kairosdb-function')
 
 
-DATAPOINTS_ENDPOINT = '/api/v1/datapoints/query'
+DATAPOINTS_ENDPOINT = 'api/v1/datapoints/query'
 
 
 # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default

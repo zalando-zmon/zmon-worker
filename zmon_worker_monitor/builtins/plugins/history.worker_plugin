@@ -17,5 +17,4 @@ Description = Builtin plugin that provides an http request check function.
 
 ;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.{key} = valueY
 
-
-;; url = cassandra01
+;; url = http://example.org

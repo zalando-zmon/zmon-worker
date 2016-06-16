@@ -26,7 +26,7 @@ tokens.start()
 ONE_WEEK = 7 * 24 * 60 * 60
 ONE_WEEK_AND_5MIN = ONE_WEEK + 5 * 60
 
-DATAPOINTS_ENDPOINT = '/api/v1/datapoints/query'
+DATAPOINTS_ENDPOINT = 'api/v1/datapoints/query'
 
 
 class HistoryFactory(IFunctionFactoryPlugin):
@@ -41,7 +41,8 @@ class HistoryFactory(IFunctionFactoryPlugin):
         :param conf: configuration dictionary
         """
         self.url = conf.get('url')
-        self.kairosdb_history_enabled = True if conf.get('kairosdb_history_enabled') in ('true', 'True', '1') else False
+        self.kairosdb_history_enabled = (
+            True if conf.get('kairosdb_history_enabled') in (True, 'true', 'True', '1') else False)
 
     def create(self, factory_ctx):
         """
@@ -149,7 +150,7 @@ class HistoryWrapper(object):
         # filter for the key we are interested in
         filtered_for_key = [x for x in query_result if x['tags'].get('key', [''])[0] == key]
 
-        if not filtered_for_key:
+        if not filtered_for_key or len(filtered_for_key[0]['values']) == 0:
             return_value = []
         else:
             return_value = [filtered_for_key[0]['values'][0][1]]
