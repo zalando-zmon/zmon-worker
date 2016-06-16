@@ -17,9 +17,4 @@ Description = Builtin plugin that provides an http request check function.
 
 ;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.{key} = valueY
 
-
-kairosdb_host = cassandra01
-
-kairosdb_port = 37629
-
-kairosdb_history_enabled = False
+;; url = http://example.org
