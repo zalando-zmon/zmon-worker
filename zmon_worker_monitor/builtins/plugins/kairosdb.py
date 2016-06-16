@@ -5,12 +5,25 @@ import logging
 import requests
 import json
 import sys
+import os
+
+import tokens
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.kairosdb-function')
+
+
+DATAPOINTS_ENDPOINT = '/api/v1/datapoints/query'
+
+
+# will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
+# will try to read application credentials from CREDENTIALS_DIR
+tokens.configure()
+tokens.manage('uid', ['uid'])
+tokens.start()
 
 
 class KairosdbFactory(IFunctionFactoryPlugin):
@@ -34,33 +47,69 @@ class KairosdbFactory(IFunctionFactoryPlugin):
 
 
 class KairosdbWrapper(object):
-    def __init__(self, url):
+    def __init__(self, url, oauth2=False):
         self.url = url
 
-    def query(self, name, group_by=[], tags=None, start=-5, end=0, time_unit='seconds', aggregators=None):
-        url = self.url + '/api/v1/datapoints/query'
+        self.__session = requests.Session()
+
+        if oauth2:
+            self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+
+    def query(self, name, group_by=None, tags=None, start=-5, end=0, time_unit='seconds', aggregators=None):
+        """
+        Query kairosdb.
+
+        :param name: Metric name.
+        :type name: str
+
+        :param group_by: List of fields to group by. Currently ignored.
+        :type group_by: list
+
+        :param tags: Filtering tags.
+        :type tags: dict
+
+        :param start: Relative start time. Default is -5.
+        :type start: int
+
+        :param end: End time. Default is 0.
+        :type end: int
+
+        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'seconds'
+        :type time_unit: str.
+
+        :param aggregators: List of aggregators.
+        :type aggregators: list
+
+        :return: Result queries.
+        :rtype: dict
+        """
+        url = os.path.join(self.url, DATAPOINTS_ENDPOINT)
+
+        if group_by is None:
+            group_by = []
+
         q = {
-            "start_relative": {
-                "value": start,
-                "unit": time_unit
+            'start_relative': {
+                'value': start,
+                'unit': time_unit
             },
-            "metrics": [{
-                "name": name,
+            'metrics': [{
+                'name': name,
             }]
         }
 
         if aggregators is not None:
-            q["metrics"][0]["aggregators"] = aggregators
+            q['metrics'][0]['aggregators'] = aggregators
 
         if tags is not None:
-            q["metrics"][0]["tags"] = tags
+            q['metrics'][0]['tags'] = tags
 
         try:
-            response = requests.post(url, json=q)
-            if response.status_code == requests.codes.ok:
-                return response.json()["queries"][0]
+            response = self.__session.post(url, json=q)
+            if response.ok:
+                return response.json()['queries'][0]
             else:
-                raise Exception("KairosDB Query failed: " + json.dumps(q))
+                raise Exception('KairosDB Query failed: ' + json.dumps(q))
         except requests.Timeout:
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
