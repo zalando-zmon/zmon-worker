@@ -42,4 +42,3 @@ class ColorGermanyPlugin(IColorPlugin):
         If this were real maybe get colors by scanning images posted in German fashion sites.
         """
         return [(169, 169, 169), (255, 250, 240), (5, 5, 5)]  # darkgray, floralwhite, grey2 (almost black)
-

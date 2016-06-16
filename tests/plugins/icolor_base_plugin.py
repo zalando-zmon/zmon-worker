@@ -49,21 +49,19 @@ class IColorPlugin(IBasePlugin):
     def convert_rgb_to_hsv(cls, r, g, b):
         # just to put some logic inside the base class, lets convert from rgb to hsv
         norm = 255.0
-        return colorsys.rgb_to_hsv(r/norm, g/norm, b/norm)
+        return colorsys.rgb_to_hsv(r / norm, g / norm, b / norm)
 
     def get_approx_name_of_color(self, r, g, b):
         """
         Give known color name that is closest to the rgb given
         """
         best_color = None
-        min_dev = 3.0 * 256*256
+        min_dev = 3.0 * 256 * 256
 
         for name, (cr, cg, cb) in self.color_rgb.iteritems():
-            dev = (cr-r)**2 + (cg-g)**2 + (cb-b)**2
+            dev = (cr - r)**2 + (cg - g)**2 + (cb - b)**2
             if dev < min_dev:
                 best_color = name
                 min_dev = dev
 
         return best_color
-
-

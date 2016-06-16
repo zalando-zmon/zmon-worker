@@ -6,6 +6,7 @@ from collections import OrderedDict
 from time import time, sleep
 from threading import Thread
 
+
 class ITemperaturePlugin(IBasePlugin):
 
     """
@@ -42,12 +43,12 @@ class ITemperaturePlugin(IBasePlugin):
     @classmethod
     def convert_fahrenheit_to_celsius(cls, tf):
         # just to put some logic inside the base class
-        return (tf - 32.0) * 5.0/9
+        return (tf - 32.0) * 5.0 / 9
 
     @classmethod
     def convert_celsius_to_fahrenheit(cls, tc):
         # just to put some logic inside the base class
-        return tc * 9.0/5 + 32.0
+        return tc * 9.0 / 5 + 32.0
 
     def get_temperature_average(self):
         return sum(self.readings.values()) / len(self.readings)

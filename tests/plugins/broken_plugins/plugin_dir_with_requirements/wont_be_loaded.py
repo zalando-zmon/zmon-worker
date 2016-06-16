@@ -31,4 +31,3 @@ class WontBeLoadedPlugin(IColorPlugin):
         Example implementation of abstract method
         """
         return [(0, 0, 0)]
-
