@@ -1,10 +1,13 @@
+import os
+
 import pytest
 
 from mock import MagicMock
 
-from zmon_worker_monitor.builtins.plugins.history import HistoryWrapper, ONE_WEEK, ONE_WEEK_AND_5MIN
+from zmon_worker_monitor.builtins.plugins.history import ONE_WEEK, ONE_WEEK_AND_5MIN, DATAPOINTS_ENDPOINT
+from zmon_worker_monitor.builtins.plugins.history import HistoryWrapper
 
-URL = 'http://kairosdb'
+URL = 'http://kairosdb/'
 
 FILTER_KEY = 'my-key'
 
@@ -53,6 +56,10 @@ def requests_mock(resp, failure=None):
     return req
 
 
+def get_final_url():
+    return os.path.join(URL, DATAPOINTS_ENDPOINT)
+
+
 def mock_all(monkeypatch, res):
     resp = resp_mock(res)
     post = requests_mock(resp)
@@ -95,7 +102,7 @@ def test_history_result(monkeypatch, fx_result):
     result = cli.result(**kwargs)
     assert result == res
 
-    post.assert_called_with(URL, json=get_request.return_value)
+    post.assert_called_with(get_final_url(), json=get_request.return_value)
 
     assert_get_request(get_request, kwargs, wrapper_kwargs)
 
@@ -110,7 +117,7 @@ def test_history_get_one(monkeypatch, fx_result):
     result = cli.get_one(**kwargs)
     assert result == res['queries'][0]['results'][0]['values']
 
-    post.assert_called_with(URL, json=get_request.return_value)
+    post.assert_called_with(get_final_url(), json=get_request.return_value)
 
     assert_get_request(get_request, kwargs, wrapper_kwargs)
 
@@ -127,7 +134,7 @@ def test_history_get_aggregated(monkeypatch, fx_result):
 
     assert_aggregator_result(res, result)
 
-    post.assert_called_with(URL, json=get_request.return_value)
+    post.assert_called_with(get_final_url(), json=get_request.return_value)
 
     assert_get_request(get_request, kwargs, wrapper_kwargs, aggregator)
 
@@ -144,7 +151,7 @@ def test_history_get_avg(monkeypatch, fx_result):
 
     assert_aggregator_result(res, result)
 
-    post.assert_called_with(URL, json=get_request.return_value)
+    post.assert_called_with(get_final_url(), json=get_request.return_value)
 
     assert_get_request(get_request, kwargs, wrapper_kwargs, aggregator)
 
@@ -161,7 +168,7 @@ def test_history_get_std_dev(monkeypatch, fx_result):
 
     assert_aggregator_result(res, result)
 
-    post.assert_called_with(URL, json=get_request.return_value)
+    post.assert_called_with(get_final_url(), json=get_request.return_value)
 
     assert_get_request(get_request, kwargs, wrapper_kwargs, aggregator)
 

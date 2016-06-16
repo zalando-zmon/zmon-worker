@@ -4,13 +4,15 @@
 # wrapper for kairosdb to access history data about checks
 
 import logging
-import requests
+import os
 
+import requests
 import tokens
 
 from zmon_worker_monitor.builtins.plugins.distance_to_history import DistanceWrapper
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ tokens.start()
 
 ONE_WEEK = 7 * 24 * 60 * 60
 ONE_WEEK_AND_5MIN = ONE_WEEK + 5 * 60
+
+DATAPOINTS_ENDPOINT = '/api/v1/datapoints/query'
 
 
 class HistoryFactory(IFunctionFactoryPlugin):
@@ -99,7 +103,7 @@ class HistoryWrapper(object):
         if not url:
             raise RuntimeError('History wrapper improperly configure. URL is required.')
 
-        self.url = url
+        self.url = os.path.join(url, DATAPOINTS_ENDPOINT)
         self.check_id = check_id
 
         if not entities:

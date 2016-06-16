@@ -31,9 +31,8 @@ metriccache.check.ids: []
 
 plugin.eventlog.eventlog_url: 'https://eventlog.example.com/'
 
-plugin.history.kairosdb_host: 'localhost'
-plugin.history.kairosdb_port: 8083
-plugin.history.kairosdb_history_enabled: False
+plugin.history.url: 'localhost'
+plugin.history.kairosdb_history_enabled: true
 
 plugin.joblocks.cmdb_url: 'https://cmdb.example.com/'
 
