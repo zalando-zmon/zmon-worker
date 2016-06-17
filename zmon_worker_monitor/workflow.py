@@ -72,7 +72,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
     {
         u'utc': True,
         u'chord': None,
-        u'args': [{u'check_id': 277, u'interval': 60, u'entity': {u'instance_type': u'zomcat', ...}, u'condition': u'>100', ...}],
+        u'args': [{u'check_id': 277, u'interval': 60, u'entity': {u'instance_type': u'zomcat', ...}, u'condition': u'>100', ...}],  # noqa
         u'retries': 0,
         u'expires': u'2014-09-04T10:27:32.919152+00:00',
         u'task': u'check_and_notify',
@@ -178,7 +178,8 @@ def flow_simple_queue_processor(queue='', **execution_context):
                         known_tasks[taskname](*func_args, task_context=task_context, **func_kwargs)
                 else:
                     logger.warn(
-                        'Discarding task due to time expiration. cur_time: %s , expire_time: %s, msg_body["expires"]=%s  ----  msg_body=%s',
+                        'Discarding task due to time expiration. cur_time: %s , expire_time: %s, '
+                        'msg_body["expires"]=%s  ----  msg_body=%s',
                         cur_time, expire_time, msg_body.get('expires'), msg_body)
                     expired_count += 1
                     if expired_count % 500 == 0:

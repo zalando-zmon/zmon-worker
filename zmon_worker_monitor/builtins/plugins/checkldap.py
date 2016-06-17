@@ -328,7 +328,8 @@ class LdapWrapper(object):
         try:
             self._connect(self.host)
             data = {}
-            # we need to use the internal "conn" attribute as the default _search is using paging which does not work for the "cn=Monitor" tree!
+            # we need to use the internal "conn" attribute as the default _search is using paging which does not work
+            # for the "cn=Monitor" tree!
             result = self.session.conn.search_s('cn=Monitor', ldap.SCOPE_SUBTREE, '(objectClass=monitorCounterObject)',
                                                 ['monitorCounter'])
             for dn, attr in result:

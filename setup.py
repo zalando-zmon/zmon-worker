@@ -59,7 +59,8 @@ if __name__ == '__main__':
             url='https://github.com/zalando/zmon-worker',
             license='Apache License 2.0',
             packages=find_packages(exclude=['tests', 'tests.*']),
-            setup_requires=['numpy', 'flake8'],  # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
+            # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
+            setup_requires=['numpy', 'flake8'],
             install_requires=load_req('requirements.txt'),
             cmdclass=cmdclass,
             test_suite='tests',

@@ -209,7 +209,10 @@ def collect_plugins(load_builtins=True, load_env=True, additional_dirs=None, glo
 
             conf_global = {}
             try:
-                conf_global = {str(c)[len(config_prefix):]: v for c, v in global_config.iteritems() if str(c).startswith(config_prefix)}
+                conf_global = {
+                    str(c)[len(config_prefix):]: v for c, v in global_config.iteritems()
+                    if str(c).startswith(config_prefix)
+                }
                 logger.debug('Plugin %s received global conf keys: %s', plugin.name, conf_global.keys())
             except Exception:
                 logger.exception('Failed to parse global configuration. Reason: ')
@@ -219,7 +222,8 @@ def collect_plugins(load_builtins=True, load_env=True, additional_dirs=None, glo
             conf = {}
             try:
                 if plugin.details.has_section('Configuration'):
-                    conf = {c: v for c, v in plugin.details.items('Configuration')}  # plugin.plugin_info.detail has the safeconfig object
+                    # plugin.plugin_info.detail has the safeconfig object
+                    conf = {c: v for c, v in plugin.details.items('Configuration')}
                 logger.debug('Plugin %s received local conf keys: %s', plugin.name, conf.keys())
             except Exception:
                 logger.exception('Failed to load local configuration from plugin: %s. Reason: ', plugin.name)

@@ -70,8 +70,8 @@ class RpcProxy(object):
 
                 return getattr(obj, method)(*params, **kw)
             except Exception:
-                self.logger.exception("Exception encountered in rpc_server while attempting to call: %s with params: %s ",
-                                      method, params)
+                self.logger.exception(
+                    'Exception encountered in rpc_server while attempting to call: %s with params: %s ', method, params)
                 raise
         else:
             raise Exception('method "%s" is not supported' % method)

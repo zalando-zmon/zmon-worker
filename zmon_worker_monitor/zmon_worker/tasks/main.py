@@ -318,7 +318,10 @@ def _inject_alert_parameters(alert_parameters, ctx):
 
 
 def alert_series(f, n, con, check_id, entity_id):
-    """ evaluate given function on the last n check results and return true if the "alert" function f returns true for all values"""
+    """
+    Evaluate given function on the last n check results and return true if the "alert" function f returns true for
+    all values
+    """
 
     vs = get_results(con, check_id, entity_id, n)
     active_count = 0
@@ -346,7 +349,7 @@ def alert_series(f, n, con, check_id, entity_id):
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
-    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
+    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})  # noqa
     True
     >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
@@ -809,7 +812,9 @@ class MainTask(object):
             p.execute()
             self._counter.clear()
             self._last_metrics_sent = now
-            # self.logger.info('Send metrics, end storing metrics in redis count: %s, duration: %.3fs', len(self._counter), time.time() - now)
+            # self.logger.info(
+            #     'Send metrics, end storing metrics in redis count: %s, duration: %.3fs',
+            #     len(self._counter), time.time() - now)
 
     @classmethod
     def send_to_dataservice(cls, check_results, timeout=10):
@@ -869,14 +874,15 @@ class MainTask(object):
         # except SoftTimeLimitExceeded, e:
         #     self.logger.info('Check request with id %s on entity %s exceeded soft time limit', check_id,
         #                                  entity_id)
-        #     # PF-3685 It might happen that this exception was raised after sending a command to redis, but before receiving
-        #     # a response. In this case, the connection object is "dirty" and when the same connection gets taken out of the
-        #     # pool and reused, it'll throw an exception in redis client.
+        #     # PF-3685 It might happen that this exception was raised after sending a command to redis, but before
+        #     # receiving a response. In this case, the connection object is "dirty" and when the same connection gets
+        #     # taken out of the pool and reused, it'll throw an exception in redis client.
         #     self.con.connection_pool.disconnect()
         #     notify(check_and_notify, {'ts': start_time, 'td': soft_time_limit, 'value': str(e)}, req, alerts,
         #            force_alert=True)
         except CheckError, e:
-            # self.logger.warn('Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
+            # self.logger.warn(
+            #     'Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
                          'exc': 1}, req, alerts,
                         force_alert=True)
@@ -888,9 +894,9 @@ class MainTask(object):
         except Exception, e:
             # self.logger.exception('Check request with id %s on entity %s threw an exception', check_id, entity_id)
             # PF-3685 Disconnect on unknown exceptions: we don't know what actually happened, it might be that redis
-            # connection is dirty. CheckError exception is "safe", it's thrown by the worker whenever the check returns a
-            # different response than expected, the user doesn't have access to the checked entity or there's an error in
-            # check's parameters.
+            # connection is dirty. CheckError exception is "safe", it's thrown by the worker whenever the check returns
+            # a different response than expected, the user doesn't have access to the checked entity or there's an
+            # error in check's parameters.
             self.con.connection_pool.disconnect()
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
                          'exc': 1}, req, alerts,
@@ -1047,9 +1053,14 @@ class MainTask(object):
             setp(req['check_id'], req['entity']['id'], 'done')
         except Exception, e:
             # PF-3778 Always store check results and re-raise exception which will be handled in 'check_and_notify'.
-            self._store_check_result(req, {'td': round(time.time() - start, ROUND_SECONDS_DIGITS), 'ts': round(start,
-                                                                                                               ROUND_SECONDS_DIGITS),
-                                           'value': str(e), 'worker': self.worker_name, 'exc': 1})
+            self._store_check_result(
+                req, {
+                    'td': round(time.time() - start, ROUND_SECONDS_DIGITS),
+                    'ts': round(start, ROUND_SECONDS_DIGITS),
+                    'value': str(e),
+                    'worker': self.worker_name,
+                    'exc': 1
+                })
             raise
         finally:
             # Store duration in milliseconds as redis only supports integers for counters.
@@ -1274,13 +1285,13 @@ class MainTask(object):
         alert_parameters = alert_def.get('parameters')
 
         try:
-            result = evaluate_condition(result['value'], alert_def['condition'], **build_condition_context(self.con,
-                                                                                                           check_id,
-                                                                                                           alert_id,
-                                                                                                           req[
-                                                                                                               'entity'],
-                                                                                                           captures,
-                                                                                                           alert_parameters))
+            result = evaluate_condition(
+                result['value'], alert_def['condition'], **build_condition_context(self.con,
+                                                                                   check_id,
+                                                                                   alert_id,
+                                                                                   req['entity'],
+                                                                                   captures,
+                                                                                   alert_parameters))
         except Exception, e:
             captures['exception'] = str(e)
             result = True
@@ -1428,8 +1439,8 @@ class MainTask(object):
                                           'alerts.{}.evaluation_duration'.format(alert_id):
                                               int(round(1000.0 * (time.time() - start)))})
 
-                    # Always evaluate downtimes, so that we don't miss downtime_ended event in case the downtime ends when
-                    # the alert is no longer active.
+                    # Always evaluate downtimes, so that we don't miss downtime_ended event in case the downtime
+                    # ends when the alert is no longer active.
                     downtimes = self._evaluate_downtimes(alert_id, entity_id)
 
                     start_time = time.time()
@@ -1520,7 +1531,8 @@ class MainTask(object):
                         check_result["entity"][k] = req["entity"][k]
 
                 # overwrite timestamp with scheduled time for datapoint alignment
-                if isinstance(check_result['check_result']['value'], dict) and '_use_scheduled_time' in check_result['check_result']['value']:
+                if (isinstance(check_result['check_result']['value'], dict) and
+                        '_use_scheduled_time' in check_result['check_result']['value']):
                     check_result['check_result']['ts'] = int(req['schedule_time'])
                     del check_result['check_result']['value']['_use_scheduled_time']
 
@@ -1617,7 +1629,8 @@ class MainTask(object):
         else:
             now = time.time()
             for uuid, d in downtimes.iteritems():
-                # PF-3604 First check if downtime is active, otherwise check if it's expired, else: it's a future downtime.
+                # PF-3604 First check if downtime is active, otherwise check if it's expired, else: it's a
+                # future downtime.
                 if now > d['start_time'] and now < d['end_time']:
                     d['id'] = uuid
                     result.append(d)

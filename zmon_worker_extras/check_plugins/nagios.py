@@ -14,12 +14,13 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 logger = logging.getLogger(__name__)
 
-# only return 95% of diskspace because of http://unix.stackexchange.com/questions/7950/reserved-space-for-root-on-a-filesystem-why
+# only return 95% of diskspace because of
+# http://unix.stackexchange.com/questions/7950/reserved-space-for-root-on-a-filesystem-why
 USABLE_DISKSPACE_FACTOR = 0.95
 
-EXAMPLE_DISKS_DATA = 'DISK OK - free space: / 80879 MB (69% inode=99%); /dev 64452 MB (99% inode=99%);' + \
-                     ' /selinux 0 MB (100% inode=99%); | /=35303MB;110160;116280;0;122401 /dev=0MB;58006;61229;0;64452' + \
-                     ' /selinux=0MB;0;0;0;0'
+EXAMPLE_DISKS_DATA = ('DISK OK - free space: / 80879 MB (69% inode=99%); /dev 64452 MB (99% inode=99%);'
+                      ' /selinux 0 MB (100% inode=99%); | /=35303MB;110160;116280;0;122401 /dev=0MB;58006;61229;0;64452'
+                      ' /selinux=0MB;0;0;0;0')
 
 
 class NagiosFactory(IFunctionFactoryPlugin):
@@ -109,7 +110,8 @@ class NagiosWrapper(object):
         self.__nrpe_config = {  # example to check non-default memcached:
             # nagios().nrpe('check_memcachestatus', port=11212)
             # example to check non-default logwatch:
-            # requires NRPE: command[check_all_disks]=/usr/lib/nagios/plugins/check_disk -w "$ARG1$" -c "$ARG2$" -u "$ARG3$"
+            # requires NRPE:
+            # command[check_all_disks]=/usr/lib/nagios/plugins/check_disk -w "$ARG1$" -c "$ARG2$" -u "$ARG3$"
             'check_diff_reverse': {'args': '-a /proc/meminfo CommitLimit Committed_AS kB 1048576 524288',
                                    'parser': self._to_dict_commitdiff},
             'check_disk': {'args': '-a 15% 7% /', 'parser': self._parse_memory},
@@ -143,8 +145,10 @@ class NagiosWrapper(object):
             'check_mailq_postfix': {'args': '-a 10 5000', 'parser': partial(self._to_dict, func=int)},
             'check_postfix_queue.sh': {'parser': partial(self._to_dict, func=int)},
             'check_memcachestatus': {
-                'args': '-a 9000000,550,10000,100,6000,5000,20481024,20481024 99000000,1000,12000,200,8000,7000,40961024,40961024 127.0.0.1 {port}',
-                'parser': self._to_dict, 'parameters': {'port': 11211}},
+                'args': '-a 9000000,550,10000,100,6000,5000,20481024,20481024 '
+                        '99000000,1000,12000,200,8000,7000,40961024,40961024 127.0.0.1 {port}',
+                'parser': self._to_dict,
+                'parameters': {'port': 11211}},
             'check_ntp_time': {'args': '-a 1 2 10 {ntp_server}', 'parser': self._to_dict},
             'check_openmanage': {'args': '', 'parser': self._to_dict_hpasm},
             'check_subdomain_redirect': {'args': '', 'parser': self._to_dict_from_text},
@@ -180,25 +184,31 @@ class NagiosWrapper(object):
                     'port': '88',
                     'hostname': 'www.example.com',
                 }},
-            'check_mysql_processes': {'args': '-a 30 60 {host} {port} {user} {password}',
-                                      'parser': self._to_dict_mysql_procs, 'parameters': {
+            'check_mysql_processes': {
+                'args': '-a 30 60 {host} {port} {user} {password}',
+                'parser': self._to_dict_mysql_procs,
+                'parameters': {
                     'host': 'localhost',
                     'port': '/var/lib/mysql/mysql.sock',
                     'user': lounge_mysql_user,
                     'password': lounge_mysql_password,
                 }},
             'check_mysqlperformance': {
-                'args': '-a 10000,1500,5000,500,750,100,100,1,5000,30,60,500,10,30 15000,3000,10000,750,1000,250,250,5,7500,60,300,1000,20,60' +
-                        ' {host} {port} Questions,Com_select,Qcache_hits,Com_update,Com_insert,Com_delete,Com_replace,Aborted_clients,Com_change_db,' +
-                        'Created_tmp_disk_tables,Created_tmp_tables,Qcache_not_cached,Table_locks_waited,Select_scan {user} {password}',
+                'args': '-a 10000,1500,5000,500,750,100,100,1,5000,30,60,500,10,30 '
+                        '15000,3000,10000,750,1000,250,250,5,7500,60,300,1000,20,60'
+                        ' {host} {port} Questions,Com_select,Qcache_hits,Com_update,Com_insert,Com_delete,Com_replace,'
+                        'Aborted_clients,Com_change_db,Created_tmp_disk_tables,Created_tmp_tables,Qcache_not_cached,'
+                        'Table_locks_waited,Select_scan {user} {password}',
                 'parser': self._to_dict, 'parameters': {
                     'host': 'localhost',
                     'port': '/var/lib/mysql/mysql.sock',
                     'user': lounge_mysql_user,
                     'password': lounge_mysql_password,
                 }},
-            'check_mysql_slave': {'args': '-a 3 60 {host} {port} {database} {user} {password}',
-                                  'parser': self._to_dict_mysql_slave, 'parameters': {
+            'check_mysql_slave': {
+                'args': '-a 3 60 {host} {port} {database} {user} {password}',
+                'parser': self._to_dict_mysql_slave,
+                'parameters': {
                     'host': 'localhost',
                     'port': '/var/lib/mysql/mysql.sock',
                     'database': 'zlr_live_global',
@@ -239,33 +249,38 @@ class NagiosWrapper(object):
             'check_dns': {'args': '-H {host} -s {dns_server} -t {timeout}', 'parser': self._to_dict,
                           'parameters': {'timeout': 5}},
             'check_snmp_process.pl': {
-                'args': '-H {} -C {{community}} -F -n {{name}} -c {{critical}} -w {{warn}} -o {{octets}} {{extra}}'.format(
-                    self.host),
-                'parser': self._to_dict, 'parameters': {
+                'args': '-H {} -C {{community}} -F -n {{name}} -c {{critical}} -w {{warn}} -o {{octets}} '
+                        '{{extra}}'.format(self.host),
+                'parser': self._to_dict,
+                'parameters': {
                     'timeout': 5,
                     'octets': 2400,
                     'warn': 1,
                     'critical': 1,
                     'community': 'public',
-                    'extra': '-r -2',
-                }},
-            'check_ssl_cert': {'args': '-w 60 -c 30 -H {host_ip} -n {domain_name} -r /etc/ssl/certs --altnames',
-                               'parser': partial(self._to_dict, func=int),
-                               'parameters': {'host_ip': '127.0.0.1', 'domain_name': 'www.example.com'}},
+                    'extra': '-r -2'}
+            },
+            'check_ssl_cert': {
+                'args': '-w 60 -c 30 -H {host_ip} -n {domain_name} -r /etc/ssl/certs --altnames',
+                'parser': partial(self._to_dict, func=int),
+                'parameters': {'host_ip': '127.0.0.1', 'domain_name': 'www.example.com'}
+            },
             'check-ldap-sync.pl': {'args': '', 'parser': json.loads},
         }
 
         self.__win_config = {
             'CheckCounter': {
-                'args': '-a "Counter:ProcUsedMem=\\Process({process})\\Working Set" ShowAll MaxWarn=1073741824 MaxCrit=1073741824',
+                'args': '-a "Counter:ProcUsedMem=\\Process({process})\\Working Set" '
+                        'ShowAll MaxWarn=1073741824 MaxCrit=1073741824',
                 'parser': partial(self._to_dict_win, func=int), 'parameters': {'process': 'eo_server'}},
             'CheckCPU': {'args': '-a warn=100 crit=100 time=1 warn=100 crit=100 time=5 warn=100 crit=100 time=10',
                          'parser': partial(self._to_dict_win, func=int)},
             'CheckDriveSize': {'args': '-a CheckAll ShowAll perf-unit=M', 'parser': self._to_dict_win},
             'CheckEventLog': {
-                'args': '-a file="{log}" MaxWarn=1 MaxCrit=1 "filter={query}" truncate=800 unique "syntax=%source% (%count%)"',
-                'parser': partial(self._to_dict_win, func=int), 'parameters': {'log': 'application',
-                                                                               'query': 'generated gt -7d AND type=\'error\''}},
+                'args': '-a file="{log}" MaxWarn=1 MaxCrit=1 "filter={query}" '
+                        'truncate=800 unique "syntax=%source% (%count%)"',
+                'parser': partial(self._to_dict_win, func=int),
+                'parameters': {'log': 'application', 'query': 'generated gt -7d AND type=\'error\''}},
             'CheckFiles': {'args': '-a "path={path}" "pattern={pattern}" "filter={query}" MaxCrit=1',
                            'parser': partial(self._to_dict_win, func=int),
                            'parameters': {'path': 'C:\\Import\\Exchange2Clearing', 'pattern': '*.*',
@@ -391,7 +406,7 @@ class NagiosWrapper(object):
         '''try to parse this output:
         OK - 0 files older as 600 min -- 0 files older as 540 min -- total 762 files -- older:
 
-        >>> import json; json.dumps(NagiosWrapper._to_dict_olderfiles('OK - 0 files older as 600 min -- 112 files older as 60 min -- total 831 files -- older:'), sort_keys=True)
+        >>> import json; json.dumps(NagiosWrapper._to_dict_olderfiles('OK - 0 files older as 600 min -- 112 files older as 60 min -- total 831 files -- older:'), sort_keys=True)  # noqa
         '{"files older than time01": 112, "files older than time02": 0, "total files": 831}'
         '''
 
@@ -509,7 +524,7 @@ class NagiosWrapper(object):
     def _to_dict_iostat(output):
         '''
         try to parse this output:
-        OK - IOread 0.00 kB/s, IOwrite 214.80 kB/s  on sda with  31.10 tps |ioread=0.00;32000;64000;0;iowrite=214.80;30000;40000;0;
+        OK - IOread 0.00 kB/s, IOwrite 214.80 kB/s  on sda with  31.10 tps |ioread=0.00;32000;64000;0;iowrite=214.80;30000;40000;0;  # noqa
         '''
 
         return {'ioread': float(output.split(' ')[3]), 'iowrite': float(output.split(' ')[6]),
@@ -550,7 +565,7 @@ class NagiosWrapper(object):
         fan_4=46%;0;0 'temp_1_ambient'=21;42;42 'temp_2_cpu#1'=40;82;82 'temp_3_cpu#2'=40;82;82 'temp_4_memory_bd'=35;87;87
         'temp_5_memory_bd'=34;78;78 'temp_6_memory_bd'=37;87;87 'temp_7_memory_bd'=32;78;78 'temp_8_memory_bd'=36;87;87
         'temp_9_memory_bd'=32;78;78 'temp_10_memory_bd'=36;87;87 'temp_11_memory_bd'=32;78;78 'temp_12_power_supply_bay'=33;59;59
-        'temp_13_power_supply_bay'=48;73;73 'temp_14_memory_bd'=29;60;60 'temp_15_processor_zone'=32;60;60 'temp_16_processor_zone'=3
+        'temp_13_power_supply_bay'=48;73;73 'temp_14_memory_bd'=29;60;60 'temp_15_processor_zone'=32;60;60 'temp_16_processor_zone'=3  # noqa
         or
         OK - ignoring 16 dimms with status 'n/a' , System: 'proliant dl360p gen8', S/N: 'CZJ2340R6C',
         ROM: 'P71 08/20/2012', hardware working fine, da: 1 logical drives, 4 physical drives

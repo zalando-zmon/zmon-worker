@@ -125,17 +125,18 @@ class SqlWrapper(object):
             m = CONNECTION_RE.match(shard_def)
             if not m:
                 raise CheckError('Invalid shard connection: {}'.format(shard_def))
-            connection_str = \
-                "host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' connect_timeout=5 options='-c statement_timeout={timeout}' application_name='ZMON Check {check_id} (created by {created_by})' ".format(
-                    host=m.group('host'),
-                    port=int(m.group('port') or DEFAULT_PORT),
-                    dbname=m.group('dbname'),
-                    user=user,
-                    password=password,
-                    timeout=timeout,
-                    check_id=check_id,
-                    created_by=make_safe(created_by),
-                )
+            connection_str = "host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' "
+            "connect_timeout=5 options='-c statement_timeout={timeout}' application_name='ZMON Check {check_id} "
+            "(created by {created_by})' ".format(
+                host=m.group('host'),
+                port=int(m.group('port') or DEFAULT_PORT),
+                dbname=m.group('dbname'),
+                user=user,
+                password=password,
+                timeout=timeout,
+                check_id=check_id,
+                created_by=make_safe(created_by),
+            )
             try:
                 conn = psycopg2.connect(connection_str)
                 conn.set_session(readonly=True, autocommit=True)
@@ -202,7 +203,8 @@ class SqlWrapper(object):
                         rows = cur.fetchmany(max_results + 1)
                         if len(rows) > max_results:
                             raise DbError(
-                                'Too many results, result set was limited to {}. Try setting max_results to a higher value.'.format(
+                                'Too many results, result set was limited to {}. '
+                                'Try setting max_results to a higher value.'.format(
                                     max_results),
                                 operation=self._stmt)
                     else:
