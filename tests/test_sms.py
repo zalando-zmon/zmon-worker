@@ -62,8 +62,9 @@ class TestSms(unittest.TestCase):
             'message_id': 1,
         }, verify=False)
         self.assertEqual(0, repeat)
-        # mock_eventlog.assert_called_with(Sms._EVENTS['SMS_SENT'].id, alertId=alert['id'], entity=alert['entity']['id'],
-        #                                 phoneNumber='42', httpStatus=100)
+        # mock_eventlog.assert_called_with(
+        #     Sms._EVENTS['SMS_SENT'].id, alertId=alert['id'], entity=alert['entity']['id'],
+        #     phoneNumber='42', httpStatus=100)
 
         # Send with repeat
         repeat = Sms.send({
@@ -85,8 +86,9 @@ class TestSms(unittest.TestCase):
             'message_id': 1,
         }, verify=False)
         self.assertEqual(300, repeat)
-        # mock_eventlog.assert_called_with(Sms._EVENTS['SMS_SENT'].id, alertId=alert['id'], entity=alert['entity']['id'],
-        #                                 phoneNumber='42', httpStatus=100)
+        # mock_eventlog.assert_called_with(
+        #     Sms._EVENTS['SMS_SENT'].id, alertId=alert['id'], entity=alert['entity']['id'],
+        #     phoneNumber='42', httpStatus=100)
 
         # Exception handling
         mock_requests.reset_mock()

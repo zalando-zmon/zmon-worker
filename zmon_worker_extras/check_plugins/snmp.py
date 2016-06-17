@@ -126,11 +126,20 @@ class SnmpWrapper(object):
         '''
         Return disk usage information
 
-        Example result: {"/data/postgres-wal-nfs-itr":{"percentage_space_used":0,"used_space":160,"total_size":524288000,"device":"zala0-1-stp-02:/vol/zal_pgwal","available_space":524287840,"percentage_inodes_used":0}}
+        Example result: {
+            "/data/postgres-wal-nfs-itr":{
+                "percentage_space_used":0,
+                "used_space":160,
+                "total_size":524288000,
+                "device":"zala0-1-stp-02:/vol/zal_pgwal",
+                "available_space":524287840,
+                "percentage_inodes_used":0
+            }
+        }
         '''
 
         # disk_table = '.1.3.6.1.4.1.2021.9'
-        #        base = '1.3.6.1.4.1.2021.13.15.1.1'
+        # base = '1.3.6.1.4.1.2021.13.15.1.1'
         base = '1.3.6.1.4.1.2021.9.1'
         base_idx = base + '.1.'
         base_name = base + '.2.'

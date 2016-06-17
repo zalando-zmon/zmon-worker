@@ -33,7 +33,8 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(CassandraWrapper, node=factory_ctx.get('host'), username=self._username, password=self._password)
+        return propartial(
+            CassandraWrapper, node=factory_ctx.get('host'), username=self._username, password=self._password)
 
 
 class CassandraWrapper(object):

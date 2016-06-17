@@ -177,7 +177,9 @@ class RedisConnHandler(object):
         prev_status = self._status
         self.mark(self.STATUS_OK)  # mark a fresh status OK for the new server
 
-        logger.warn('Switched active Redis server to %s, prev_status=%s, force_master=%s', self.servers[self._active_index], prev_status, force_master)
+        logger.warn(
+            'Switched active Redis server to %s, prev_status=%s, force_master=%s',
+            self.servers[self._active_index], prev_status, force_master)
 
     def get_wait_time(self):
         return min(self.t_wait0 * (2 ** self._retries_count) if self._retries_count >= 0 and not

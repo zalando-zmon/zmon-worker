@@ -102,9 +102,12 @@ class Mail(BaseNotification):
 
                         s.sendmail(sender, list(args) + cc, msg.as_string())
                     except SMTPAuthenticationError:
-                        logger.exception('Error sending email for alert %s with id %s: authentication failed for %s', alert_def['name'], alert_def['id'], mail_user)
+                        logger.exception(
+                            'Error sending email for alert %s with id %s: authentication failed for %s',
+                            alert_def['name'], alert_def['id'], mail_user)
                     except Exception:
-                        logger.exception('Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
+                        logger.exception(
+                            'Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
                     finally:
                         s.quit()
         finally:

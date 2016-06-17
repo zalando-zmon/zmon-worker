@@ -72,7 +72,8 @@ class DistanceWrapper(object):
         if isinstance(value, dict):
             if self.dict_extractor_path == '':
                 raise Exception(
-                    'Extractor may not be empty for dicts as value. You need to tell which part of the dict I should use.'
+                    'Extractor may not be empty for dicts as value. '
+                    'You need to tell which part of the dict I should use.'
                 )
             # throws when the key is unavailable; this is what we want
             value = flatten(value)[self.dict_extractor_path]

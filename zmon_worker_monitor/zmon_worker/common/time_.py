@@ -73,7 +73,8 @@ def parse_datetime(s):
 
     s = s.replace('T', ' ')
 
-    # calculate timezone data from date string, we'll parse it ourselves ('%z' is not supported on all platforms for strptime)
+    # calculate timezone data from date string, we'll parse it ourselves
+    # ('%z' is not supported on all platforms for strptime)
     match = TIMEZONE_OFFSET.search(s)
     if match:
         signum = int(match.group(1) + '1')

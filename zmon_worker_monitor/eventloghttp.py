@@ -28,6 +28,7 @@ def log(e_id, **kwargs):
     event = {'typeId': e_id, 'attributes': kwargs, 'time': now.strftime("%Y-%m-%dT%H:%M:%S.") + now.strftime("%f")[:3]}
 
     try:
-        requests.put('http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers, timeout=1)
+        requests.put(
+            'http://{}:{}/'.format(_target_host, _target_port), data=json.dumps([event]), headers=headers, timeout=1)
     except Exception:
         pass

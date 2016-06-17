@@ -62,7 +62,7 @@ class CloudwatchWrapper(object):
         start = start or (end - datetime.timedelta(minutes=minutes))
         if isinstance(dimensions, dict):
             # transform Python dict to stupid AWS list structure
-            # see http://boto3.readthedocs.org/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.get_metric_statistics
+            # see http://boto3.readthedocs.org/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.get_metric_statistics  # noqa
             dimensions = list({'Name': k, 'Value': v} for k, v in dimensions.items())
         response = self.client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
                                                      Dimensions=dimensions,
@@ -111,7 +111,9 @@ class CloudwatchWrapper(object):
                 continue
             if filter_dimension_pattern and not matches(metric_dimensions, filter_dimension_pattern):
                 continue
-            val = self.query_one(metric['Dimensions'], metric['MetricName'], statistics, metric['Namespace'], period, start=start, end=end)
+            val = self.query_one(
+                metric['Dimensions'], metric['MetricName'], statistics, metric['Namespace'], period,
+                start=start, end=end)
             if val:
                 for [dim_name, dim_val] in metric_dimensions.items():
                     if dim_name not in data['dimensions']:

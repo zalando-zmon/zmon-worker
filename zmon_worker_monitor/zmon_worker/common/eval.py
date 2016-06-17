@@ -160,7 +160,7 @@ def safe_eval(expr, eval_source='<string>', **kwargs):
         ...
     InvalidEvalExpression: <string> should contain only one python expression, a function call or a callable class definition
 
-    '''
+    '''  # noqa
 
     g = {'__builtins__': {}, 'object': object, '__name__': __name__}
     # __builtins__ should be masked away to disable builtin functions
