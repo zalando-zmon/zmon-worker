@@ -33,6 +33,8 @@ plugin.eventlog.eventlog_url: 'https://eventlog.example.com/'
 
 plugin.history.url: 'http://localhost:8083'
 
+plugin.kairosdb.url: 'http://localhost:8083'
+
 plugin.joblocks.cmdb_url: 'https://cmdb.example.com/'
 
 plugin.ldap.user: 'user'

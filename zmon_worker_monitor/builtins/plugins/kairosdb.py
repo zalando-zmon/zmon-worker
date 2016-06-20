@@ -29,13 +29,14 @@ tokens.start()
 class KairosdbFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(KairosdbFactory, self).__init__()
+        self._url = None
 
     def configure(self, conf):
         """
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        return
+        self._url = conf.get('url')
 
     def create(self, factory_ctx):
         """
@@ -43,7 +44,7 @@ class KairosdbFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(KairosdbWrapper, url=factory_ctx.get('entity_url'))
+        return propartial(KairosdbWrapper, url=self._url)
 
 
 class KairosdbWrapper(object):
