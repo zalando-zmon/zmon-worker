@@ -249,8 +249,8 @@ class NagiosWrapper(object):
             'check_dns': {'args': '-H {host} -s {dns_server} -t {timeout}', 'parser': self._to_dict,
                           'parameters': {'timeout': 5}},
             'check_snmp_process.pl': {
-                'args': '-H {} -C {{community}} -F -n {{name}} -c {{critical}} -w {{warn}} -o {{octets}} '
-                        '{{extra}}'.format(self.host),
+                'args': ('-H {} -C {{community}} -F -n {{name}} -c {{critical}} -w {{warn}} -o {{octets}} '
+                         '{{extra}}').format(self.host),
                 'parser': self._to_dict,
                 'parameters': {
                     'timeout': 5,
