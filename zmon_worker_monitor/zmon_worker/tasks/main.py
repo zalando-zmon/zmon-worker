@@ -653,6 +653,7 @@ def build_default_context():
         'ord': ord,
         'pow': pow,
         'range': range,
+        're': re,
         'reduce': functools.reduce,
         'reversed': reversed,
         'round': round,
