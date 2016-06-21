@@ -3,7 +3,7 @@
 
 import sys
 import re
-from zmon_worker_monitor.zmon_worker.errors import DbError
+from zmon_worker_monitor.zmon_worker.errors import DbError, CheckError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -77,9 +77,9 @@ class MySqlWrapper(object):
         '''
 
         if not shards:
-            raise ValueError('SqlWrapper: No shards defined')
+            raise CheckError('SqlWrapper: No shards defined')
         if shard and not shards.get(shard):
-            raise ValueError('SqlWrapper: Shard {} not found in shards definition'.format(shard))
+            raise CheckError('SqlWrapper: Shard {} not found in shards definition'.format(shard))
 
         self._cursors = []
         self._stmt = None
@@ -89,7 +89,7 @@ class MySqlWrapper(object):
         for shard_def in ([shards[shard]] if shard else shards.values()):
             m = CONNECTION_RE.match(shard_def)
             if not m:
-                raise ValueError('Invalid shard connection: {}'.format(shard_def))
+                raise CheckError('Invalid shard connection: {}'.format(shard_def))
             try:
                 conn = mdb.connect(host=m.group('host'), user=user, passwd=password, db=m.group('dbname'),
                                    port=(int(m.group('port')) if int(m.group('port')) > 0 else DEFAULT_PORT),
