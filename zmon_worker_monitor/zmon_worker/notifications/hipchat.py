@@ -1,9 +1,10 @@
-from notification import BaseNotification
-
 import logging
-import requests
 import urllib
 import json
+
+import requests
+
+from notification import BaseNotification
 
 logger = logging.getLogger(__name__)
 
@@ -16,19 +17,23 @@ class NotifyHipchat(BaseNotification):
         repeat = kwargs.get('repeat', 0)
         notify = kwargs.get('notify', False)
 
-        color = 'green' if alert and not alert.get('is_alert') else kwargs.get("color", "red")
+        color = 'green' if alert and not alert.get('is_alert') else kwargs.get('color', 'red')
 
-        message = {"message": kwargs.get("message", cls._get_subject(alert)), "color": color, "notify": notify}
+        message = {
+            'message': cls._get_subject(alert, custom_message=kwargs.get('message')),
+            'color': color,
+            'notify': notify
+        }
 
         try:
             logger.info(
-                "Sending to: " + '{}/v2/room/{}/notification?auth_token={}'.format(url, urllib.quote(kwargs['room']),
-                                                                                   token) + " " + json.dumps(message))
+                'Sending to: ' + '{}/v2/room/{}/notification?auth_token={}'.format(url, urllib.quote(kwargs['room']),
+                                                                                   token) + ' ' + json.dumps(message))
             r = requests.post(
-                '{}/v2/room/{}/notification?auth_token={}'.format(url, urllib.quote(kwargs['room']), token),
-                data=json.dumps(message), verify=False, headers={'Content-type': 'application/json'})
+                '{}/v2/room/{}/notification'.format(url, urllib.quote(kwargs['room'])),
+                json=message, params={'auth_token': token}, headers={'Content-type': 'application/json'})
             r.raise_for_status()
-        except Exception as ex:
-            logger.exception("Hipchat write failed %s", ex)
+        except:
+            logger.exception('Hipchat write failed!')
 
         return repeat
