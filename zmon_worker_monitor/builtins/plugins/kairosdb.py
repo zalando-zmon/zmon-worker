@@ -3,7 +3,6 @@
 
 import logging
 import requests
-import json
 import sys
 import os
 
@@ -56,7 +55,7 @@ class KairosdbWrapper(object):
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-    def query(self, name, group_by=None, tags=None, start=-5, end=0, time_unit='seconds', aggregators=None):
+    def query(self, name, group_by=None, tags=None, start=5, end=0, time_unit='minutes', aggregators=None):
         """
         Query kairosdb.
 
@@ -69,13 +68,13 @@ class KairosdbWrapper(object):
         :param tags: Filtering tags.
         :type tags: dict
 
-        :param start: Relative start time. Default is -5.
+        :param start: Relative start time. Default is 5.
         :type start: int
 
         :param end: End time. Default is 0.
         :type end: int
 
-        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'seconds'
+        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'
         :type time_unit: str.
 
         :param aggregators: List of aggregators.
@@ -85,6 +84,9 @@ class KairosdbWrapper(object):
         :rtype: dict
         """
         url = os.path.join(self.url, DATAPOINTS_ENDPOINT)
+
+        if start < 1 or end < 0:
+            raise ValueError('Time relative "start" and "end" must be greater than or equal to 1')
 
         if group_by is None:
             group_by = []
@@ -99,10 +101,16 @@ class KairosdbWrapper(object):
             }]
         }
 
-        if aggregators is not None:
+        if end > 0:
+            q['end_relative'] = {
+                'value': end,
+                'time_unit': time_unit
+            }
+
+        if aggregators:
             q['metrics'][0]['aggregators'] = aggregators
 
-        if tags is not None:
+        if tags:
             q['metrics'][0]['tags'] = tags
 
         try:
@@ -110,7 +118,8 @@ class KairosdbWrapper(object):
             if response.ok:
                 return response.json()['queries'][0]
             else:
-                raise Exception('KairosDB Query failed: ' + json.dumps(q))
+                raise Exception(
+                    'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
         except requests.Timeout:
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
