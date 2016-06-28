@@ -108,6 +108,8 @@ def flow_simple_queue_processor(queue='', **execution_context):
     r = conn_handler.get_healthy_conn()
     r.delete('zmon:captures2graphite')
 
+    max_checks = int(config.get('process.checks', 2000000))
+
     expired_count = 0
     count = 0
 
@@ -185,6 +187,10 @@ def flow_simple_queue_processor(queue='', **execution_context):
                     if expired_count % 500 == 0:
                         logger.warning("expired tasks count: %s", expired_count)
                 count += 1
+
+                if count > max_checks:
+                    logger.info('Worker processed maximum number of checks. Returning!')
+                    return
 
         except Exception:
             logger.exception('Exception in redis loop. Details: ')

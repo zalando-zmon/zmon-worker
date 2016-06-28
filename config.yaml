@@ -2,6 +2,8 @@ redis.servers: 'redis://localhost:6379/0'
 server.port: 23500
 loglevel: 'INFO'
 
+process.checks: 100
+
 notifications.mail.on: true
 notifications.mail.host: 'localhost'
 notifications.mail.port: 25
