@@ -37,7 +37,8 @@ from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 from zmon_worker_monitor.zmon_worker.common.utils import flatten, PeriodicBufferedAction
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
-from zmon_worker_monitor.zmon_worker.errors import CheckError, InsufficientPermissionsError, SecurityError
+from zmon_worker_monitor.zmon_worker.errors import (
+    CheckError, InsufficientPermissionsError, SecurityError, ResultSizeError)
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
@@ -67,6 +68,10 @@ KAIROS_ID_FORBIDDEN_RE = re.compile(r'[^a-zA-Z0-9\-_\.]')
 
 HOST_GROUP_PREFIX = re.compile(r'^([a-z]+)')
 INSTANCE_PORT_SUFFIX = re.compile(r':([0-9]+)$')
+
+# Result size limits
+MAX_RESULT_SIZE = 64  # KB
+MAX_RESULT_KEYS = 1000
 
 EVENTS = {
     'ALERT_STARTED': eventlog.Event(0x34001, ['checkId', 'alertId', 'value']),
@@ -762,6 +767,10 @@ class MainTask(object):
 
         cls._metric_cache_check_ids = map(int, filter(None, metric_cache_check_ids))
 
+        # Result limits
+        cls.max_result_size = int(config.get('result.size', MAX_RESULT_SIZE))
+        cls.max_result_keys = int(config.get('result.keys.count', MAX_RESULT_KEYS))
+
         cls._plugins = plugin_manager.get_plugins_of_category(cls._plugin_category)
         # store function factories from plugins in a dict by name
         cls._function_factories = {p.name: p.plugin_object for p in cls._plugins}
@@ -1042,6 +1051,21 @@ class MainTask(object):
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
 
+    def _check_result_limit(self, result):
+        if isinstance(result, dict):
+            key_count = len(flatten(result).keys())
+            if key_count > self.max_result_keys:
+                raise ResultSizeError(
+                    'Result keys count ({}) exceeded the maximum value: {}'.format(key_count, self.max_result_keys))
+
+        result_str = json.dumps(result, separators=(',', ':'))
+
+        size = len(result_str) / 1024.0
+        if size > self.max_result_size:
+            raise ResultSizeError(
+                'Result size ({}KB) exceeded the maximum size: {}KB'.format(
+                    size, self.max_result_size))
+
     def check(self, req):
 
         self.logger.debug(req)
@@ -1126,7 +1150,11 @@ class MainTask(object):
 
     def _get_check_result(self, req):
         r = self._get_check_result_internal(req)
+
+        self._check_result_limit(r)
+
         r['worker'] = self.worker_name
+
         return r
 
     def _enforce_security(self, req):

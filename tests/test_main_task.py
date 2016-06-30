@@ -3,12 +3,44 @@ import json
 import pytest
 import time
 
-from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values
-from zmon_worker_monitor import plugin_manager
-
 from mock import MagicMock
 
+from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values
+from zmon_worker_monitor.zmon_worker.tasks.main import MAX_RESULT_KEYS, ResultSizeError
+from zmon_worker_monitor import plugin_manager
+
+
 ONE_DAY = 24 * 3600
+
+
+@pytest.fixture(params=[
+    (
+        {},
+        {i: True for i in xrange(MAX_RESULT_KEYS + 2)}  # keys count violation
+    ),
+    (
+        {},
+        {i: True for i in xrange(MAX_RESULT_KEYS)}  # size violation
+    ),
+    (
+        {},
+        json.dumps({i: True for i in xrange(MAX_RESULT_KEYS)})  # str size violation
+    ),
+    (
+        {},
+        [i + 100 for i in xrange(MAX_RESULT_KEYS)]  # list size violation
+    ),
+    (
+        {'result.keys.count': 10},
+        {i: True for i in xrange(11)}
+    ),
+    (
+        {'result.size': 1},  # 1KB
+        {i: True for i in xrange(110)}
+    )
+])
+def fx_big_result(request):
+    return request.param
 
 
 def test_entity_results():
@@ -42,6 +74,54 @@ def test_check(monkeypatch):
     monkeypatch.setattr(task, 'send_metrics', MagicMock())
     req = {'check_id': 123, 'entity': {'id': 'myent'}}
     task.check(req)
+
+
+def test_check_result_size_violation(monkeypatch, fx_big_result):
+    config, result = fx_big_result
+
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+
+    monkeypatch.setattr('zmon_worker_monitor.zmon_worker.tasks.main.MAX_RESULT_SIZE', 2)  # Lower default limit to 2K
+
+    MainTask.configure(config)
+    task = MainTask()
+
+    get_result = MagicMock()
+    get_result.return_value = {'value': result}
+
+    monkeypatch.setattr(task, '_get_check_result_internal', get_result)
+    monkeypatch.setattr(task, '_store_check_result', MagicMock())
+    monkeypatch.setattr(task, 'send_metrics', MagicMock())
+
+    req = {'check_id': 123, 'entity': {'id': 'myent'}}
+
+    with pytest.raises(ResultSizeError):
+        task.check(req)
+
+
+def test_check_trial_run_result_size_violation(monkeypatch, fx_big_result):
+    config, result = fx_big_result
+
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+
+    monkeypatch.setattr('zmon_worker_monitor.zmon_worker.tasks.main.MAX_RESULT_SIZE', 2)  # Lower default limit to 2K
+
+    MainTask.configure(config)
+    task = MainTask()
+
+    get_result = MagicMock()
+    get_result.return_value = {'value': result}
+
+    monkeypatch.setattr(task, '_get_check_result_internal', get_result)
+    monkeypatch.setattr(task, '_store_check_result', MagicMock())
+    monkeypatch.setattr(task, 'send_metrics', MagicMock())
+
+    req = {'check_id': 123, 'entity': {'id': 'myent'}}
+
+    with pytest.raises(ResultSizeError):
+        task.check_for_trial_run(req)
 
 
 def test_evaluate_alert(monkeypatch):

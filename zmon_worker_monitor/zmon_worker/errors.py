@@ -46,3 +46,10 @@ class DbError(CheckError):
 
     def __str__(self):
         return 'DB operation {} failed: {}'.format(self.operation, self.message)
+
+
+class ResultSizeError(CheckError):
+    def __init__(self, message):
+        message = 'Result size error: {}'.format(message)
+
+        super(ResultSizeError, self).__init__(message)
