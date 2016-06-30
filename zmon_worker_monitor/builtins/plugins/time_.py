@@ -29,15 +29,19 @@ class TimeFactory(IFunctionFactoryPlugin):
 
 
 class TimeWrapper(object):
-    def __init__(self, spec='now', utc=False):
+    def __init__(self, spec='now', epoch=None, utc=False):
         now = (datetime.utcnow() if utc else datetime.now())
-        delta = parse_timedelta(spec)
-        if delta:
-            self.time = now + delta
-        elif spec == 'now':
-            self.time = now
+
+        if epoch:
+            self.time = datetime.utcfromtimestamp(epoch) if utc else datetime.fromtimestamp(epoch)
         else:
-            self.time = parse_datetime(spec)
+            delta = parse_timedelta(spec)
+            if delta:
+                self.time = now + delta
+            elif spec == 'now':
+                self.time = now
+            else:
+                self.time = parse_datetime(spec)
 
     def __sub__(self, other):
         '''
