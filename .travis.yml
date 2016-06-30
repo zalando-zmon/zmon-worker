@@ -7,8 +7,9 @@ before_install:
   - sudo apt-get install -y libsnappy-dev libev4 libev-dev python-dev
 install:
   - pip install -r requirements.txt
-  - pip install coveralls
+  - pip install coveralls flake8
 script:
+  - flake8 .
   - python setup.py test
 after_success:
   - coveralls
