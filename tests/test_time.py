@@ -14,9 +14,9 @@ def test_now_isoformat(monkeypatch):
 
 
 @pytest.mark.parametrize('inp,out', [
-    ({'epoch': 1467284283}, datetime(2016, 6, 30, 12, 58, 3)),
-    ({'epoch': 1467284283.145063}, datetime(2016, 6, 30, 12, 58, 3, 145063)),
-    ({'epoch': 1467284283, 'utc': True}, datetime(2016, 6, 30, 10, 58, 3))
+    ({'epoch': 1467284283}, datetime.fromtimestamp(1467284283)),
+    ({'epoch': 1467284283.145063}, datetime.fromtimestamp(1467284283.145063)),
+    ({'epoch': 1467284283, 'utc': True}, datetime.utcfromtimestamp(1467284283))
 ])
 def test_time_epoch(monkeypatch, inp, out):
     tw = TimeWrapper(**inp)
