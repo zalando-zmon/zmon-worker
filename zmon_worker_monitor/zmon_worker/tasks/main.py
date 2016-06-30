@@ -1632,39 +1632,44 @@ class MainTask(object):
             for uuid, d in downtimes.iteritems():
                 # PF-3604 First check if downtime is active, otherwise check if it's expired, else: it's a
                 # future downtime.
-                if now > d['start_time'] and now < d['end_time']:
-                    d['id'] = uuid
-                    result.append(d)
-                    func = 'sadd'
-                elif now >= d['end_time']:
-                    func = 'srem'
-                else:
-                    continue
-
-                # Check whether the downtime changed state: active -> inactive or inactive -> active.
-                changed = getattr(self.con, func)('zmon:active_downtimes', '{}:{}:{}'.format(alert_id, entity_id, uuid))
-                if changed:
-                    pass
-                    # eventlog.log(EVENTS[('DOWNTIME_ENDED' if func == 'srem' else 'DOWNTIME_STARTED')].id, **{
-                    #     'alertId': alert_id,
-                    #     'entity': entity_id,
-                    #     'startTime': d['start_time'],
-                    #     'endTime': d['end_time'],
-                    #     'userName': d['created_by'],
-                    #     'comment': d['comment'],
-                    # })
-
-                # If downtime is over, we can remove its definition from redis.
-                if func == 'srem':
-                    if len(downtimes) == 1:
-                        p.delete('zmon:downtimes:{}:{}'.format(alert_id, entity_id))
-                        if len(redis_entities) == 1:
-                            p.delete('zmon:downtimes:{}'.format(alert_id))
-                            p.srem('zmon:downtimes', alert_id)
-                        else:
-                            p.srem('zmon:downtimes:{}'.format(alert_id), entity_id)
+                try:
+                    if now > d['start_time'] and now < d['end_time']:
+                        d['id'] = uuid
+                        result.append(d)
+                        func = 'sadd'
+                    elif now >= d['end_time']:
+                        func = 'srem'
                     else:
-                        p.hdel('zmon:downtimes:{}:{}'.format(alert_id, entity_id), uuid)
-                    p.execute()
+                        continue
+
+                    # Check whether the downtime changed state: active -> inactive or inactive -> active.
+                    changed = getattr(self.con, func)(
+                        'zmon:active_downtimes', '{}:{}:{}'.format(alert_id, entity_id, uuid))
+                    if changed:
+                        pass
+                        # eventlog.log(EVENTS[('DOWNTIME_ENDED' if func == 'srem' else 'DOWNTIME_STARTED')].id, **{
+                        #     'alertId': alert_id,
+                        #     'entity': entity_id,
+                        #     'startTime': d['start_time'],
+                        #     'endTime': d['end_time'],
+                        #     'userName': d['created_by'],
+                        #     'comment': d['comment'],
+                        # })
+
+                    # If downtime is over, we can remove its definition from redis.
+                    if func == 'srem':
+                        if len(downtimes) == 1:
+                            p.delete('zmon:downtimes:{}:{}'.format(alert_id, entity_id))
+                            if len(redis_entities) == 1:
+                                p.delete('zmon:downtimes:{}'.format(alert_id))
+                                p.srem('zmon:downtimes', alert_id)
+                            else:
+                                p.srem('zmon:downtimes:{}'.format(alert_id), entity_id)
+                        else:
+                            p.hdel('zmon:downtimes:{}:{}'.format(alert_id, entity_id), uuid)
+                        p.execute()
+                except:
+                    self.logger.exception('Exception while evaluating downtime!')
+                    continue
 
         return result
