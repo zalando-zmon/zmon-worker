@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from numbers import Number
 from datetime import datetime
 
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta, parse_datetime
@@ -29,11 +30,11 @@ class TimeFactory(IFunctionFactoryPlugin):
 
 
 class TimeWrapper(object):
-    def __init__(self, spec='now', epoch=None, utc=False):
+    def __init__(self, spec='now', utc=False):
         now = (datetime.utcnow() if utc else datetime.now())
 
-        if epoch:
-            self.time = datetime.utcfromtimestamp(epoch) if utc else datetime.fromtimestamp(epoch)
+        if isinstance(spec, Number):
+            self.time = datetime.utcfromtimestamp(spec) if utc else datetime.fromtimestamp(spec)
         else:
             delta = parse_timedelta(spec)
             if delta:
