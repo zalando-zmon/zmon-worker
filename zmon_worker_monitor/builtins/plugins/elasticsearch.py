@@ -189,7 +189,6 @@ class ElasticsearchWrapper(object):
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
         except:
-            logger.exception('Elasticsearch request failed')
             raise
 
 
