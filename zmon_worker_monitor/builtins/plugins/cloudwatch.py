@@ -45,7 +45,7 @@ class CloudwatchWrapper(object):
     def __init__(self, region=None):
         if not region:
             region = get_region()
-        self.client = boto3.client('cloudwatch', region_name=region)
+        self.__client = boto3.client('cloudwatch', region_name=region)
 
     def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None):
         '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
@@ -64,10 +64,10 @@ class CloudwatchWrapper(object):
             # transform Python dict to stupid AWS list structure
             # see http://boto3.readthedocs.org/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.get_metric_statistics  # noqa
             dimensions = list({'Name': k, 'Value': v} for k, v in dimensions.items())
-        response = self.client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
-                                                     Dimensions=dimensions,
-                                                     StartTime=start, EndTime=end, Period=period,
-                                                     Statistics=statistics)
+        response = self.__client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
+                                                       Dimensions=dimensions,
+                                                       StartTime=start, EndTime=end, Period=period,
+                                                       Statistics=statistics)
         data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
         if not data_points:
             return None
@@ -94,7 +94,7 @@ class CloudwatchWrapper(object):
 
         metrics = []
         while True:
-            res = self.client.list_metrics(**args)
+            res = self.__client.list_metrics(**args)
             metrics.extend(res['Metrics'])
             if 'NextToken' in res:
                 args['NextToken'] = res['NextToken']
