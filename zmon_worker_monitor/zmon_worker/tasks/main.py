@@ -49,7 +49,7 @@ from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 
 logger = logging.getLogger(__name__)
 
-# interval in seconds for sending metrics to graphite
+# interval in seconds for storing metrics in Redis
 METRICS_INTERVAL = 15
 
 DEFAULT_CHECK_RESULTS_HISTORY_LENGTH = 20
@@ -59,7 +59,6 @@ TRIAL_RUN_RESULT_EXPIRY_TIME = 300
 # we allow specifying condition expressions without using the "value" variable
 # the following pattern is used to check if "value" has to be prepended to the condition
 SIMPLE_CONDITION_PATTERN = re.compile(r'^[<>!=\[]|i[ns] ')
-GRAPHITE_REPLACE_KEYCHARS = re.compile(r'[./\s]')
 
 # round to microseconds
 ROUND_SECONDS_DIGITS = 6
@@ -494,53 +493,6 @@ def _log_event(event_name, alert, result, entity=None):
     eventloghttp.log(EVENTS[event_name].id, **params)
 
 
-def _convert_captures(worker_name, alert_id, entity_id, timestamp, captures):
-    '''
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c0': 'error'})
-    []
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c1': '23.4'})
-    [('p0_h.alerts.1.e1.captures.c1', 23.4, 1)]
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c2': 12})
-    [('p0_h.alerts.1.e1.captures.c2', 12.0, 1)]
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c3': {'c31': '42'}})
-    [('p0_h.alerts.1.e1.captures.c3.c31', 42.0, 1)]
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c4': {'c41': 'error'}})
-    []
-    >>> _convert_captures('p0.h', 1, 'e .1/2', 1, {'c 1/2': '23.4'})
-    [('p0_h.alerts.1.e__1_2.captures.c_1_2', 23.4, 1)]
-    >>> _convert_captures('p0.h', 1, 'e1', 1, {'c3': {'c 3.1/': '42'}})
-    [('p0_h.alerts.1.e1.captures.c3.c_3_1_', 42.0, 1)]
-    '''
-
-    result = []
-    key = '{worker_name}.alerts.{alert_id}.{entity_id}.captures.{capture}'
-
-    safe_worker_name = GRAPHITE_REPLACE_KEYCHARS.sub('_', worker_name)
-    safe_entity_id = GRAPHITE_REPLACE_KEYCHARS.sub('_', entity_id)
-
-    for capture, value in captures.iteritems():
-        safe_capture = GRAPHITE_REPLACE_KEYCHARS.sub('_', capture)
-        if isinstance(value, dict):
-            for inner_capture, inner_value in value.iteritems():
-                try:
-                    v = float(inner_value)
-                except (ValueError, TypeError):
-                    continue
-                safe_inner_capture = GRAPHITE_REPLACE_KEYCHARS.sub('_', inner_capture)
-                result.append(('{}.{}'.format(key.format(worker_name=safe_worker_name, alert_id=alert_id,
-                                                         entity_id=safe_entity_id, capture=safe_capture),
-                                              safe_inner_capture), v, timestamp))
-        else:
-            try:
-                v = float(value)
-            except (ValueError, TypeError):
-                continue
-            result.append((key.format(worker_name=safe_worker_name, alert_id=alert_id, entity_id=safe_entity_id,
-                                      capture=safe_capture), v, timestamp))
-
-    return result
-
-
 def evaluate_condition(val, condition, **ctx):
     '''
 
@@ -686,7 +638,6 @@ class MainTask(object):
     _secure_queue = 'zmon:queue:secure'
     _db = 0
     _con = None
-    _graphite = None
     _counter = Counter()
     _last_metrics_sent = 0
     _last_captures_sent = 0

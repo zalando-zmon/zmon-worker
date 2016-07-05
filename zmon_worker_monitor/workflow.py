@@ -104,10 +104,6 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
     conn_handler = RedisConnHandler.get_instance()
 
-    # try cleanup captures queue in aws context
-    r = conn_handler.get_healthy_conn()
-    r.delete('zmon:captures2graphite')
-
     expired_count = 0
     count = 0
 
