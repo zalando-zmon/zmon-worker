@@ -8,7 +8,14 @@ import fnmatch
 import logging
 import requests
 
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
+
+STATE_OK = 'OK'
+STATE_ALARM = 'ALARM'
+STATE_DATA = 'INSUFFICIENT_DATA'
+
+MAX_ALARM_RECORDS = 50
 
 logging.getLogger('botocore').setLevel(logging.WARN)
 
@@ -121,3 +128,42 @@ class CloudwatchWrapper(object):
                     data['dimensions'][dim_name][dim_val] += val
                 data[metric['MetricName']] += val
         return data
+
+    def alarms(self, alarm_names=None, alarm_name_prefix=None, state_value=STATE_ALARM, action_prefix=None,
+               max_records=50):
+        """
+        Retrieve cloudwatch alarms.
+
+        :param alarm_names: List of alarm names.
+        :type alarm_names: list
+
+        :param alarm_name_prfix: Prefix of alarms. Cannot be specified if ``alarm_names`` is specified.
+        :type alarm_name_prfix: str
+
+        :param state_value: State value used in alarm filtering. Available values are STATE_OK, STATE_ALARM(default) and STATE_DATA.
+        :type state_value: str
+
+        :param action_prefix: Action prefix.
+        :type action_prefix: str
+
+        :param max_records: Maximum records to be returned. Default is 50.
+        :type max_records: int
+
+        :return: List of MetricAlarms.
+        :rtype: list
+        """  # noqa
+        if alarm_names and alarm_name_prefix:
+            raise CheckError('"alarm_name_prefix" cannot be sprecified if "alarm_names" is specified!')
+
+        kwargs = dict(StateValue=state_value, MaxRecords=max_records)
+
+        if alarm_names:
+            alarm_names = [alarm_names] if isinstance(alarm_names, basestring) else alarm_names
+            kwargs['AlarmNames'] = alarm_names
+        elif alarm_name_prefix:
+            kwargs['AlarmNamePrefix'] = alarm_name_prefix
+
+        if action_prefix:
+            kwargs['ActionPrefix'] = action_prefix
+
+        return self.__client.describe_alarms(**kwargs)['MetricAlarms']

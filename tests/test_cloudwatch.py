@@ -1,8 +1,61 @@
 import datetime
 import pytest
-from zmon_worker_monitor.builtins.plugins.cloudwatch import CloudwatchWrapper
+from zmon_worker_monitor.builtins.plugins.cloudwatch import CheckError
+from zmon_worker_monitor.builtins.plugins.cloudwatch import CloudwatchWrapper, STATE_OK, STATE_ALARM, MAX_ALARM_RECORDS
 
 from mock import MagicMock
+
+
+@pytest.fixture(params=[
+    (
+        {'alarm_names': ['alarm-1', 'alarm-2']},
+        [1, 2, 3]
+    ),
+    (
+        {'alarm_names': 'alarm-1'},
+        [1, 2, 3]
+    ),
+    (
+        {},
+        [1, 2, 3]
+    ),
+    (
+        {'alarm_name_prefix': 'alarm-'},
+        [1, 2, 3]
+    ),
+    (
+        {'state_value': STATE_OK},
+        [1, 2, 3]
+    ),
+    (
+        {'action_prefix': 'action-'},
+        [1, 2, 3]
+    ),
+    (
+        {'max_records': 100},
+        [1, 2, 3]
+    ),
+])
+def fx_alarms(request):
+    return request.param
+
+
+def transform_kwargs(kwargs):
+    t = {}
+
+    for k, v in kwargs.items():
+        t[''.join([s.capitalize() for s in k.split('_')])] = v
+
+    if 'AlarmNames' in t and isinstance(t['AlarmNames'], basestring):
+        t['AlarmNames'] = [t['AlarmNames']]
+
+    if 'MaxRecords' not in t:
+        t['MaxRecords'] = MAX_ALARM_RECORDS
+
+    if 'StateValue' not in t:
+        t['StateValue'] = STATE_ALARM
+
+    return t
 
 
 def test_cloudwatch(monkeypatch):
@@ -155,3 +208,31 @@ def test_cloudwatch_paging(monkeypatch):
     assert call_count['get_metric_statistics'] is 1
 
     assert {'NetworkOut': 42.0, 'dimensions': {'AutoScalingGroupName': {'tailor-1': 42.0}}} == data
+
+
+def test_cloudwatch_alarms(monkeypatch, fx_alarms):
+    kwargs, res = fx_alarms
+
+    client = MagicMock()
+    client.describe_alarms.return_value = {'MetricAlarms': res}
+
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+
+    cli = CloudwatchWrapper(region='my-region')
+    result = cli.alarms(**kwargs)
+
+    assert result == res
+
+    transformed = transform_kwargs(kwargs)
+
+    client.describe_alarms.assert_called_with(**transformed)
+
+
+def test_cloudwatch_alarms_error(monkeypatch):
+    with pytest.raises(CheckError):
+        cli = CloudwatchWrapper(region='my-region')
+        cli.alarms(alarm_names=['123'], alarm_name_prefix='alarm-')
+
+    with pytest.raises(CheckError):
+        cli = CloudwatchWrapper(region='my-region')
+        cli.alarms(alarm_names='123', alarm_name_prefix='alarm-')
