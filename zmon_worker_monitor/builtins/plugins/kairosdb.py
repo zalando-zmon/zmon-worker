@@ -62,7 +62,7 @@ class KairosdbWrapper(object):
         :param name: Metric name.
         :type name: str
 
-        :param group_by: List of fields to group by. Currently ignored.
+        :param group_by: List of fields to group by.
         :type group_by: list
 
         :param tags: Filtering tags.
@@ -98,6 +98,7 @@ class KairosdbWrapper(object):
             },
             'metrics': [{
                 'name': name,
+                'group_by': group_by
             }]
         }
 

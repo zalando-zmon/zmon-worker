@@ -18,7 +18,7 @@ URL = 'http://kairosdb'
         {'queries': [{'results': [1, 2, 3]}]},
     ),
     (
-        {'name': 'check1-metric', 'aggregators': [{'name': 'sum'}]},
+        {'name': 'check1-metric', 'aggregators': [{'name': 'sum'}], 'group_by': [{'name': 'tags', 'tags': ['k']}]},
         {'queries': [{'results': [1, 2, 3, 4]}]},
     ),
     (
@@ -78,6 +78,7 @@ def get_final_url():
 def get_query(kwargs):
     start = kwargs.get('start', 5)
     time_unit = kwargs.get('time_unit', 'minutes')
+    group_by = kwargs.get('group_by', [])
 
     q = {
         'start_relative': {
@@ -86,6 +87,7 @@ def get_query(kwargs):
         },
         'metrics': [{
             'name': kwargs['name'],
+            'group_by': group_by
         }]
     }
 
