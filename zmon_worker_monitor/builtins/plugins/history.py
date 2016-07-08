@@ -111,19 +111,30 @@ class HistoryWrapper(object):
             self.entities = [entities]
 
         self.__session = requests.Session()
+        self.__session.headers.update({'Content-Type': 'application/json'})
+
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
     def result(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # self.logger.info("history query %s %s %s", self.check_id, time_from, time_to)
-        return self.__session.post(self.url,
-                                   json=get_request(self.check_id, self.entities, int(time_from), int(time_to))).json()
+        q = get_request_json(self.check_id, self.entities, int(time_from), int(time_to)))
+        response = self.__session.post(self.url, data=q)
+
+        if response.ok:
+            return response.json()
+        else:
+            raise Exception('KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
 
     def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        # self.logger.info("history get one %s %s %s", self.check_id, time_from, time_to)
-        return (self.__session
-                .post(self.url, json=get_request(self.check_id, self.entities, int(time_from), int(time_to)))
-                .json()['queries'][0]['results'][0]['values'])
+
+        q = get_request_json(self.check_id, self.entities, int(time_from), int(time_to))
+        response =  self.__session.post(self.url, data=q)
+
+        if response.ok:
+            return response.json()['queries'][0]['results'][0]['values']
+        else:
+            raise Exception('KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
 
     def get_aggregated(self, key, aggregator, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # read the list of results
