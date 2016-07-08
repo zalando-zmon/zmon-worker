@@ -117,9 +117,9 @@ class HistoryWrapper(object):
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
     def result(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
-        # self.logger.info("history query %s %s %s", self.check_id, time_from, time_to)
-        q = get_request_json(self.check_id, self.entities, int(time_from), int(time_to)))
-        response = self.__session.post(self.url, data=q)
+
+        q = get_request(self.check_id, self.entities, int(time_from), int(time_to))
+        response = self.__session.post(self.url, json=q)
 
         if response.ok:
             return response.json()
@@ -128,8 +128,8 @@ class HistoryWrapper(object):
 
     def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
 
-        q = get_request_json(self.check_id, self.entities, int(time_from), int(time_to))
-        response =  self.__session.post(self.url, data=q)
+        q = get_request(self.check_id, self.entities, int(time_from), int(time_to))
+        response = self.__session.post(self.url, json=q)
 
         if response.ok:
             return response.json()['queries'][0]['results'][0]['values']
