@@ -798,9 +798,10 @@ class MainTask(object):
             # make separate posts per check_id
             for check_id, results in results_by_id.items():
 
-                url = '{url}/api/v1/data/{account}/{check_id}/'.format(url=cls._dataservice_url,
-                                                                       account=urllib.quote(account),
-                                                                       check_id=check_id)
+                url = '{url}/api/v2/data/{account}/{check_id}/{region}'.format(url=cls._dataservice_url,
+                                                                               account=urllib.quote(account),
+                                                                               check_id=check_id,
+                                                                               region=region)
                 worker_result = {
                     'team': team,
                     'account': account,
