@@ -4,6 +4,8 @@
 import logging
 from pymongo import MongoClient
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
+
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.mongodb-function')
@@ -31,6 +33,10 @@ class MongoDBFactory(IFunctionFactoryPlugin):
 
 class MongoDBWrapper(object):
     def __init__(self, host, port=27017):
+        if not host:
+            raise ConfigurationError(
+                'MongoDB improperly configured. host is invalid. Check entity["host"] value or set valid host.')
+
         self.host = host
         self.port = port
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import json
 import requests
 import logging
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.scalyr-function')
@@ -29,9 +29,11 @@ class ScalyrWrapperFactory(IFunctionFactoryPlugin):
 
 class ScalyrWrapper(object):
     def __init__(self, read_key):
-        self.numeric_url = 'https://www.scalyr.com/api/numericQuery'
-        self.timeseries_url = 'https://www.scalyr.com/api/timeseriesQuery'
-        self.facet_url = 'https://www.scalyr.com/api/facetQuery'
+        self.__numeric_url = 'https://www.scalyr.com/api/numericQuery'
+        self.__timeseries_url = 'https://www.scalyr.com/api/timeseriesQuery'
+        self.__facet_url = 'https://www.scalyr.com/api/facetQuery'
+        if not read_key:
+            raise ConfigurationError('Scalyr read key is not set.')
         self.read_key = read_key
 
     def count(self, query, minutes=5):
@@ -46,7 +48,10 @@ class ScalyrWrapper(object):
             'buckets': 1
         }
 
-        r = requests.post(self.numeric_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
+
+        r.raise_for_status()
+
         j = r.json()
         if 'values' in j:
             return j['values'][0]
@@ -65,14 +70,17 @@ class ScalyrWrapper(object):
             'buckets': 1
         }
 
-        r = requests.post(self.numeric_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
+
+        r.raise_for_status()
+
         j = r.json()
         if 'values' in j:
             return j['values'][0]
         else:
             return j
 
-    def facets(self, filter, field, max_count=5, minutes=30, prio="low"):
+    def facets(self, filter, field, max_count=5, minutes=30, prio='low'):
 
         val = {
             'token': self.read_key,
@@ -80,35 +88,41 @@ class ScalyrWrapper(object):
             'filter': filter,
             'field': field,
             'maxCount': max_count,
-            "startTime": str(minutes) + "m",
-            "priority": prio
+            'startTime': str(minutes) + 'm',
+            'priority': prio
         }
 
-        r = requests.post(self.facet_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.__facet_url, json=val, headers={'Content-Type': 'application/json'})
+
+        r.raise_for_status()
+
         j = r.json()
         return j
 
-    def timeseries(self, filter, function="count", minutes=30, buckets=1, prio="low"):
+    def timeseries(self, filter, function='count', minutes=30, buckets=1, prio='low'):
 
         val = {
             'token': self.read_key,
             'queries': [
                 {
-                    "filter": filter,
-                    "function": function,
-                    "startTime": str(minutes) + "m",
-                    "buckets": buckets,
-                    "priority": prio
+                    'filter': filter,
+                    'function': function,
+                    'startTime': str(minutes) + 'm',
+                    'buckets': buckets,
+                    'priority': prio
                 }
             ]
         }
 
-        r = requests.post(self.timeseries_url, data=json.dumps(val), headers={"Content-Type": "application/json"})
+        r = requests.post(self.__timeseries_url, json=val, headers={'Content-Type': 'application/json'})
+
+        r.raise_for_status()
+
         j = r.json()
         if j['status'] == 'success':
             if len(j['results'][0]['values']) == 1:
                 return j['results'][0]['values'][0]
-            return map(lambda x: x * minutes / buckets, j['results'][0]['values'])
+            return [x * minutes / buckets for x in j['results'][0]['values']]
         return j
 
 
@@ -116,4 +130,4 @@ if __name__ == '__main__':
     import os
 
     s = ScalyrWrapper(read_key=os.getenv('SCALYR_READ_KEY'))
-    print s.count(query="$application_id='zmon-scheduler'")
+    print s.count(query='$application_id="zmon-scheduler"')

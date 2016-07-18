@@ -8,7 +8,7 @@ import os
 
 import tokens
 
-from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError, ConfigurationError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -48,6 +48,9 @@ class KairosdbFactory(IFunctionFactoryPlugin):
 
 class KairosdbWrapper(object):
     def __init__(self, url, oauth2=False):
+        if not url:
+            raise ConfigurationError('KairosDB wrapper improperly configured. URL is missing!')
+
         self.url = url
 
         self.__session = requests.Session()

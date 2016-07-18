@@ -9,7 +9,7 @@ import sys
 
 import tokens
 
-from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError, ConfigurationError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -56,7 +56,7 @@ class ElasticsearchFactory(IFunctionFactoryPlugin):
 class ElasticsearchWrapper(object):
     def __init__(self, url=None, timeout=10, oauth2=False):
         if not url:
-            raise RuntimeError('Elasticsearch plugin improperly configured. URL is required!')
+            raise ConfigurationError('Elasticsearch plugin improperly configured. URL is required!')
 
         self.url = url
         self.timeout = timeout

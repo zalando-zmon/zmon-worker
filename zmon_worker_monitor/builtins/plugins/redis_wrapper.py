@@ -3,6 +3,8 @@
 
 import redis
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
+
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
@@ -54,6 +56,9 @@ class RedisWrapper(object):
     '''Class to allow only readonly access to underlying redis connection'''
 
     def __init__(self, counter, host, port=6379, db=0, socket_connect_timeout=1):
+        if not host:
+            raise ConfigurationError('Redis wrapper improperly configured. Valid redis host is required!')
+
         self._counter = counter('')
         self.__con = redis.StrictRedis(host, port, db, socket_connect_timeout=socket_connect_timeout)
 

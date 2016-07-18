@@ -3,7 +3,7 @@
 
 import sys
 import os
-from zmon_worker_monitor.zmon_worker.errors import DbError
+from zmon_worker_monitor.zmon_worker.errors import DbError, ConfigurationError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -65,6 +65,9 @@ class SqlOracleWrapper(object):
         self.__cx_Oracle = None
         self.__conn = None
         self.__cursor = None
+
+        if not host:
+            raise ConfigurationError('Oracle wrapper improperly configured. Valid host is required!')
 
         if self._enabled:
             self.__cx_Oracle = _import_db_driver()

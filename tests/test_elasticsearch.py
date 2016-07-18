@@ -5,7 +5,7 @@ import pytest
 
 from mock import MagicMock
 
-from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError, ConfigurationError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.builtins.plugins.elasticsearch import ElasticsearchWrapper
@@ -286,5 +286,5 @@ def test_elasticsearch_search_error(monkeypatch):
 
 
 def test_elasticsearch_no_url():
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ConfigurationError):
         ElasticsearchWrapper()

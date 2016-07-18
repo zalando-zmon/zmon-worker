@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from zmon_worker_monitor.zmon_worker.errors import JmxQueryError
-
 import json
 import requests
 import time
+
+from zmon_worker_monitor.zmon_worker.errors import JmxQueryError, ConfigurationError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
@@ -39,6 +38,9 @@ class JmxFactory(IFunctionFactoryPlugin):
 
 class JmxWrapper(object):
     def __init__(self, jmxqueryhost, jmxqueryport, host, port, timeout=5):
+        if not jmxqueryhost or not jmxqueryport:
+            raise ConfigurationError('JMX wrapper improperly configured. Missing jmxqueryhost & jmxqueryport.')
+
         # jmxquery running where?
         self.jmxquery_host = jmxqueryhost
         self.jmxquery_port = jmxqueryport

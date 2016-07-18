@@ -3,7 +3,8 @@ import pytest
 
 from mock import MagicMock
 
-from zmon_worker_monitor.builtins.plugins.kairosdb import KairosdbWrapper, DATAPOINTS_ENDPOINT, HttpError
+from zmon_worker_monitor.builtins.plugins.kairosdb import HttpError, ConfigurationError
+from zmon_worker_monitor.builtins.plugins.kairosdb import KairosdbWrapper, DATAPOINTS_ENDPOINT
 
 URL = 'http://kairosdb'
 
@@ -170,3 +171,6 @@ def test_kairosdb_args_error(monkeypatch, fx_args_error):
 
     with pytest.raises(ValueError):
         cli.query(**kwargs)
+
+    with pytest.raises(ConfigurationError):
+        KairosdbWrapper(None)

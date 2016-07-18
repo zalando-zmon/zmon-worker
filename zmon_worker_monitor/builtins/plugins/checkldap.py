@@ -11,7 +11,7 @@ except:
 import logging
 import time
 
-from zmon_worker_monitor.zmon_worker.errors import CheckError
+from zmon_worker_monitor.zmon_worker.errors import CheckError, ConfigurationError
 from ldap.dn import explode_dn
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -110,6 +110,19 @@ class LdapWrapper(object):
             # FIXME
             self.host += '.zalando'
 
+        if not password and not krb5 and tls:
+            raise ConfigurationError('LDAP password is not set properly!')
+
+    @staticmethod
+    def _split_monitor_dn(dn):
+        '''
+        >>> LdapWrapper._split_monitor_dn('cn=Max File Descriptors,cn=Connections,cn=Monitor')
+        ('connections', 'max_file_descriptors')
+        '''
+
+        parts = dn.replace(' ', '_').split(',')
+        return (parts[1])[3:].lower(), (parts[0])[3:].lower()
+
     def _connect(self, ldapserver):
         if self.session:
             raise CheckError('LDAP Error: duplicate bind exception.')
@@ -183,25 +196,6 @@ class LdapWrapper(object):
         ts = int(ts)
         return rid, ts
 
-    def sync(self):
-        '''Example:
-        checkldap().sync() => [
-        {'newest': 20140516151002, 'elapsed': 0.14442706108093262, 'ok': True, 'diff': 0,'server': 'myserv'},
-        {'newest': 20140516151002, 'elapsed': 0.19423580169677734, 'ok': True, 'diff': 0, 'server': 'myserver'},
-        {'newest': 20140516151002, 'elapsed': 0.2617530822753906, 'ok': True, 'diff': 0, 'server': 'z-auth123.example'},
-        {'newest': 20140516151002, 'elapsed': 0.15635299682617188, 'ok': True, 'diff': 0, 'server': 'myserver'},
-        {'newest': 20140516151002, 'elapsed': 0.20283913612365723, 'ok': True, 'diff': 0, 'server': 'myserver'}]
-        '''
-
-        try:
-            rid2url, url2rid = self._get_rid_to_url(self.host)
-            ldapservers = map(lambda url: url[7:], url2rid.keys())
-            return self._sync(ldapservers)
-        except CheckError:
-            raise
-        except Exception, e:
-            raise CheckError('{}'.format(e)), None, sys.exc_info()[2]
-
     def _sync(self, ldapservers):
         '''Returns a list of dict, where 'diff' is the difference to the 'newest' of the full list,
         'newest' is the newest timestamp for the given 'server',
@@ -254,6 +248,25 @@ class LdapWrapper(object):
                 result['diff'] = newest - result['newest']
         return results
 
+    def sync(self):
+        '''Example:
+        checkldap().sync() => [
+        {'newest': 20140516151002, 'elapsed': 0.14442706108093262, 'ok': True, 'diff': 0,'server': 'myserv'},
+        {'newest': 20140516151002, 'elapsed': 0.19423580169677734, 'ok': True, 'diff': 0, 'server': 'myserver'},
+        {'newest': 20140516151002, 'elapsed': 0.2617530822753906, 'ok': True, 'diff': 0, 'server': 'z-auth123.example'},
+        {'newest': 20140516151002, 'elapsed': 0.15635299682617188, 'ok': True, 'diff': 0, 'server': 'myserver'},
+        {'newest': 20140516151002, 'elapsed': 0.20283913612365723, 'ok': True, 'diff': 0, 'server': 'myserver'}]
+        '''
+
+        try:
+            rid2url, url2rid = self._get_rid_to_url(self.host)
+            ldapservers = map(lambda url: url[7:], url2rid.keys())
+            return self._sync(ldapservers)
+        except CheckError:
+            raise
+        except Exception, e:
+            raise CheckError('{}'.format(e)), None, sys.exc_info()[2]
+
     def auth(self):
         try:
             start = time.time()
@@ -280,16 +293,6 @@ class LdapWrapper(object):
             return {'ok': False}
         except Exception, e:
             raise CheckError('Error authenticating to LDAP: {}'.format(e)), None, sys.exc_info()[2]
-
-    @staticmethod
-    def _split_monitor_dn(dn):
-        '''
-        >>> LdapWrapper._split_monitor_dn('cn=Max File Descriptors,cn=Connections,cn=Monitor')
-        ('connections', 'max_file_descriptors')
-        '''
-
-        parts = dn.replace(' ', '_').split(',')
-        return (parts[1])[3:].lower(), (parts[0])[3:].lower()
 
     def statistics_raw(self):
         '''collect statistics from OpenLDAP "Monitor" DB as a dict

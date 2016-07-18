@@ -3,6 +3,7 @@
 
 import pythonwhois
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 
@@ -28,6 +29,9 @@ class WhoisFactory(IFunctionFactoryPlugin):
 
 class WhoisWrapper(object):
     def __init__(self, host, timeout=10):
+        if not host:
+            raise ConfigurationError('Whois wrapper improperly configured. Valid host is required!')
+
         self.host = host
         self.timeout = timeout
 

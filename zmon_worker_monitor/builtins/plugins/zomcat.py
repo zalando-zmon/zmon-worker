@@ -7,6 +7,7 @@ Query Tomcat metrics via JMX
 import json
 import sys
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
@@ -67,6 +68,9 @@ class ZomcatWrapper(object):
 
     def __init__(self, host, instance, http, jmx, counter):
         '''expects ready to use "partials" for http, jmx and counter'''
+
+        if not host or not instance:
+            raise ConfigurationError('Zomcat wrapper improperly configured. Valid host & instance are required!')
 
         self.host = host
         self.instance = instance

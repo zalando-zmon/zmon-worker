@@ -10,6 +10,13 @@ class SecurityError(Exception):
     pass
 
 
+class ConfigurationError(CheckError):
+    def __init__(self, message):
+        message = 'Configuration error: {}'.format(message)
+
+        super(ConfigurationError, self).__init__(message)
+
+
 class InsufficientPermissionsError(CheckError):
     def __init__(self, user, entity):
         self.user = user

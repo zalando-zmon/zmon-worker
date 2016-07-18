@@ -4,6 +4,7 @@
 import logging
 import redis
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,9 @@ class ZmonWrapper(object):
     ZMON_ALERTS_ENTITIES_PATTERN = 'zmon:alerts:*:entities'
 
     def __init__(self, host, port):
+        if not host:
+            raise ConfigurationError('ZMON wrapper improperly configured. Valid redis host is required!')
+
         self.__redis = redis.StrictRedis(host, port)
         self.logger = logger
 

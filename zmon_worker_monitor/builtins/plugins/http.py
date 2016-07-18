@@ -10,7 +10,7 @@ import json
 from prometheus_client.parser import text_string_to_metric_families
 from collections import defaultdict
 
-from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError, CheckError, ConfigurationError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 from requests.adapters import HTTPAdapter
 
@@ -151,7 +151,12 @@ class HttpWrapper(object):
             headers=None,
     ):
         if method.lower() not in ('get', 'head'):
-            raise RuntimeError('Invalid method. Only GET and HEAD are supported!')
+            raise CheckError('Invalid method. Only GET and HEAD are supported!')
+
+        if not base_url and not absolute_http_url(url):
+            # More verbose error message!
+            raise ConfigurationError(
+                'HTTP wrapper improperly configured. Invalid base_url. Check entity["url"] or call with absolute url.')
 
         self.url = (base_url + url if not absolute_http_url(url) else url)
         self.clean_url = None

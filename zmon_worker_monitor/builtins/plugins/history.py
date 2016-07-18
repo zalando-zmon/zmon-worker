@@ -9,6 +9,8 @@ import os
 import requests
 import tokens
 
+from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
+
 from zmon_worker_monitor.builtins.plugins.distance_to_history import DistanceWrapper
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -98,7 +100,7 @@ def get_request(check_id, entities, time_from, time_to, aggregator='avg', sampli
 class HistoryWrapper(object):
     def __init__(self, url=None, check_id='', entities=None, oauth2=False):
         if not url:
-            raise RuntimeError('History wrapper improperly configure. URL is required.')
+            raise ConfigurationError('History wrapper improperly configured. URL is required.')
 
         self.url = os.path.join(url, DATAPOINTS_ENDPOINT)
         self.check_id = check_id

@@ -3,7 +3,7 @@ import requests
 import pytest
 from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.http import HttpWrapper
-from zmon_worker_monitor.zmon_worker.errors import HttpError
+from zmon_worker_monitor.zmon_worker.errors import HttpError, CheckError, ConfigurationError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 
@@ -173,8 +173,13 @@ def test_http_redirects(monkeypatch, fx_redirects):
 
 @pytest.mark.parametrize('method', ('post', 'POST', 'put', 'PUT', 'delete', 'DELETE'))
 def test_http_invalid_method(method):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(CheckError):
         HttpWrapper('http://example.org', method=method)
+
+
+def test_http_invalid_base_url():
+    with pytest.raises(ConfigurationError):
+        HttpWrapper(':9000', base_url=None)
 
 
 def test_retries(monkeypatch):

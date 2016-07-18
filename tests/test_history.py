@@ -3,7 +3,7 @@ import pytest
 from mock import MagicMock
 
 from zmon_worker_monitor.builtins.plugins.history import ONE_WEEK, ONE_WEEK_AND_5MIN, DATAPOINTS_ENDPOINT
-from zmon_worker_monitor.builtins.plugins.history import HistoryWrapper
+from zmon_worker_monitor.builtins.plugins.history import HistoryWrapper, ConfigurationError
 
 URL = 'http://kairosdb'
 
@@ -197,5 +197,5 @@ def test_history_result_oauth2(monkeypatch):
 
 
 def test_history_result_error():
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ConfigurationError):
         HistoryWrapper()

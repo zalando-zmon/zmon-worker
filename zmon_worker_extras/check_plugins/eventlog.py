@@ -4,8 +4,7 @@
 Zalando-specific function to query EventLog
 """
 
-from zmon_worker_monitor.zmon_worker.errors import CheckError
-# from http import HttpWrapper  # FIXME: watch out for this!!!
+from zmon_worker_monitor.zmon_worker.errors import CheckError, ConfigurationError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
@@ -46,6 +45,9 @@ class EventLogWrapper(object):
     '''Convenience wrapper to access EventLog counts'''
 
     def __init__(self, http_wrapper, url):
+        if not url:
+            raise ConfigurationError('Eventlog plugin improperly configured. URL is required!')
+
         self.__http = http_wrapper
         self.url = url.rstrip('/') + '/'
 
