@@ -47,8 +47,12 @@ def process_config(config):
         iam_info = requests.get('http://169.254.169.254/latest/meta-data/iam/info/', timeout=3).json()
         account_id = iam_info['InstanceProfileArn'].split(':')[4]
         config['account'] = 'aws:' + account_id
+
+        resp = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=3)
+        config['region'] = resp.text[:-1]
     except:
         config['account'] = 'aws:error-during-startup'
+        config['region'] = 'unknown'
 
 
 def main(args=None):
