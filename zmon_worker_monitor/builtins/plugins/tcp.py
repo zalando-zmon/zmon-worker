@@ -4,7 +4,6 @@
 import socket
 from contextlib import closing
 
-from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 
@@ -32,9 +31,6 @@ class TcpFactory(IFunctionFactoryPlugin):
 class TcpWrapper(object):
 
     def __init__(self, host, timeout=10):
-        if not host:
-            raise ConfigurationError('TCP wrapper improperly configured. Valid host is required!')
-
         self.host = host
         self.timeout = timeout
 
