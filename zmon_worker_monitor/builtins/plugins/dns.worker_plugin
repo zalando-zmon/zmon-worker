@@ -1,0 +1,17 @@
+[Core]
+Name = dns
+Module = dns
+
+[Documentation]
+Author = Mohab Usama
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides DNS resolve.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+;; Note that these values may are overridden by zmon's global config.
+
+;; key = value
