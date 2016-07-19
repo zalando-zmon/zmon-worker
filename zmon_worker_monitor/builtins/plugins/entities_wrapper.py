@@ -7,7 +7,6 @@ import sys
 import urllib
 import urlparse
 import json
-from prometheus_client.parser import text_string_to_metric_families
 from collections import defaultdict
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError, CheckError, ConfigurationError
@@ -27,9 +26,9 @@ tokens.start()
 logger = logging.getLogger('zmon-worker.entity-wrapper')
 
 
-class EntityWrapperFactory(IFunctionFactoryPlugin):
+class EntitiesWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):
-        super(HttpFactory, self).__init__()
+        super(EntitiesWrapperFactory, self).__init__()
 
 
     def configure(self, conf):
@@ -50,61 +49,58 @@ class EntityWrapperFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(EntityWrapper, infrastructure_account = factory_ctx.get('infrastructure_account'), service_url = self.service_url, oauth2 = self.oauth2)
+
+        return propartial(EntitiesWrapper, infrastructure_account=factory_ctx.get('infrastructure_account'), service_url=self.service_url, oauth2=self.oauth2)
 
 
-class EntityWrapper(object):
-    def __init__(self, service_url, infrastructure_account, verify=True, oauth2=False):
+class EntitiesWrapper(object):
+    def __init__(self, service_url, infrastructure_account, verify=True, oauth2=False, token=None):
 
-        if not url:
-            raise ConfigurationError('KairosDB wrapper improperly configured. URL is missing!')
+        if not service_url:
+            raise ConfigurationError('EntitiesWrapper improperly configured. URL is missing!')
 
-        self.service_url = service_url
+        self.__service_url = service_url
         self.__session = requests.Session()
 
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-    def _request(q):
+
+    def _request(self, q):
         try:
-            response = self.__session.get(self.service_url, params={"query": json.dumps(q)})
+            response = self.__session.get(self.__service_url + "/api/v1/entities", params={"query": json.dumps(q)})
             if response.ok:
                 return response.json()
             else:
                 raise Exception(
-                    'EntityWrapper query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
+                    'EntitiesWrapper query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
         except requests.Timeout:
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
 
-    def search_local(stack_name, type=None, stack_version=None, infrastructure_account=None):
+
+    def search_local(self, **kwargs):
         ia = infrastructure_account if infrastructure_account else self.infrastructure_account
-        q = {}
 
-        if type:
-            q.update({"type": type})
-
-        if stack_name:
-            q.update({"stack_name": stack_name})
-
-        if stack_version:
-            q.update({"stack_version": stack_version})
-
+        q = kwargs
         q.update({"infrastructure_account": infrastructure_account})
 
         return self._request(q)
 
-    def search_all(stack_name, type, stack_version=None):
-        q = {}
 
-        if type:
-            q.update({"type": type})
-
-        if stack_name:
-            q.update({"stack_name": stack_name})
-
-        if stack_version:
-            q.update({"stack_version": stack_version})
-
+    def search_all(self, **kwargs):
+        q = kwargs
         return self._request(q)
+
+
+if __name__ == '__main__':
+    import sys
+    import json
+
+    factory = EntitiesWrapperFactory()
+    factory.configure({'entityservice.url': sys.argv[1], "entityservice.oauth2" : True})
+
+    wrapper = factory.create({})
+
+    print wrapper().search_all(stack_name="data-service")
