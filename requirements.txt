@@ -24,7 +24,7 @@ python-snappy
 boto3
 stups-tokens>=1.0.14
 prometheus_client
-cassandra-driver==2.7.2
+cassandra-driver==3.5.0
 pymongo==3.0.3
 MarkupSafe
 jsonpath-rw

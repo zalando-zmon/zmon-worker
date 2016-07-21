@@ -53,7 +53,7 @@ def process_config(config):
     except:
         logging.warning('Failed to retrieve AWS account info.')
         config['account'] = 'aws:error-during-startup'
-        config['region'] = 'eu-central-1'
+        config['region'] = 'unknown'
 
 
 def main(args=None):
