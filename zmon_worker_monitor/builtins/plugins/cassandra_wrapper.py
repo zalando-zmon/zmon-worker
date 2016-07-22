@@ -3,7 +3,6 @@
 
 import logging
 
-# from cassandra.io.libevreactor import LibevConnection
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 
@@ -38,7 +37,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
 
 
 class CassandraWrapper(object):
-    def __init__(self, node, keyspace, username=None, password=None, port=9042, connect_timeout=1):
+    def __init__(self, node, keyspace, username=None, password=None, port=9042, connect_timeout=1, protocol_version=3):
         # for now using a single host / node should be seed nodes or at least available nodes
         self.node = node
         self.port = port
@@ -46,14 +45,15 @@ class CassandraWrapper(object):
         self.__password = password
         self.keyspace = keyspace
         self.connect_timeout = connect_timeout
+        self.protocol_version = protocol_version
 
     def execute(self, stmt):
         auth_provider = None
         if self.__username and self.__password:
             auth_provider = PlainTextAuthProvider(username=self.__username, password=self.__password)
 
-        cl = Cluster([self.node], connect_timeout=self.connect_timeout, auth_provider=auth_provider)
-        # cl.connection_class = LibevConnection
+        cl = Cluster([self.node], connect_timeout=self.connect_timeout, auth_provider=auth_provider,
+                     protocol_version=self.protocol_version, port=self.port)
 
         session = None
         try:

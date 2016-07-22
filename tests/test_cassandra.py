@@ -4,7 +4,7 @@ from mock import MagicMock
 from zmon_worker_monitor.builtins.plugins.cassandra_wrapper import CassandraWrapper
 
 
-@pytest.mark.parametrize('kwargs', [{'username': 'user', 'password': 'pass'}, {}])
+@pytest.mark.parametrize('kwargs', [{'username': 'user', 'password': 'pass', 'port': 19042, 'protocol_version': 4}, {}])
 def test_cassandra_execute(monkeypatch, kwargs):
     node = 'cassandra-node'
     keyspace = 'users'
@@ -35,11 +35,16 @@ def test_cassandra_execute(monkeypatch, kwargs):
     assert res == result
 
     auth_provider = None
+    port = 9042
+    protocol_version = 3
     if kwargs:
         auth_provider = auth.return_value
         auth.assert_called_with(username=kwargs['username'], password=kwargs['password'])
+        port = kwargs['port']
+        protocol_version = kwargs['protocol_version']
 
-    cluster.assert_called_with([node], connect_timeout=cassandra.connect_timeout, auth_provider=auth_provider)
+    cluster.assert_called_with([node], connect_timeout=cassandra.connect_timeout, auth_provider=auth_provider,
+                               port=port, protocol_version=protocol_version)
 
     client.connect.assert_called_once()
     client.shutdown.assert_called_once()
