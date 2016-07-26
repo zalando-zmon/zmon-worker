@@ -76,9 +76,9 @@ class EntitiesWrapper(object):
                 raise Exception(
                     'EntitiesWrapper query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
         except requests.Timeout:
-            raise HttpError('timeout', self.url), None, sys.exc_info()[2]
+            raise HttpError('timeout', self.__service_url), None, sys.exc_info()[2]
         except requests.ConnectionError:
-            raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
+            raise HttpError('connection failed', self.__service_url), None, sys.exc_info()[2]
 
 
     def search_local(self, **kwargs):
