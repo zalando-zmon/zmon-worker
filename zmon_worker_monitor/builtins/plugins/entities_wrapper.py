@@ -50,7 +50,7 @@ class EntitiesWrapperFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
 
-        return propartial(EntitiesWrapper, infrastructure_account=factory_ctx.get('infrastructure_account'), service_url=self.service_url, oauth2=self.oauth2)
+        return propartial(EntitiesWrapper, infrastructure_account=factory_ctx.get('entity', {}).get('infrastructure_account', None), service_url=self.service_url, oauth2=self.oauth2)
 
 
 class EntitiesWrapper(object):

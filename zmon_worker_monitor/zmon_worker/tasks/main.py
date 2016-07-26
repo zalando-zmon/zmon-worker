@@ -1165,9 +1165,6 @@ class MainTask(object):
             'redis_host': self.get_redis_host(),
             'redis_port': self.get_redis_port(),
             'zmon_url': MainTask._zmon_url,
-            'stack_name': entity.get('stack_name'),
-            'stack_version': entity.get('stack_version'),
-            'infrastructure_account': entity.get('infrastructure_account'),
             'entity_id_for_kairos': normalize_kairos_id(entity['id']),
             'req_created_by': req.get('created_by'),
         }
