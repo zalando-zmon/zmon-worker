@@ -54,11 +54,12 @@ class EntitiesWrapperFactory(IFunctionFactoryPlugin):
 
 
 class EntitiesWrapper(object):
-    def __init__(self, service_url, infrastructure_account, verify=True, oauth2=False, token=None):
+    def __init__(self, service_url, infrastructure_account, verify=True, oauth2=False):
 
         if not service_url:
             raise ConfigurationError('EntitiesWrapper improperly configured. URL is missing!')
 
+        self.infrastructure_account = infrastructure_account
         self.__service_url = service_url
         self.__session = requests.Session()
 
