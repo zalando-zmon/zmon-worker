@@ -81,7 +81,7 @@ class EntitiesWrapper(object):
 
 
     def search_local(self, **kwargs):
-        ia = infrastructure_account if infrastructure_account else self.infrastructure_account
+        infrastructure_account = kwargs.get('infrastructure_account', self.infrastructure_account)
 
         q = kwargs
         q.update({"infrastructure_account": infrastructure_account})
