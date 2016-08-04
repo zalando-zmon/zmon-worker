@@ -406,9 +406,9 @@ class NagiosWrapper(object):
         '''try to parse this output:
         OK - 0 files older as 600 min -- 0 files older as 540 min -- total 762 files -- older:
 
-        >>> import json; json.dumps(NagiosWrapper._to_dict_olderfiles('OK - 0 files older as 600 min -- 112 files older as 60 min -- total 831 files -- older:'), sort_keys=True)  # noqa
+        >>> import json; json.dumps(NagiosWrapper._to_dict_olderfiles('OK - 0 files older as 600 min -- 112 files older as 60 min -- total 831 files -- older:'), sort_keys=True)
         '{"files older than time01": 112, "files older than time02": 0, "total files": 831}'
-        '''
+        '''  # noqa
 
         return {'files older than time01': int(output.split(' -- ')[1].split()[0]),
                 'files older than time02': int(output.split(' -- ')[0].split()[2]),
@@ -524,8 +524,8 @@ class NagiosWrapper(object):
     def _to_dict_iostat(output):
         '''
         try to parse this output:
-        OK - IOread 0.00 kB/s, IOwrite 214.80 kB/s  on sda with  31.10 tps |ioread=0.00;32000;64000;0;iowrite=214.80;30000;40000;0;  # noqa
-        '''
+        OK - IOread 0.00 kB/s, IOwrite 214.80 kB/s  on sda with  31.10 tps |ioread=0.00;32000;64000;0;iowrite=214.80;30000;40000;0;
+        '''  # noqa
 
         return {'ioread': float(output.split(' ')[3]), 'iowrite': float(output.split(' ')[6]),
                 'tps': float(output.split(' ')[13])}
@@ -565,11 +565,11 @@ class NagiosWrapper(object):
         fan_4=46%;0;0 'temp_1_ambient'=21;42;42 'temp_2_cpu#1'=40;82;82 'temp_3_cpu#2'=40;82;82 'temp_4_memory_bd'=35;87;87
         'temp_5_memory_bd'=34;78;78 'temp_6_memory_bd'=37;87;87 'temp_7_memory_bd'=32;78;78 'temp_8_memory_bd'=36;87;87
         'temp_9_memory_bd'=32;78;78 'temp_10_memory_bd'=36;87;87 'temp_11_memory_bd'=32;78;78 'temp_12_power_supply_bay'=33;59;59
-        'temp_13_power_supply_bay'=48;73;73 'temp_14_memory_bd'=29;60;60 'temp_15_processor_zone'=32;60;60 'temp_16_processor_zone'=3  # noqa
+        'temp_13_power_supply_bay'=48;73;73 'temp_14_memory_bd'=29;60;60 'temp_15_processor_zone'=32;60;60 'temp_16_processor_zone'=3
         or
         OK - ignoring 16 dimms with status 'n/a' , System: 'proliant dl360p gen8', S/N: 'CZJ2340R6C',
         ROM: 'P71 08/20/2012', hardware working fine, da: 1 logical drives, 4 physical drives
-        '''
+        '''  # noqa
 
         return {'status': output.split(' - ')[0], 'message': output.split(' - ')[-1].strip('\n')}
 

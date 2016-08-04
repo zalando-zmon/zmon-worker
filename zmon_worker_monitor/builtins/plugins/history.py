@@ -126,7 +126,8 @@ class HistoryWrapper(object):
         if response.ok:
             return response.json()
         else:
-            raise Exception('KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
+            raise Exception(
+                'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
 
     def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
 
@@ -136,7 +137,8 @@ class HistoryWrapper(object):
         if response.ok:
             return response.json()['queries'][0]['results'][0]['values']
         else:
-            raise Exception('KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
+            raise Exception(
+                'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
 
     def get_aggregated(self, key, aggregator, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # read the list of results

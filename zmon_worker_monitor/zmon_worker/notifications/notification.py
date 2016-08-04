@@ -24,12 +24,12 @@ class BaseNotification(object):
     @classmethod
     def _get_subject(cls, alert, custom_message=None):
         """
-        >>> BaseNotification._get_subject({'is_alert': True, 'changed': True, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}})  # noqa
+        >>> BaseNotification._get_subject({'is_alert': True, 'changed': True, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}})
         'NEW ALERT: Test on hostxy'
 
         >>> import datetime; BaseNotification._get_subject({'is_alert': True, 'changed': False, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}, 'duration': datetime.timedelta(seconds=30)})
         'ALERT ONGOING: Test on hostxy for 0:00:30'
-        """
+        """  # noqa
 
         if alert['changed']:
             event = ('NEW ALERT' if alert and alert.get('is_alert') else 'ALERT ENDED')

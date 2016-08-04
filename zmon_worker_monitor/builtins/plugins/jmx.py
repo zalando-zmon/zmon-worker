@@ -57,11 +57,11 @@ class JmxWrapper(object):
 
         >>> JmxWrapper._transform_results({'results':[{'beanName':'mybean','attributes':{'HeapMemoryUsage':1}}]})
         {'HeapMemoryUsage': 1}
-        >>> JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':1}}, {'beanName': 'b', 'attributes': {'y': 2}}]})  # noqa
+        >>> JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':1}}, {'beanName': 'b', 'attributes': {'y': 2}}]})
         {'a': {'x': 1}, 'b': {'y': 2}}
         >>> JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':{'compositeType': {}, 'contents': {'y':7}}}}]})
         {'x': {'y': 7}}
-        '''
+        '''  # noqa
 
         results = data['results']
         d = {}
