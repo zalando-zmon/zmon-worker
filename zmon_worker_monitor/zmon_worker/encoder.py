@@ -25,6 +25,8 @@ class JsonDataEncoder(json.JSONEncoder):
         '''
         if isinstance(o, (datetime.datetime, datetime.date, datetime.time)):
             return o.isoformat()
+        elif isinstance(o, datetime.timedelta):
+            return o.total_seconds()
         elif isinstance(o, Decimal):
             return float(o)
         elif isinstance(o, Set):

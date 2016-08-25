@@ -6,6 +6,10 @@ class CheckError(Exception):
     pass
 
 
+class NotificationError(Exception):
+    pass
+
+
 class SecurityError(Exception):
     pass
 

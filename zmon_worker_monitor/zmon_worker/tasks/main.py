@@ -39,6 +39,7 @@ from zmon_worker_monitor.zmon_worker.common.utils import flatten, PeriodicBuffer
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from zmon_worker_monitor.zmon_worker.errors import (
     CheckError, InsufficientPermissionsError, SecurityError, ResultSizeError)
+from zmon_worker_monitor.zmon_worker.notifications.http import NotifyHttp
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
@@ -453,7 +454,8 @@ def _build_notify_context(alert):
         'notify_hubot': functools.partial(Hubot.notify, alert),
         'send_hipchat': functools.partial(NotifyHipchat.send, alert),
         'send_slack': functools.partial(NotifySlack.send, alert),
-        'send_push': functools.partial(NotifyPush.send, alert)
+        'send_push': functools.partial(NotifyPush.send, alert),
+        'notify_http': functools.partial(NotifyHttp.notify, alert),
     }
 
 
