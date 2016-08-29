@@ -33,7 +33,7 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
 
-        if factory_ctx.get('entity', {}).get('seeds') is not None:
+        if factory_ctx.get('entity', {}).get('seeds'):
             return propartial(CassandraWrapper,
                               node=factory_ctx.get('entity', {}).get('seeds'),
                               username=self._username,
@@ -47,11 +47,8 @@ class CassandraWrapper(object):
     def __init__(self, node, keyspace, username=None, password=None, port=9042, connect_timeout=1, protocol_version=3):
         # for now using a single host / node should be seed nodes or at least available nodes
 
-        if node is not None and not isinstance(node, list):
-            if "," in node:
-                seeds = node.split(",")
-            else:
-                seeds = [node]
+        if node and not isinstance(node, list):
+            seeds = node.split(",")
         else:
             seeds = node
 
