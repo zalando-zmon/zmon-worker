@@ -32,14 +32,21 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(
-            CassandraWrapper, node=factory_ctx.get('host'), username=self._username, password=self._password)
+
+        seeds = factory_ctx.get('entity', {}).get('seeds') or factory_ctx.get('host')
+        return propartial(CassandraWrapper, node=seeds, username=self._username, password=self._password)
 
 
 class CassandraWrapper(object):
     def __init__(self, node, keyspace, username=None, password=None, port=9042, connect_timeout=1, protocol_version=3):
         # for now using a single host / node should be seed nodes or at least available nodes
-        self.node = node
+
+        if node and not isinstance(node, list):
+            seeds = node.split(",")
+        else:
+            seeds = node
+
+        self.seeds = seeds
         self.port = port
         self.__username = username
         self.__password = password
@@ -52,7 +59,7 @@ class CassandraWrapper(object):
         if self.__username and self.__password:
             auth_provider = PlainTextAuthProvider(username=self.__username, password=self.__password)
 
-        cl = Cluster([self.node], connect_timeout=self.connect_timeout, auth_provider=auth_provider,
+        cl = Cluster(self.seeds, connect_timeout=self.connect_timeout, auth_provider=auth_provider,
                      protocol_version=self.protocol_version, port=self.port)
 
         session = None
