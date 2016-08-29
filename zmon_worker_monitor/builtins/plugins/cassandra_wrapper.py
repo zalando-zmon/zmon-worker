@@ -33,14 +33,8 @@ class CassandraFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
 
-        if factory_ctx.get('entity', {}).get('seeds'):
-            return propartial(CassandraWrapper,
-                              node=factory_ctx.get('entity', {}).get('seeds'),
-                              username=self._username,
-                              password=self._password)
-
-        return propartial(
-            CassandraWrapper, node=factory_ctx.get('host'), username=self._username, password=self._password)
+        seeds = factory_ctx.get('entity', {}).get('seeds') or factory_ctx.get('host')
+        return propartial(CassandraWrapper, node=seeds, username=self._username, password=self._password)
 
 
 class CassandraWrapper(object):
