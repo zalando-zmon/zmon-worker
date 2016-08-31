@@ -67,9 +67,9 @@ class CounterWrapper(object):
         return result
 
     def per_minute(self, value):
-        '''convenience method: returns per_second(..) / 60'''
+        '''convenience method: returns per_second(..) * 60'''
 
-        return self.per_second(value) / 60.0
+        return self.per_second(value) * 60.0
 
 
 if __name__ == '__main__':
