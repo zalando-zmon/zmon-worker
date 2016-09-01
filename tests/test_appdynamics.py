@@ -7,7 +7,6 @@ from zmon_worker_monitor.zmon_worker.errors import HttpError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from zmon_worker_monitor.builtins.plugins.appdynamics import CRITICAL, WARNING
-from zmon_worker_monitor.builtins.plugins.appdynamics import SOURCE_TYPE_APPLICATION_LOG
 from zmon_worker_monitor.builtins.plugins.appdynamics import BEFORE_TIME, BEFORE_NOW, AFTER_TIME, BETWEEN_TIMES
 from zmon_worker_monitor.builtins.plugins.appdynamics import AppdynamicsWrapper
 
@@ -111,8 +110,9 @@ def fx_exception(request):
 
 @pytest.fixture(params=[
     ('https://es-url', {'q': 'application_id:my-app'}, {'hits': {'hits': ['res1', 'res2']}}),
-    ('https://es-url', {'q': 'application_id:my-app', 'source_type': 'syslog'}, {'hits': {'hits': ['res1', 'res2']}}),
+    ('https://es-url', {'q': 'application_id:my-app'}, {'hits': {'hits': ['res1', 'res2']}}),
     ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'hits': {'hits': ['res1']}}),
+    ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}, 'raw_result': True}, {'hits': {'hits': ['res1']}}),
 ])
 def fx_log_hits(request):
     return request.param
@@ -120,7 +120,7 @@ def fx_log_hits(request):
 
 @pytest.fixture(params=[
     ('https://es-url', {'q': 'application_id:my-app'}, {'count': 2}),
-    ('https://es-url', {'q': 'application_id:my-app', 'source_type': 'syslog'}, {'count': 3}),
+    ('https://es-url', {'q': 'application_id:my-app'}, {'count': 3}),
     ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'count': 1}),
 ])
 def fx_log_count(request):
@@ -269,16 +269,17 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
     url = 'https://appdynamics'
     cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
-    exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
-    exp_q = ('{} AND sourceType:{} AND eventTimestamp:>{}'
-             .format(kwargs.get('q', ''), exp_source_type, timestamp)
+    exp_q = ('{} AND eventTimestamp:>{}'
+             .format(kwargs.get('q', ''), timestamp)
              .lstrip(' AND '))
 
     result = cli.query_logs(**kwargs)
 
-    assert result == res['hits']['hits']
+    expected = res['hits']['hits'] if not kwargs.get('raw_result', False) else res
 
-    kwargs.pop('source_type', None)
+    assert result == expected
+
+    kwargs.pop('raw_result', None)
     kwargs['q'] = exp_q
     kwargs['size'] = 100
     kwargs['indices'] = ['PREFIX_*']
@@ -304,16 +305,14 @@ def test_appdynamics_log_count(monkeypatch, fx_log_count):
     url = 'https://appdynamics'
     cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
-    exp_source_type = SOURCE_TYPE_APPLICATION_LOG if 'source_type' not in kwargs else kwargs.get('source_type')
-    exp_q = ('{} AND sourceType:{} AND eventTimestamp:>{}'
-             .format(kwargs.get('q', ''), exp_source_type, timestamp)
+    exp_q = ('{} AND eventTimestamp:>{}'
+             .format(kwargs.get('q', ''), timestamp)
              .lstrip(' AND '))
 
     result = cli.count_logs(**kwargs)
 
     assert result == res['count']
 
-    kwargs.pop('source_type', None)
     kwargs['q'] = exp_q
     kwargs['indices'] = ['PREFIX_*']
     if 'body' not in kwargs:

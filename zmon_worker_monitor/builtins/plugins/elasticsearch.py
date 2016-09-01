@@ -181,7 +181,7 @@ class ElasticsearchWrapper(object):
 
                 if not response.ok:
                     raise Exception(
-                        'Elasticsearch query failed: {} with body: {}'.format(url, json.dumps(response.text)))
+                        'Elasticsearch query failed: {} with response: {}'.format(url, json.dumps(response.text)))
 
                 return response.json()
         except requests.Timeout:

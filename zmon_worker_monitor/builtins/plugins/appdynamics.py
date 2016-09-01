@@ -42,8 +42,6 @@ SEVERITIES = (
     CRITICAL,
 )
 
-SOURCE_TYPE_APPLICATION_LOG = 'application-log'
-
 
 # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
 # will try to read application credentials from CREDENTIALS_DIR
@@ -111,12 +109,12 @@ class AppdynamicsWrapper(object):
     def __get_timestamp(self, minutes=5):
         return int(time.mktime((datetime.utcnow() - timedelta(minutes=minutes)).timetuple())) * 1000
 
-    def __get_search_q(self, q, source_type, duration):
+    def __get_search_q(self, q, duration):
         timestamp = self.__get_timestamp(minutes=duration)
 
-        q_str = ' AND '.join([q, 'sourceType:{}', 'eventTimestamp:>{}']).lstrip(' AND ')
+        q_str = ' AND '.join([q, 'eventTimestamp:>{}']).lstrip(' AND ')
 
-        return q_str.format(source_type, timestamp)
+        return q_str.format(timestamp)
 
     def healthrule_violations_url(self, application):
         return os.path.join(self.url, 'applications', application, 'problems', 'healthrule-violations')
@@ -194,7 +192,7 @@ class AppdynamicsWrapper(object):
             logger.exception('AppDynamics request failed')
             raise
 
-    def query_logs(self, q='', body=None, size=100, source_type=SOURCE_TYPE_APPLICATION_LOG, duration_in_mins=5):
+    def query_logs(self, q='', body=None, size=100, duration_in_mins=5, raw_result=False):
         """
         Perform search query on AppDynamics ES logs.
 
@@ -207,28 +205,28 @@ class AppdynamicsWrapper(object):
         :param size: Number of hits to return. Default is 100.
         :type size: int
 
-        :param source_type: ``sourceType`` field filtering. Default to application-log, and will be part of ``q``.
-        :type source_type: str
-
         :param duration_in_mins: Duration in mins before current time. Default is 5 mins.
         :type duration_in_mins: int
 
-        :return: ES query result ``hits``.
-        :rtype: list
+        :param raw_result: Return query raw result instead of only ``hits``. Default is False.
+        :type raw_result: bool
+
+        :return: ES query result ``hits``. If ``raw_result`` is True, then full query result will be returned.
+        :rtype: list, dict
         """
         if not self.es_url:
             raise RuntimeError('AppDynamics plugin improperly configured. ES URL is required to query logs!')
 
-        q = self.__get_search_q(q, source_type, duration_in_mins)
+        q = self.__get_search_q(q, duration_in_mins)
 
         indices = ['{}*'.format(self.index_prefix)]
 
         res = (ElasticsearchWrapper(url=self.es_url, oauth2=self.__oauth2)
                .search(indices=indices, q=q, body=body, size=size))
 
-        return res['hits']['hits']
+        return res['hits']['hits'] if not raw_result else res
 
-    def count_logs(self, q='', body=None, source_type=SOURCE_TYPE_APPLICATION_LOG, duration_in_mins=5):
+    def count_logs(self, q='', body=None, duration_in_mins=5):
         """
         Perform count query on AppDynamics ES logs.
 
@@ -237,9 +235,6 @@ class AppdynamicsWrapper(object):
 
         :param body: (dict) holding an ES query DSL.
         :type body: dict
-
-        :param source_type: ``sourceType`` field filtering. Default to application-log, and will be part of ``q``.
-        :type source_type: str
 
         :param duration_in_mins: Duration in mins before current time. Default is 5 mins.
         :type duration_in_mins: int
@@ -250,7 +245,7 @@ class AppdynamicsWrapper(object):
         if not self.es_url:
             raise RuntimeError('AppDynamics plugin improperly configured. ES URL is required to query logs!')
 
-        q = self.__get_search_q(q, source_type, duration_in_mins)
+        q = self.__get_search_q(q, duration_in_mins)
 
         indices = ['{}*'.format(self.index_prefix)]
 
