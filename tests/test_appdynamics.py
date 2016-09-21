@@ -110,7 +110,7 @@ def fx_exception(request):
 
 @pytest.fixture(params=[
     ('https://es-url', {'q': 'application_id:my-app'}, {'hits': {'hits': ['res1', 'res2']}}),
-    ('https://es-url', {'q': 'application_id:my-app'}, {'hits': {'hits': ['res1', 'res2']}}),
+    ('https://es-url', {'q': 'application_id:my-app AND message:[1-9]{2}'}, {'hits': {'hits': ['res1', 'res2']}}),
     ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'hits': {'hits': ['res1']}}),
     ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}, 'raw_result': True}, {'hits': {'hits': ['res1']}}),
 ])
@@ -120,7 +120,7 @@ def fx_log_hits(request):
 
 @pytest.fixture(params=[
     ('https://es-url', {'q': 'application_id:my-app'}, {'count': 2}),
-    ('https://es-url', {'q': 'application_id:my-app'}, {'count': 3}),
+    ('https://es-url', {'q': 'application_id:my-app AND message:[1-9]{2}'}, {'count': 3}),
     ('https://es-url', {'body': {'query': {'query_str': 'my-app'}}}, {'count': 1}),
 ])
 def fx_log_count(request):

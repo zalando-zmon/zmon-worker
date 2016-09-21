@@ -112,9 +112,9 @@ class AppdynamicsWrapper(object):
     def __get_search_q(self, q, duration):
         timestamp = self.__get_timestamp(minutes=duration)
 
-        q_str = ' AND '.join([q, 'eventTimestamp:>{}']).lstrip(' AND ')
+        q_str = ' AND '.join([q, 'eventTimestamp:>{}'.format(timestamp)]).lstrip(' AND ')
 
-        return q_str.format(timestamp)
+        return q_str
 
     def healthrule_violations_url(self, application):
         return os.path.join(self.url, 'applications', application, 'problems', 'healthrule-violations')
