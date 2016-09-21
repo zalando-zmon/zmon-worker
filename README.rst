@@ -6,8 +6,8 @@ ZMON Worker
    :target: https://travis-ci.org/zalando-zmon/zmon-worker
    :alt: Build Status
 
-.. image:: https://coveralls.io/repos/zalando/zmon-worker/badge.svg
-   :target: https://coveralls.io/r/zalando/zmon-worker
+.. image:: https://coveralls.io/repos/zalando-zmon/zmon-worker/badge.svg
+   :target: https://coveralls.io/r/zalando-zmon/zmon-worker
    :alt: Coverage Status
 
 .. image:: https://img.shields.io/pypi/dw/zmon-worker.svg
