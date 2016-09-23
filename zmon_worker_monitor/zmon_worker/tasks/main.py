@@ -327,8 +327,10 @@ def alert_series(f, n, con, check_id, entity_id):
     Evaluate given function on the last n check results and return true if the "alert" function f returns true for
     all values
     """
-
     vs = get_results(con, check_id, entity_id, n)
+
+    threshold = min(n, len(vs))
+
     active_count = 0
     exception_count = 0
 
@@ -345,11 +347,10 @@ def alert_series(f, n, con, check_id, entity_id):
         active_count += r
         exception_count += x
 
-    if exception_count == n:
+    if exception_count == threshold:
         raise Exception("All alert evaluations failed!")
 
-    # activating alert if not enough value found (this should only affect starting period)
-    return n == active_count or len(vs) < n
+    return threshold == active_count
 
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
