@@ -48,6 +48,7 @@ from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
 from zmon_worker_monitor.zmon_worker.notifications.pagerduty import NotifyPagerduty
+from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie
 
 
 logger = logging.getLogger(__name__)
@@ -460,6 +461,7 @@ def _build_notify_context(alert):
         'send_push': functools.partial(NotifyPush.send, alert),
         'notify_http': functools.partial(NotifyHttp.notify, alert),
         'notify_pagerduty': functools.partial(NotifyPagerduty.notify, alert),
+        'notify_opsgenie': functools.partial(NotifyOpsgenie.notify, alert),
     }
 
 
