@@ -13,7 +13,8 @@ from zmon_worker_monitor.builtins.plugins.appdynamics import AppdynamicsWrapper
 
 USER = 'user'
 PASS = 'pass'
-
+URL = 'https://appdynamics'
+APPLICATION = 'App 1'
 
 def resp_mock(res, failure=False):
     resp = MagicMock()
@@ -136,11 +137,100 @@ def fx_invalid_kwargs(request):
     return request.param
 
 
+@pytest.fixture(params=[
+    {'time_range_type': BEFORE_NOW, 'duration_in_mins': None, 'start_time': None, 'end_time': None},
+    {'time_range_type': '_INVALID', 'duration_in_mins': 5, 'start_time': None, 'end_time': None},
+])
+def fx_invalid_time_range_params(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    (
+        {'time_range_type': AFTER_TIME, 'duration_in_mins': 5, 'start_time': None, 'end_time': None},
+        {'start-time': 123, 'end-time': 456},
+        {'duration-in-mins': 5, 'start-time': 123000, 'time-range-type': AFTER_TIME}
+    ),
+    (
+        {'time_range_type': BEFORE_TIME, 'duration_in_mins': 5, 'start_time': None, 'end_time': None},
+        {'start-time': 123, 'end-time': 456},
+        {'duration-in-mins': 5, 'end-time': 456000, 'time-range-type': BEFORE_TIME}
+     ),
+    (
+        {'time_range_type': BETWEEN_TIMES, 'duration_in_mins': 5, 'start_time': None, 'end_time': None},
+        {'start-time': 123, 'end-time': 456},
+        {'end-time': 456000, 'start-time': 123000, 'time-range-type': BETWEEN_TIMES}
+     )
+])
+def fx_valid_time_range_params(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    (
+      {'metric_path': 'SOME | METRIC'},
+      {'time-range-type': BEFORE_NOW, 'rollup': True, 'duration-in-mins': 5, 'metric-path': 'SOME | METRIC'}
+    ),
+    (
+        {'metric_path': 'SOME | METRIC', 'rollup': False, 'duration_in_mins': 10, 'time_range_type': BEFORE_TIME, 'end_time': 123},
+        {'metric-path': 'SOME | METRIC', 'rollup': False, 'duration-in-mins': 10, 'time-range-type': BEFORE_TIME, 'end-time': 123},
+    )
+])
+def fx_data_metric(request):
+    return request.param
+
+
 def assert_client(cli):
     # hack to access __session obj.
     assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
     assert get_user_agent() == cli._AppdynamicsWrapper__session.headers['User-Agent']
     assert 'json' == cli._AppdynamicsWrapper__session.params['output']
+
+
+def test_prepare_time_range_params_with_exception(fx_invalid_time_range_params):
+    cli = AppdynamicsWrapper(URL, USER, PASS)
+    with pytest.raises(Exception):
+        cli._prepare_time_range_params(**fx_invalid_time_range_params)
+
+
+def test_prepare_time_range_params(monkeypatch, fx_valid_time_range_params):
+    kwargs, mock_time_vals, result = fx_valid_time_range_params
+
+    cli = AppdynamicsWrapper(URL, USER, PASS)
+
+    start_time = mock_time_vals['start-time']
+    end_time = mock_time_vals['end-time']
+
+    mktime_mock = MagicMock()
+    time_mock = MagicMock()
+    mktime_mock.return_value = start_time
+    time_mock.return_value = end_time
+    monkeypatch.setattr('time.mktime', mktime_mock)
+    monkeypatch.setattr('time.time', time_mock)
+
+    assert cli._prepare_time_range_params(**kwargs) == result
+
+
+def test_appdynamics_data_metric(monkeypatch, fx_data_metric):
+    url_params, params = fx_data_metric
+
+    res_json = []
+    resp = resp_mock([])
+    get = requests_mock(resp)
+    monkeypatch.setattr('requests.Session.get', get)
+
+    cli = AppdynamicsWrapper(URL, USER, PASS)
+    res = cli.metric_data(APPLICATION, **url_params)
+    assert res == res_json
+
+    assert_client(cli)
+    get.assert_called_with(cli.metric_data_url(APPLICATION), params=params )
+
+
+def test_appdynamics_data_metric_missing_metric_path():
+    cli = AppdynamicsWrapper(URL, USER, PASS)
+    with pytest.raises(Exception):
+        cli.metric_data(APPLICATION, None)
 
 
 def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
@@ -161,19 +251,16 @@ def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
     monkeypatch.setattr('time.mktime', mktime_mock)
     monkeypatch.setattr('time.time', time_mock)
 
-    url = 'https://appdynamics'
-    application = 'App 1'
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
 
-    cli = AppdynamicsWrapper(url, username=USER, password=PASS)
-
-    res = cli.healthrule_violations(application, **kwargs)
+    res = cli.healthrule_violations(APPLICATION, **kwargs)
 
     assert violations == res
     assert_client(cli)
 
     params = kwargs_to_params(kwargs, start_time, end_time)
 
-    get.assert_called_with(cli.healthrule_violations_url(application), params=params)
+    get.assert_called_with(cli.healthrule_violations_url(APPLICATION), params=params)
 
 
 def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, fx_severity):
@@ -194,19 +281,16 @@ def test_appdynamics_healthrule_violations_severity(monkeypatch, fx_violations, 
     monkeypatch.setattr('time.mktime', mktime_mock)
     monkeypatch.setattr('time.time', time_mock)
 
-    url = 'https://appdynamics'
-    application = 'App 1'
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
 
-    cli = AppdynamicsWrapper(url, username=USER, password=PASS)
-
-    res = cli.healthrule_violations(application, severity=fx_severity, **kwargs)
+    res = cli.healthrule_violations(APPLICATION, severity=fx_severity, **kwargs)
 
     assert [v for v in violations if v['severity'] == fx_severity] == res
     assert_client(cli)
 
     params = kwargs_to_params(kwargs, start_time, end_time)
 
-    get.assert_called_with(cli.healthrule_violations_url(application), params=params)
+    get.assert_called_with(cli.healthrule_violations_url(APPLICATION), params=params)
 
 
 def test_appdynamics_oauth2(monkeypatch):
@@ -214,21 +298,16 @@ def test_appdynamics_oauth2(monkeypatch):
     token = 'TOKEN-123'
     monkeypatch.setattr('tokens.get', lambda x: token)
 
-    url = 'https://appdynamics'
-
-    cli = AppdynamicsWrapper(url=url)
+    cli = AppdynamicsWrapper(url=URL)
 
     assert 'Bearer {}'.format(token) == cli._AppdynamicsWrapper__session.headers['Authorization']
     assert True is cli._AppdynamicsWrapper__oauth2
 
 
-def test_appdynamics_healthrule_violations_kwargs_error(monkeypatch, fx_invalid_kwargs):
-    url = 'https://appdynamics'
-    application = 'App 1'
-
-    cli = AppdynamicsWrapper(url, username=USER, password=PASS)
+def test_appdynamics_healthrule_violations_kwargs_error(fx_invalid_kwargs):
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
     with pytest.raises(Exception):
-        cli.healthrule_violations(application, **fx_invalid_kwargs)
+        cli.healthrule_violations(APPLICATION, **fx_invalid_kwargs)
 
 
 def test_appdynamics_healthrule_violations_errors(monkeypatch, fx_exception):
@@ -239,13 +318,25 @@ def test_appdynamics_healthrule_violations_errors(monkeypatch, fx_exception):
 
     monkeypatch.setattr('requests.Session.get', get)
 
-    url = 'https://appdynamics'
-    application = 'App 1'
-
-    cli = AppdynamicsWrapper(url, username=USER, password=PASS)
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
 
     with pytest.raises(raised):
-        cli.healthrule_violations(application, time_range_type=BEFORE_NOW, duration_in_mins=5)
+        cli.healthrule_violations(APPLICATION, time_range_type=BEFORE_NOW, duration_in_mins=5)
+
+
+def test_appdynamics_metric_data_errors(monkeypatch, fx_exception):
+    ex, raised = fx_exception
+
+    resp = resp_mock(None, failure=True)
+    get = requests_mock(resp, failure=ex)
+
+    monkeypatch.setattr('requests.Session.get', get)
+
+    metric_path = 'Some | Metric | Path'
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
+
+    with pytest.raises(raised):
+        cli.metric_data(APPLICATION, metric_path = metric_path)
 
 
 def test_appdynamics_no_url():
@@ -266,8 +357,7 @@ def test_appdynamics_log_query(monkeypatch, fx_log_hits):
     timestamp_mock.return_value = timestamp
     monkeypatch.setattr(AppdynamicsWrapper, '_AppdynamicsWrapper__get_timestamp', timestamp_mock)
 
-    url = 'https://appdynamics'
-    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
+    cli = AppdynamicsWrapper(url=URL, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
     exp_q = ('{} AND eventTimestamp:>{}'
              .format(kwargs.get('q', ''), timestamp)
@@ -302,8 +392,7 @@ def test_appdynamics_log_count(monkeypatch, fx_log_count):
     timestamp_mock.return_value = timestamp
     monkeypatch.setattr(AppdynamicsWrapper, '_AppdynamicsWrapper__get_timestamp', timestamp_mock)
 
-    url = 'https://appdynamics'
-    cli = AppdynamicsWrapper(url=url, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
+    cli = AppdynamicsWrapper(url=URL, es_url=es_url, username=USER, password=PASS, index_prefix='PREFIX_')
 
     exp_q = ('{} AND eventTimestamp:>{}'
              .format(kwargs.get('q', ''), timestamp)
@@ -322,8 +411,7 @@ def test_appdynamics_log_count(monkeypatch, fx_log_count):
 
 
 def test_appdynamics_log_error(monkeypatch):
-    url = 'https://appdynamics'
-    cli = AppdynamicsWrapper(url=url, username=USER, password=PASS)
+    cli = AppdynamicsWrapper(url=URL, username=USER, password=PASS)
 
     with pytest.raises(RuntimeError):
         cli.query_logs(q='application:my-app')
