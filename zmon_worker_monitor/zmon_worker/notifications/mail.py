@@ -23,7 +23,7 @@ jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
 class Mail(BaseNotification):
 
     @classmethod
-    def send(cls, alert, *args, **kwargs):
+    def notify(cls, alert, *args, **kwargs):
 
         alert_def = alert['alert_def']
         logger.info("Sending email for alert: {}".format(alert_def['id']))
@@ -116,4 +116,4 @@ class Mail(BaseNotification):
 
 if __name__ == '__main__':
     import sys
-    Mail.send({'entity': {'id': 'test'}, 'value': 5}, *sys.argv[1:])
+    Mail.notify({'entity': {'id': 'test'}, 'value': 5}, *sys.argv[1:])

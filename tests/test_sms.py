@@ -43,7 +43,7 @@ class TestSms(unittest.TestCase):
         mock_requests.return_value = r
 
         # Regular send
-        repeat = Sms.send({
+        repeat = Sms.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},
@@ -67,7 +67,7 @@ class TestSms(unittest.TestCase):
         #     phoneNumber='42', httpStatus=100)
 
         # Send with repeat
-        repeat = Sms.send({
+        repeat = Sms.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},
@@ -95,7 +95,7 @@ class TestSms(unittest.TestCase):
         mock_eventlog.reset_mock()
         r.raise_for_status.side_effect = requests.RequestException('test')
         mock_requests.return_value = r
-        repeat = Sms.send({
+        repeat = Sms.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},

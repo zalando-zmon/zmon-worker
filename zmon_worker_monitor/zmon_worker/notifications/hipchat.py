@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class NotifyHipchat(BaseNotification):
     @classmethod
-    def send(cls, alert, *args, **kwargs):
+    def notify(cls, alert, *args, **kwargs):
         url = cls._config.get('notifications.hipchat.url')
         token = kwargs.get('token', cls._config.get('notifications.hipchat.token'))
         repeat = kwargs.get('repeat', 0)

@@ -116,7 +116,7 @@ class TestMail(unittest.TestCase):
         mock_jinja.get_template.return_value = mock_tmpl
 
         # Regular send
-        repeat = m.Mail.send({
+        repeat = m.Mail.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},
@@ -143,7 +143,7 @@ class TestMail(unittest.TestCase):
                                             value={'value': 1.0})
 
         # Send with repeat in HTML
-        repeat = m.Mail.send({
+        repeat = m.Mail.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},
@@ -166,7 +166,7 @@ class TestMail(unittest.TestCase):
         t.render.side_effect = jinja2.TemplateError('Jinja Error')
         mock_jinja.get_template.return_value = t
 
-        repeat = m.Mail.send({
+        repeat = m.Mail.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},
@@ -189,7 +189,7 @@ class TestMail(unittest.TestCase):
         s.sendmail.side_effect = Exception('Error connecting to host')
         mock_smtp.return_value = s
 
-        repeat = m.Mail.send({
+        repeat = m.Mail.notify({
             'captures': {},
             'changed': True,
             'value': {'value': 1.0},

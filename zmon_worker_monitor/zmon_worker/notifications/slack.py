@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class NotifySlack(BaseNotification):
     @classmethod
-    def send(cls, alert, *args, **kwargs):
+    def notify(cls, alert, *args, **kwargs):
         url = "https://slack.com/api/chat.postMessage"
         token = kwargs.get('token', cls._config.get('notifications.slack.token'))
         repeat = kwargs.get('repeat', 0)

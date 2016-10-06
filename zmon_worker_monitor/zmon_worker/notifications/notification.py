@@ -59,7 +59,7 @@ class BaseNotification(object):
             return "<<< Unformattable name '{name}': {message} >>>".format(name=name, message=e)
 
     @classmethod
-    def send(cls, alert, *args, **kwargs):
+    def notify(cls, alert, *args, **kwargs):
         raise NotImplementedError('Method meant to be overriden by subclass')
 
     @classmethod

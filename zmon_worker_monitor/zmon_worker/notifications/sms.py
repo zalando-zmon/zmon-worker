@@ -20,7 +20,7 @@ class SmsException(Exception):
 
 class Sms(BaseNotification):
     @classmethod
-    def send(cls, alert, *args, **kwargs):
+    def notify(cls, alert, *args, **kwargs):
         provider_url = cls._config.get('notifications.sms.provider_url', SMS_PROVIDER_URL)
         phone_numbers = BaseNotification.resolve_group(args, phone=True)
         repeat = kwargs.get('repeat', 0)
@@ -76,5 +76,5 @@ if __name__ == '__main__':
         'captures': {},
     }
 
-    Sms.send(fake_alert, *test_recipients, **{'message': 'My customized zmon2 alert message'})
-    Sms.send(fake_alert, *test_recipients)
+    Sms.notify(fake_alert, *test_recipients, **{'message': 'My customized zmon2 alert message'})
+    Sms.notify(fake_alert, *test_recipients)

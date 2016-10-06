@@ -454,13 +454,19 @@ def _build_notify_context(alert):
     return {
         'True': True,
         'False': False,
-        'send_mail': functools.partial(Mail.send, alert),
-        'send_email': functools.partial(Mail.send, alert),
-        'send_sms': functools.partial(Sms.send, alert),
+        'send_mail': functools.partial(Mail.notify, alert),
+        'notify_mail': functools.partial(Mail.notify, alert),
+        'send_email': functools.partial(Mail.notify, alert),
+        'notify_email': functools.partial(Mail.notify, alert),
+        'send_sms': functools.partial(Sms.notify, alert),
+        'notify_sms': functools.partial(Sms.notify, alert),
         'notify_hubot': functools.partial(Hubot.notify, alert),
-        'send_hipchat': functools.partial(NotifyHipchat.send, alert),
-        'send_slack': functools.partial(NotifySlack.send, alert),
-        'send_push': functools.partial(NotifyPush.send, alert),
+        'send_hipchat': functools.partial(NotifyHipchat.notify, alert),
+        'notify_hipchat': functools.partial(NotifyHipchat.notify, alert),
+        'send_slack': functools.partial(NotifySlack.notify, alert),
+        'notify_slack': functools.partial(NotifySlack.notify, alert),
+        'send_push': functools.partial(NotifyPush.notify, alert),
+        'notify_push': functools.partial(NotifyPush.notify, alert),
         'notify_http': functools.partial(NotifyHttp.notify, alert),
         'notify_pagerduty': functools.partial(NotifyPagerduty.notify, alert),
         'notify_opsgenie': functools.partial(NotifyOpsgenie.notify, alert),
@@ -1464,11 +1470,12 @@ class MainTask(object):
                     if not downtimes:
                         if changed:
                             if 'notifications' not in alert:
-                                alert['notifications'] = ['send_push()']
+                                alert['notifications'] = ['notify_push()']
 
                             # do not overwrite custom push notification
-                            if len(filter(lambda x: x.startswith('send_push'), alert['notifications'])) <= 0:
-                                alert['notifications'].append('send_push()')
+                            if not [n for n in alert['notifications'] if
+                                    n.startswith('send_push') or n.startswith('notify_push')]:
+                                alert['notifications'].append('notify_push()')
 
                             for notification in alert['notifications']:
                                 self.send_notification(notification, notification_context)
