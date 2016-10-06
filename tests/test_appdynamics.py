@@ -170,7 +170,7 @@ def fx_valid_time_range_params(request):
 @pytest.fixture(params=[
     (
       {'metric_path': 'P_'},
-      {'time-range-type': BEFORE_NOW, 'rollup': True, 'duration-in-mins': 5, 'metric-path': 'SOME | METRIC'}
+      {'time-range-type': BEFORE_NOW, 'rollup': True, 'duration-in-mins': 5, 'metric-path': 'P_'}
     ),
     (
         {'metric_path': 'P_', 'rollup': False, 'duration_in_mins': 10, 'time_range_type': BEFORE_TIME, 'end_time': 123},
