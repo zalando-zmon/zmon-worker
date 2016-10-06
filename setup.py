@@ -43,6 +43,7 @@ class PyTest(TestCommand):
 def load_req(fn):
     return [r.strip() for r in open(fn).read().splitlines() if r.strip() and not r.strip().startswith('#')]
 
+
 if __name__ == '__main__':
     # just in case setup.py is launched from elsewhere than the containing directory
     original_dir = os.getcwd()

@@ -358,13 +358,14 @@ def alert_series(f, n, con, check_id, entity_id):
 
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
-    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})  # noqa
+    >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
     True
-    >>> 'timeseries_percentile' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
+    >>> set(('history', 'kairosdb', 'timeseries_percentile')) - set(build_condition_context(None, 1, 1, {'id': '1'}, {}, {})) == set()
     True
-    '''
+    '''  # noqa
 
     history_factory = plugin_manager.get_plugin_obj_by_name('history', 'Function')
+    kairosdb_factory = plugin_manager.get_plugin_obj_by_name('kairosdb', 'Function')
 
     ctx = build_default_context()
     ctx['capture'] = functools.partial(capture, captures=captures)
@@ -373,6 +374,7 @@ def build_condition_context(con, check_id, alert_id, entity, captures, alert_par
     ctx['entity'] = dict(entity)
     ctx['history'] = history_factory.create(
         {'check_id': check_id, 'entity_id_for_kairos': normalize_kairos_id(entity['id'])})
+    ctx['kairosdb'] = kairosdb_factory.create({})
     ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
     ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
 
