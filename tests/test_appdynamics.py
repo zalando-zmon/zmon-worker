@@ -16,6 +16,7 @@ PASS = 'pass'
 URL = 'https://appdynamics'
 APPLICATION = 'App 1'
 
+
 def resp_mock(res, failure=False):
     resp = MagicMock()
     resp.ok = True if not failure else False
@@ -168,12 +169,12 @@ def fx_valid_time_range_params(request):
 
 @pytest.fixture(params=[
     (
-      {'metric_path': 'SOME | METRIC'},
+      {'metric_path': 'P_'},
       {'time-range-type': BEFORE_NOW, 'rollup': True, 'duration-in-mins': 5, 'metric-path': 'SOME | METRIC'}
     ),
     (
-        {'metric_path': 'SOME | METRIC', 'rollup': False, 'duration_in_mins': 10, 'time_range_type': BEFORE_TIME, 'end_time': 123},
-        {'metric-path': 'SOME | METRIC', 'rollup': False, 'duration-in-mins': 10, 'time-range-type': BEFORE_TIME, 'end-time': 123},
+        {'metric_path': 'P_', 'rollup': False, 'duration_in_mins': 10, 'time_range_type': BEFORE_TIME, 'end_time': 123},
+        {'metric-path': 'P_', 'rollup': False, 'duration-in-mins': 10, 'time-range-type': BEFORE_TIME, 'end-time': 123},
     )
 ])
 def fx_data_metric(request):
@@ -224,7 +225,7 @@ def test_appdynamics_data_metric(monkeypatch, fx_data_metric):
     assert res == res_json
 
     assert_client(cli)
-    get.assert_called_with(cli.metric_data_url(APPLICATION), params=params )
+    get.assert_called_with(cli.metric_data_url(APPLICATION), params=params)
 
 
 def test_appdynamics_data_metric_missing_metric_path():
@@ -336,7 +337,7 @@ def test_appdynamics_metric_data_errors(monkeypatch, fx_exception):
     cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
 
     with pytest.raises(raised):
-        cli.metric_data(APPLICATION, metric_path = metric_path)
+        cli.metric_data(APPLICATION, metric_path=metric_path)
 
 
 def test_appdynamics_no_url():

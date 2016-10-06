@@ -148,7 +148,7 @@ class AppdynamicsWrapper(object):
         return os.path.join(self.url, 'applications', application, 'metric-data')
 
     def metric_data(self, application, metric_path, time_range_type=BEFORE_NOW, duration_in_mins=5,
-                          start_time=None, end_time=None, rollup=True):
+                    start_time=None, end_time=None, rollup=True):
         """
         AppDynamics's metric-data API
 
