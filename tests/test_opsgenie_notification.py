@@ -48,7 +48,7 @@ def test_opsgenie_notification(monkeypatch, is_alert):
 
     URL = URL_CREATE if is_alert else URL_CLOSE
 
-    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder), headers=HEADERS, timeout=5)
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5)
 
 
 def test_opsgenie_notification_error_api_key(monkeypatch):
@@ -99,4 +99,5 @@ def test_opsgenie_notification_per_entity(monkeypatch):
 
     assert r == 0
 
-    post.assert_called_with(URL_CREATE, data=json.dumps(data, cls=JsonDataEncoder), headers=HEADERS, timeout=5)
+    post.assert_called_with(URL_CREATE, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS,
+                            timeout=5)
