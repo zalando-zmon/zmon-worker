@@ -180,8 +180,11 @@ class AppdynamicsWrapper(object):
         :rtype: list
         """
         try:
+            if application is None:
+                raise Exception('Argument application is mandatory')
+
             if metric_path is None:
-                raise Exception('The path to a metric in the metric hierarchy is mandatory.')
+                raise Exception('Argument metric_path is mandatory.')
 
             params = self._prepare_time_range_params(time_range_type, duration_in_mins, start_time, end_time)
 

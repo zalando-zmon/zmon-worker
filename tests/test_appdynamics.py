@@ -181,6 +181,14 @@ def fx_data_metric(request):
     return request.param
 
 
+@pytest.fixture(params=[
+    {'application': 'application_id', 'metric_path': None},
+    {'application': None, 'metric_path': 'JVM|Memory:Heap|Used %'},
+])
+def fx_data_metric_invalid_kwargs(request):
+    return request.param
+
+
 def assert_client(cli):
     # hack to access __session obj.
     assert (USER, PASS) == cli._AppdynamicsWrapper__session.auth
@@ -228,10 +236,26 @@ def test_appdynamics_data_metric(monkeypatch, fx_data_metric):
     get.assert_called_with(cli.metric_data_url(APPLICATION), params=params)
 
 
-def test_appdynamics_data_metric_missing_metric_path():
+def test_appdynamics_data_metric_kwargs_error(fx_data_metric_invalid_kwargs):
     cli = AppdynamicsWrapper(URL, USER, PASS)
-    with pytest.raises(Exception):
-        cli.metric_data(APPLICATION, None)
+    with pytest.raises(Exception) as e:
+        cli.metric_data(**fx_data_metric_invalid_kwargs)
+    assert 'mandatory' in str(e)
+
+
+def test_appdynamics_metric_data_errors(monkeypatch, fx_exception):
+    ex, raised = fx_exception
+
+    resp = resp_mock(None, failure=True)
+    get = requests_mock(resp, failure=ex)
+
+    monkeypatch.setattr('requests.Session.get', get)
+
+    metric_path = 'Some | Metric | Path'
+    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
+
+    with pytest.raises(raised):
+        cli.metric_data(APPLICATION, metric_path=metric_path)
 
 
 def test_appdynamics_healthrule_violations(monkeypatch, fx_violations):
@@ -323,21 +347,6 @@ def test_appdynamics_healthrule_violations_errors(monkeypatch, fx_exception):
 
     with pytest.raises(raised):
         cli.healthrule_violations(APPLICATION, time_range_type=BEFORE_NOW, duration_in_mins=5)
-
-
-def test_appdynamics_metric_data_errors(monkeypatch, fx_exception):
-    ex, raised = fx_exception
-
-    resp = resp_mock(None, failure=True)
-    get = requests_mock(resp, failure=ex)
-
-    monkeypatch.setattr('requests.Session.get', get)
-
-    metric_path = 'Some | Metric | Path'
-    cli = AppdynamicsWrapper(URL, username=USER, password=PASS)
-
-    with pytest.raises(raised):
-        cli.metric_data(APPLICATION, metric_path=metric_path)
 
 
 def test_appdynamics_no_url():
