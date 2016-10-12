@@ -47,6 +47,7 @@ from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotif
 from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
+from zmon_worker_monitor.zmon_worker.notifications.twili import NotifyTwilio
 from zmon_worker_monitor.zmon_worker.notifications.pagerduty import NotifyPagerduty
 from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie
 
@@ -470,6 +471,7 @@ def _build_notify_context(alert):
         'notify_http': functools.partial(NotifyHttp.notify, alert),
         'notify_pagerduty': functools.partial(NotifyPagerduty.notify, alert),
         'notify_opsgenie': functools.partial(NotifyOpsgenie.notify, alert),
+        'notify_twilio': functools.partial(NotifyTwilio.notify, alert)
     }
 
 
@@ -1369,6 +1371,7 @@ class MainTask(object):
                 notifications_key = 'zmon:notifications:{}:{}'.format(alert_id, entity_id)
                 is_alert, captures = ((True, {}) if force_alert else self.evaluate_alert(alert, req, val))
 
+                alert_changed = False
                 func = getattr(self.con, ('sadd' if is_alert else 'srem'))
                 changed = bool(func(alert_entities_key, entity_id))
 
@@ -1462,6 +1465,7 @@ class MainTask(object):
                         'captures': captures,
                         'worker': self.worker_name,
                         'is_alert': is_alert,
+                        'alert_changed': alert_changed,
                         'changed': changed,
                         'duration': timedelta(seconds=(time.time() - start_time if is_alert and not changed else 0)),
                     }
