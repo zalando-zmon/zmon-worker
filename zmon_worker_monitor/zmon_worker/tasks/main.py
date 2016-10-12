@@ -47,7 +47,7 @@ from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotif
 from zmon_worker_monitor.zmon_worker.notifications.push import NotifyPush
 from zmon_worker_monitor.zmon_worker.notifications.slack import NotifySlack
 from zmon_worker_monitor.zmon_worker.notifications.sms import Sms
-from zmon_worker_monitor.zmon_worker.notifications.twili import NotifyTwilio
+from zmon_worker_monitor.zmon_worker.notifications.twilio import NotifyTwilio
 from zmon_worker_monitor.zmon_worker.notifications.pagerduty import NotifyPagerduty
 from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie
 

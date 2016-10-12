@@ -45,8 +45,8 @@ class NotifyTwilio(BaseNotification):
         headers['User-Agent'] = get_user_agent()
 
         data = {
-            "message": kwargs.get("message", cls._get_subject(alert))
-            "responsible_team", alert['alert_def'].get("responsible_team", ""),
+            "message": kwargs.get("message", cls._get_subject(alert)),
+            "responsible_team": alert['alert_def'].get("responsible_team", ""),
             "numbers": kwargs.get("numbers", []),
             "voice": kwargs.get("voice", "woman"),
             "alert_id": alert['alert_def']['id'],
