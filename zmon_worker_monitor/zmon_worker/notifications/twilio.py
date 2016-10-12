@@ -29,6 +29,8 @@ class NotifyTwilio(BaseNotification):
         repeat = kwargs.get('repeat', 0)
         oauth2 = kwargs.get('oauth2', True)
         headers = {}
+        params = {}
+        timeout = 5
 
         url = cls._config.get('notifications.service.url', None)
         if not url:
