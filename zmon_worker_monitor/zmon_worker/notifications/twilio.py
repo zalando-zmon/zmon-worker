@@ -28,8 +28,7 @@ class NotifyTwilio(BaseNotification):
 
         repeat = kwargs.get('repeat', 0)
         oauth2 = kwargs.get('oauth2', True)
-        headers = {}
-        params = {}
+        headers = {'Content-type': 'application/json'}
         timeout = 5
 
         url = cls._config.get('notifications.service.url', None)
@@ -60,8 +59,7 @@ class NotifyTwilio(BaseNotification):
 
         try:
             logger.info('Sending HTTP POST request to {}'.format(url))
-            r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder), params=params,
-                              headers=headers, timeout=timeout)
+            r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder), headers=headers, timeout=timeout)
 
             r.raise_for_status()
         except:
