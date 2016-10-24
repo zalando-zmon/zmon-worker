@@ -1028,7 +1028,7 @@ class MainTask(object):
                 raise ResultSizeError(
                     'Result keys count ({}) exceeded the maximum value: {}'.format(key_count, self.max_result_keys))
 
-        result_str = json.dumps(result, separators=(',', ':'))
+        result_str = json.dumps(result, separators=(',', ':'), cls=JsonDataEncoder)
 
         size = len(result_str) / 1024.0
         if size > self.max_result_size:
@@ -1256,14 +1256,17 @@ class MainTask(object):
 
         if len(values) > 0:
             self.logger.debug(values)
+            serialized_values = json.dumps(values, cls=JsonDataEncoder)
+
             try:
                 r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
-                                  json.dumps(values), timeout=2)
-                if r.status_code not in [200, 204]:
+                                  serialized_values, timeout=2)
+
+                if not r.ok:
                     self.logger.error(r.text)
-                    self.logger.error(json.dumps(values))
+                    self.logger.error(serialized_values)
             except Exception:
-                self.logger.exception("KairosDB write failed")
+                self.logger.exception('KairosDB write failed')
 
     def evaluate_alert(self, alert_def, req, result):
         '''Check if the result triggers an alert
