@@ -95,7 +95,7 @@ def get_query(kwargs):
     if 'end' in kwargs:
         q['end_relative'] = {
             'value': kwargs['end'],
-            'time_unit': time_unit
+            'unit': time_unit
         }
 
     if 'aggregators' in kwargs:

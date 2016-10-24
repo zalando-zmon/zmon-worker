@@ -77,7 +77,7 @@ class KairosdbWrapper(object):
         :param end: End time. Default is 0.
         :type end: int
 
-        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'
+        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'.
         :type time_unit: str.
 
         :param aggregators: List of aggregators.
@@ -108,7 +108,7 @@ class KairosdbWrapper(object):
         if end > 0:
             q['end_relative'] = {
                 'value': end,
-                'time_unit': time_unit
+                'unit': time_unit
             }
 
         if aggregators:
