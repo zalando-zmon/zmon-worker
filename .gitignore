@@ -2,6 +2,7 @@
 .idea/
 *.iml
 *.egg*
+.tox
 dist/
 zmon_worker_data/
 eventlog.*

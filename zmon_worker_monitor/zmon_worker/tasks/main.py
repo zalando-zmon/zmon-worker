@@ -405,11 +405,11 @@ def _time_slice(time_spec, results):
     >>> _time_slice('1s', [])
     []
 
-    >>> _time_slice('1s', [{'ts': 0, 'value': 0}, {'ts': 1, 'value': 10}])
-    [{'ts': 0, 'value': 0}, {'ts': 1, 'value': 10}]
+    >>> res = _time_slice('1s', [{'ts': 0, 'value': 0}, {'ts': 1, 'value': 10}])
+    >>> assert [{'ts': 0, 'value': 0}, {'ts': 1, 'value': 10}] == res
 
-    >>> _time_slice('2s', [{'ts': 123.6, 'value': 10}, {'ts': 123, 'value': 0}, {'ts': 121, 'value': -10}])
-    [{'ts': 123, 'value': 0}, {'ts': 123.6, 'value': 10}]
+    >>> res = _time_slice('2s', [{'ts': 123.6, 'value': 10}, {'ts': 123, 'value': 0}, {'ts': 121, 'value': -10}])
+    >>> assert [{'ts': 123, 'value': 0}, {'ts': 123.6, 'value': 10}] == res
     '''
 
     if len(results) < 2:

@@ -63,7 +63,8 @@ class NotifyOpsgenie(BaseNotification):
             logger.info('Sending to %s %s', url, message)
             headers = {'User-Agent': get_user_agent(), 'Content-type': 'application/json'}
 
-            r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder), headers=headers, timeout=5)
+            r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=headers,
+                              timeout=5)
 
             r.raise_for_status()
         except requests.HTTPError as e:

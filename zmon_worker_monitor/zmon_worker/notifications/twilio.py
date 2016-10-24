@@ -1,3 +1,9 @@
+"""
+This triggers the notification service, where we temporarily store some details about the alert in question.
+
+Notification service triggers Twilio to make the phone call, all Twilio requests go to notification service.
+"""
+
 import logging
 import json
 
@@ -5,8 +11,7 @@ import requests
 import tokens
 
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
-from zmon_worker_monitor.zmon_worker.errors import NotificationError
-from zmon_worker_monitor.zmon_worker.common.http import is_absolute_http_url, get_user_agent
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
 from notification import BaseNotification
 
@@ -15,11 +20,6 @@ logger = logging.getLogger(__name__)
 tokens.configure()
 tokens.manage('uid', ['uid'])
 
-"""
-This triggers the notification service, where we temporarily store some details about the alert in question.
-
-Notification service triggers Twilio to make the phone call, all Twilio requests go to notification service.
-"""
 
 class NotifyTwilio(BaseNotification):
 
@@ -33,8 +33,8 @@ class NotifyTwilio(BaseNotification):
 
         url = cls._config.get('notifications.service.url', None)
         if not url:
-            logger.error("No notification service url set")
-            return repeat;
+            logger.error('No notification service url set')
+            return repeat
 
         url = url + '/api/v1/twilio'
 
@@ -47,14 +47,14 @@ class NotifyTwilio(BaseNotification):
         headers['User-Agent'] = get_user_agent()
 
         data = {
-            "message": kwargs.get("message", cls._get_subject(alert)),
-            "responsible_team": alert['alert_def'].get("responsible_team", ""),
-            "numbers": kwargs.get("numbers", []),
-            "voice": kwargs.get("voice", "woman"),
-            "alert_id": alert['alert_def']['id'],
-            "entity_id": alert['entity']['id'],
-            "event_type": 'ALERT_ENDED' if alert and not alert.get('is_alert') else 'ALERT_START',
-            "alert_changed": alert.get('alert_changed', False),
+            'message': kwargs.get('message', cls._get_subject(alert)),
+            'responsible_team': alert['alert_def'].get('responsible_team', ''),
+            'numbers': kwargs.get('numbers', []),
+            'voice': kwargs.get('voice', 'woman'),
+            'alert_id': alert['alert_def']['id'],
+            'entity_id': alert['entity']['id'],
+            'event_type': 'ALERT_ENDED' if alert and not alert.get('is_alert') else 'ALERT_START',
+            'alert_changed': alert.get('alert_changed', False),
         }
 
         try:
@@ -63,6 +63,6 @@ class NotifyTwilio(BaseNotification):
 
             r.raise_for_status()
         except:
-            logger.exception('Request failed!')
+            logger.exception('Twilio Request failed!')
 
         return repeat

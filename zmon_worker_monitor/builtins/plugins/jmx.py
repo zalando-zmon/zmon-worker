@@ -54,11 +54,10 @@ class JmxWrapper(object):
     @staticmethod
     def _transform_results(data):
         '''Transform JSON returned from JMX Query to a reasonable dict
-
         >>> JmxWrapper._transform_results({'results':[{'beanName':'mybean','attributes':{'HeapMemoryUsage':1}}]})
         {'HeapMemoryUsage': 1}
-        >>> JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':1}}, {'beanName': 'b', 'attributes': {'y': 2}}]})
-        {'a': {'x': 1}, 'b': {'y': 2}}
+        >>> res = JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':1}}, {'beanName': 'b', 'attributes': {'y': 2}}]})
+        >>> assert {'a': {'x': 1}, 'b': {'y': 2}} == res
         >>> JmxWrapper._transform_results({'results':[{'beanName':'a','attributes':{'x':{'compositeType': {}, 'contents': {'y':7}}}}]})
         {'x': {'y': 7}}
         '''  # noqa

@@ -6,12 +6,9 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libsnappy-dev libev4 libev-dev python-dev
 install:
-  - pip install -r requirements.txt
-  - pip install -r test_requirements.txt
-  - pip install coveralls flake8
+  - pip install tox
 script:
-  - flake8 .
-  - python setup.py test
+  - tox
 after_success:
   - coveralls
 
