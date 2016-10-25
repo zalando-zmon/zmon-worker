@@ -2,42 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
-
-MAIN_PACKAGE = 'zmon_worker_monitor'
-
-
-class PyTest(TestCommand):
-
-    user_options = [('cov-html=', None, 'Generate junit html report')]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.cov = None
-        self.pytest_args = ['--cov', MAIN_PACKAGE, '--cov-report', 'term-missing',
-                            '--doctest-modules', '-s', '-v',
-                            '--ignore', 'tests/plugins']
-        self.cov_html = False
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        if self.cov_html:
-            self.pytest_args.extend(['--cov-report', 'html'])
-
-    def run_tests(self):
-        try:
-            import pytest
-        except:
-            raise RuntimeError('py.test is not installed, run: pip install pytest')
-
-        # HACK: circumvent strange atexit error with concurrent.futures
-        # https://developer.blender.org/T39399
-        import concurrent.futures  # noqa
-
-        errno = pytest.main(self.pytest_args)
-        sys.exit(errno)
 
 
 def load_req(fn):
@@ -50,9 +15,6 @@ if __name__ == '__main__':
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     try:
-        cmdclass = {}
-        cmdclass['test'] = PyTest
-
         setup(
             name="zmon-worker",
             version=__import__('zmon_worker_monitor').__version__,
@@ -61,9 +23,8 @@ if __name__ == '__main__':
             license='Apache License 2.0',
             packages=find_packages(exclude=['tests', 'tests.*']),
             # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
-            setup_requires=['numpy', 'flake8'],
+            setup_requires=['numpy', 'flake8', 'pytest-runner'],
             install_requires=load_req('requirements.txt'),
-            cmdclass=cmdclass,
             test_suite='tests',
             tests_require=load_req('test_requirements.txt'),
 

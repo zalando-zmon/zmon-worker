@@ -62,12 +62,19 @@ You can also query the worker monitor via RPC:
 Running Unit Tests
 ==================
 
+Run tests via `Tox <http://tox.readthedocs.io/en/latest/install.html>`_.
+
 .. code-block:: bash
 
-    $ sudo pip2 install -r test_requirements.txt
-    $ python2 setup.py test
+  $ tox
 
-Alternative way of running unit tests within Docker (to avoid installing all dependencies):
+You can also pass args to ``pytest`` via ``tox``, for instance to run specific test case:
+
+.. code-block:: bash
+
+  $ tox tests/test_kairosdb.py::test_kairosdb_query
+
+Alternative way of running unit tests within Docker:
 
 .. code-block:: bash
 
