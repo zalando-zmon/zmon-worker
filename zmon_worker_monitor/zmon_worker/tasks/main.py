@@ -585,6 +585,11 @@ def empty(v):
 
     return not bool(v)
 
+def check_filter_metric(metric, keep):
+    return dict((k,v) for k,v in metric.items() if k in keep)
+
+def check_filter_metrics(metrics, keep):
+    return dict((k, check_filter_metric(t, keep)) for k,t in metrics.items())
 
 def jsonpath_flat_filter(obj, path):
     expr = jsonpath_rw.parse(path)
@@ -645,7 +650,9 @@ def build_default_context():
         'xrange': xrange,
         'zip': zip,
         'jsonpath_parse': jsonpath_rw.parse,
-        'jsonpath_flat_filter': jsonpath_flat_filter
+        'jsonpath_flat_filter': jsonpath_flat_filter,
+        'filter_metrics': check_filter_metrics,
+        'filter_metric': check_filter_metric
     }
 
 
