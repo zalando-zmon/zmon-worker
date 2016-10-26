@@ -1,4 +1,5 @@
-from zmon_worker_monitor.zmon_worker.tasks.main import check_filter_metric, check_filter_metrics
+from zmon_worker_monitor.zmon_worker.tasks.main import check_filter_metrics
+
 
 def test_timer_filter():
     timers = {"a": {"p95": 1, "p98": 2, "rate": 3, "mRate": 4},
