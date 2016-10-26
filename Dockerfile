@@ -9,6 +9,10 @@ RUN apt-get update && apt-get -y install python-pip python-dev libev4 libev-dev 
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 ADD requirements.txt /app/requirements.txt
+
+# TODO: Remove once cassandra-driver issue is fixed (ref: https://datastax-oss.atlassian.net/browse/PYTHON-656)
+RUN pip2 install -U Cython==0.24.1
+
 RUN pip2 install --upgrade -r /app/requirements.txt
 
 ADD ./ /app/
