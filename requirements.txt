@@ -31,3 +31,4 @@ jsonpath-rw
 Flask==0.10.1
 Flask-RESTful==0.3.5
 flask-restful-swagger==0.19
+Cython==0.24.1
