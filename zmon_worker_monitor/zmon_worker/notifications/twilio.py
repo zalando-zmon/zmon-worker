@@ -48,7 +48,7 @@ class NotifyTwilio(BaseNotification):
 
         data = {
             'message': kwargs.get('message', cls._get_subject(alert)),
-            'responsible_team': alert['alert_def'].get('responsible_team', ''),
+            'escalation_team': kwargs.get('team', alert['alert_def'].get('team', '')),
             'numbers': kwargs.get('numbers', []),
             'voice': kwargs.get('voice', 'woman'),
             'alert_id': alert['alert_def']['id'],
