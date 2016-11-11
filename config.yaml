@@ -3,6 +3,7 @@ server.port: 23500
 loglevel: 'INFO'
 
 notifications.mail.on: true
+notifications.mail.tls: false
 notifications.mail.host: 'localhost'
 notifications.mail.port: 25
 notifications.mail.sender: 'zmon@example.com'

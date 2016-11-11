@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import jinja2
 import os
 import smtplib
+import logging
+import ssl
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTPAuthenticationError
+
+import jinja2
+
 from notification import BaseNotification
 
-import logging
+
 logger = logging.getLogger(__name__)
 
 thisdir = os.path.join(os.path.dirname(__file__))
@@ -87,7 +92,13 @@ class Mail(BaseNotification):
             if cls._config.get('notifications.mail.on', True):
                 try:
                     if mail_host != 'localhost':
-                        s = smtplib.SMTP_SSL(mail_host, mail_port)
+                        if cls._config.get('notifications.mail.tls', False):
+                            logger.info('Mail notification using TLS!')
+                            context = ssl.create_default_context()
+                            s = smtplib.SMTP(mail_host, mail_port)
+                            s.starttls(context)
+                        else:
+                            s = smtplib.SMTP_SSL(mail_host, mail_port)
                     else:
                         s = smtplib.SMTP(mail_host, mail_port)
 
