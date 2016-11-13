@@ -24,11 +24,12 @@ class NotifyPush(BaseNotification):
                 "title": kwargs.get("message", cls._get_subject(alert)),
                 "body": kwargs.get("body", alert["entity"]["id"]),
                 "alert_changed": alert.get('alert_changed', False),
-                "click_action": kwargs.get("click_action", "/#/alert-details/"+alert["alert_def"]["id"])
+                "click_action": kwargs.get("click_action", "/#/alert-details/{}".format(alert["alert_def"]["id"]))
             },
             "alert_id": alert['alert_def']['id'],
             "entity_id": alert['entity']['id'],
-            "team": kwargs.get('team', alert['alert_def'].get('team', ''))
+            "team": kwargs.get('team', alert['alert_def'].get('team', '')),
+            "priority": alert["alert_def"]["priority"]
         }
 
         url = url + '/api/v1/publish'
