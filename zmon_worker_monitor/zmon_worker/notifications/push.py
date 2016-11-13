@@ -28,7 +28,8 @@ class NotifyPush(BaseNotification):
             },
             "alert_id": alert['alert_def']['id'],
             "entity_id": alert['entity']['id'],
-            "team": kwargs.get('team', alert['alert_def'].get('team', ''))
+            "team": kwargs.get('team', alert['alert_def'].get('team', '')),
+            "priority": alert["alert_def"]["priority"]
         }
 
         url = url + '/api/v1/publish'
