@@ -20,11 +20,15 @@ class NotifyPush(BaseNotification):
 
         message = {
             "notification": {
-                "title": 'Alert Ended' if alert and not alert.get('is_alert') else 'Alert Started',
-                "body": kwargs.get("message", cls._get_subject(alert))
+                "icon": 'clear.png' if alert and not alert.get('is_alert') else 'warning.png',
+                "title": kwargs.get("message", cls._get_subject(alert)),
+                "body": kwargs.get("body", alert["entity"]["id"]),
+                "alert_changed": alert.get('alert_changed', False),
+                "click_action": kwargs.get("click_action", "/#/alert-details/"+alert["alert_def"]["id"])
             },
             "alert_id": alert['alert_def']['id'],
-            "entity_id": alert['entity']['id']
+            "entity_id": alert['entity']['id'],
+            "team": kwargs.get('team', alert['alert_def'].get('team', ''))
         }
 
         url = url + '/api/v1/publish'
