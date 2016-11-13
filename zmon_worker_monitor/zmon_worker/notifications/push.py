@@ -20,7 +20,7 @@ class NotifyPush(BaseNotification):
 
         message = {
             "notification": {
-                "icon": 'clear.png' if alert and not alert.get('is_alert') else 'warning.png',
+                "icon": 'clean.png' if alert and not alert.get('is_alert') else 'warning.png',
                 "title": kwargs.get("message", cls._get_subject(alert)),
                 "body": kwargs.get("body", alert["entity"]["id"]),
                 "alert_changed": alert.get('alert_changed', False),
