@@ -38,7 +38,6 @@ class HttpFactory(IFunctionFactoryPlugin):
         # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
         # will try to read application credentials from CREDENTIALS_DIR
         tokens.configure()
-        tokens.manage('uid', ['uid'])
 
         token_configuration = conf.get('oauth2.tokens')
 
@@ -46,6 +45,8 @@ class HttpFactory(IFunctionFactoryPlugin):
             for part in token_configuration.split(':'):
                 token_name, scopes = tuple(part.split('=', 1))
                 tokens.manage(token_name, scopes.split(','))
+
+        tokens.manage('uid', ['uid'])
 
         tokens.start()
 
@@ -154,7 +155,7 @@ class HttpWrapper(object):
             allow_redirects=None,
             verify=True,
             oauth2=False,
-            oauth2_token='uid',
+            oauth2_token_name='uid',
             headers=None,
     ):
         if method.lower() not in ('get', 'head'):
@@ -173,7 +174,7 @@ class HttpWrapper(object):
         self.verify = verify
         self._headers = headers or {}
         self.oauth2 = oauth2
-        self.oauth2_token = oauth2_token
+        self.oauth2_token_name = oauth2_token_name
         self.__method = method.lower()
 
         self.allow_redirects = True if allow_redirects is None else allow_redirects
@@ -202,7 +203,7 @@ class HttpWrapper(object):
             self.clean_url = base_url
 
             if self.oauth2:
-                self._headers.update({'Authorization': 'Bearer {}'.format(tokens.get(self.oauth2_token))})
+                self._headers.update({'Authorization': 'Bearer {}'.format(tokens.get(self.oauth2_token_name))})
 
             self._headers.update({'User-Agent': get_user_agent()})
 
