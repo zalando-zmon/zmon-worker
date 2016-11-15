@@ -154,6 +154,7 @@ class Welcome(Resource):
     def get(self):
         return redirect('/spec.html')
 
+
 #
 # Add resources to the Api
 #

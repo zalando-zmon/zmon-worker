@@ -4,7 +4,6 @@
 import os
 import smtplib
 import logging
-import ssl
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -12,6 +11,7 @@ from smtplib import SMTPAuthenticationError
 
 import jinja2
 
+from zmon_worker_monitor.zmon_worker.errors import NotificationError
 from notification import BaseNotification
 
 
@@ -94,9 +94,12 @@ class Mail(BaseNotification):
                     if mail_host != 'localhost':
                         if cls._config.get('notifications.mail.tls', False):
                             logger.info('Mail notification using TLS!')
-                            context = ssl.create_default_context()
                             s = smtplib.SMTP(mail_host, mail_port)
-                            s.starttls(context)
+                            s.ehlo()
+                            if not s.has_extn('STARTTLS'):
+                                raise NotificationError('Mail server ({}) does not support TLS!'.format(mail_host))
+                            s.starttls()
+                            s.ehlo()
                         else:
                             s = smtplib.SMTP_SSL(mail_host, mail_port)
                     else:
