@@ -346,5 +346,6 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertTrue(is_raised)
 
+
 if __name__ == '__main__':
     unittest.main()
