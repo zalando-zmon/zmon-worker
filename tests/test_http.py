@@ -219,13 +219,20 @@ def test_oauth2(monkeypatch):
     get = MagicMock()
     get.return_value = resp
     monkeypatch.setattr('requests.get', get)
-    monkeypatch.setattr('tokens.get', lambda x: 'mytok')
+    monkeypatch.setattr('tokens.get', lambda x: 'mytok' if x is 'uid' else 'myothertok')
     http = HttpWrapper('http://example.org', oauth2=True, timeout=2)
     assert 218 == http.code()
     assert 'OK' == http.text()
-    get.assert_called_once_with('http://example.org', auth=None,
-                                headers={'Authorization': 'Bearer mytok', 'User-Agent': get_user_agent()},
-                                params=None, timeout=2, verify=True, allow_redirects=True)
+    get.assert_called_with('http://example.org', auth=None,
+                           headers={'Authorization': 'Bearer mytok', 'User-Agent': get_user_agent()},
+                           params=None, timeout=2, verify=True, allow_redirects=True)
+
+    http = HttpWrapper('http://example.org', oauth2=True, oauth2_token_name='foo', timeout=2)
+    assert 218 == http.code()
+    assert 'OK' == http.text()
+    get.assert_called_with('http://example.org', auth=None,
+                           headers={'Authorization': 'Bearer myothertok', 'User-Agent': get_user_agent()},
+                           params=None, timeout=2, verify=True, allow_redirects=True)
 
 
 def test_http_errors(monkeypatch):

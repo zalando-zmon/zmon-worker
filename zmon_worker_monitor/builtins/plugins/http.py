@@ -18,12 +18,6 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 import tokens
 
-# will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
-# will try to read application credentials from CREDENTIALS_DIR
-tokens.configure()
-tokens.manage('uid', ['uid'])
-tokens.start()
-
 logger = logging.getLogger('zmon-worker.http-function')
 
 ACTUATOR_METRIC_NAMES = {'p99': '99th', 'p75': '75th', 'p50': 'median', 'm1_rate': 'mRate', '99%': '99th',
@@ -41,7 +35,20 @@ class HttpFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
-        return
+        # will use OAUTH2_ACCESS_TOKEN_URL environment variable by default
+        # will try to read application credentials from CREDENTIALS_DIR
+        tokens.configure()
+
+        token_configuration = conf.get('oauth2.tokens')
+
+        if token_configuration:
+            for part in token_configuration.split(':'):
+                token_name, scopes = tuple(part.split('=', 1))
+                tokens.manage(token_name, scopes.split(','))
+
+        tokens.manage('uid', ['uid'])
+
+        tokens.start()
 
     def create(self, factory_ctx):
         """
@@ -148,6 +155,7 @@ class HttpWrapper(object):
             allow_redirects=None,
             verify=True,
             oauth2=False,
+            oauth2_token_name='uid',
             headers=None,
     ):
         if method.lower() not in ('get', 'head'):
@@ -166,6 +174,7 @@ class HttpWrapper(object):
         self.verify = verify
         self._headers = headers or {}
         self.oauth2 = oauth2
+        self.oauth2_token_name = oauth2_token_name
         self.__method = method.lower()
 
         self.allow_redirects = True if allow_redirects is None else allow_redirects
@@ -194,7 +203,7 @@ class HttpWrapper(object):
             self.clean_url = base_url
 
             if self.oauth2:
-                self._headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
+                self._headers.update({'Authorization': 'Bearer {}'.format(tokens.get(self.oauth2_token_name))})
 
             self._headers.update({'User-Agent': get_user_agent()})
 
