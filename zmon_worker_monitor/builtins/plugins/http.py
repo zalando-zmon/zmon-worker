@@ -40,7 +40,6 @@ class HttpFactory(IFunctionFactoryPlugin):
         tokens.configure()
         tokens.manage('uid', ['uid'])
 
-        # ZMON_WORKER_WORKER_PLUGIN_HTTP_OAUTH2_TOKENS
         token_configuration = conf.get('oauth2.tokens')
 
         if token_configuration:
