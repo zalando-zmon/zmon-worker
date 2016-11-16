@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def formatEntity(entity_id):
     parts = entity_id.split("[")
-    if len(parts)>1:
+    if len(parts) > 1:
         acc = parts[1].split(":")
 
         if acc[0] == "aws":
