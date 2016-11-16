@@ -13,9 +13,9 @@ def formatEntity(entity_id):
         acc = parts[1].split(":")
 
         if acc[0] == "aws":
-            return parts[0] + ":" + acc[1][-3:]
+            return "{}:{}".format(parts[0], acc[1][-3:])
         if acc[0] == "dc":
-            return parts[0] + ":" + acc[1]
+            return "{}:{}".format(parts[0], acc[1])
 
     return parts[0]
 
