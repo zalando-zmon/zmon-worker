@@ -38,7 +38,8 @@ class NotifyPush(BaseNotification):
                 "body": kwargs.get("body", formatEntity(alert["entity"]["id"])),
                 "alert_changed": alert.get('alert_changed', False),
                 "click_action": kwargs.get("click_action", "/#/alert-details/{}".format(alert["alert_def"]["id"])),
-                "collapse_key": kwargs.get("collapse_key", "{}:{}".format(alert['alert_def']['id'], alert['entity']['id']))
+                "collapse_key": kwargs.get("collapse_key",
+                                           "{}:{}".format(alert['alert_def']['id'], alert['entity']['id']))
             },
             "alert_id": alert['alert_def']['id'],
             "entity_id": alert['entity']['id'],
