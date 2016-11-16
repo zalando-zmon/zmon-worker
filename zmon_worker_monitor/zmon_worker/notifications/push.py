@@ -7,6 +7,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def formatEntity(entity_id):
+    parts = entity_id.split("[")
+    if len(parts) > 1:
+        acc = parts[1].split(":")
+
+        if acc[0] == "aws":
+            return parts[0]+":"+acc[1][-3:]
+        if acc[0] == "dc":
+            return parts[0]+":"+acc[1]
+
+    return parts[0]
+
+
 class NotifyPush(BaseNotification):
     @classmethod
     def notify(cls, alert, *args, **kwargs):
@@ -22,9 +35,10 @@ class NotifyPush(BaseNotification):
             "notification": {
                 "icon": 'clean.png' if alert and not alert.get('is_alert') else 'warning.png',
                 "title": kwargs.get("message", cls._get_expanded_alert_name(alert)),
-                "body": kwargs.get("body", alert["entity"]["id"]),
+                "body": kwargs.get("body", formatEntity(alert["entity"]["id"])),
                 "alert_changed": alert.get('alert_changed', False),
-                "click_action": kwargs.get("click_action", "/#/alert-details/{}".format(alert["alert_def"]["id"]))
+                "click_action": kwargs.get("click_action", "/#/alert-details/{}".format(alert["alert_def"]["id"])),
+                "collapse_key": kwargs.get("collapse_key", alert['alert_def']['id'] + "" + alert['entity']['id'])
             },
             "alert_id": alert['alert_def']['id'],
             "entity_id": alert['entity']['id'],
