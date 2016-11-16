@@ -13,9 +13,9 @@ def formatEntity(entity_id):
         acc = parts[1].split(":")
 
         if acc[0] == "aws":
-            return parts[0]+":"+acc[1][-3:]
+            return parts[0] + ":" + acc[1][-3:]
         if acc[0] == "dc":
-            return parts[0]+":"+acc[1]
+            return parts[0] + ":" + acc[1]
 
     return parts[0]
 
@@ -38,7 +38,7 @@ class NotifyPush(BaseNotification):
                 "body": kwargs.get("body", formatEntity(alert["entity"]["id"])),
                 "alert_changed": alert.get('alert_changed', False),
                 "click_action": kwargs.get("click_action", "/#/alert-details/{}".format(alert["alert_def"]["id"])),
-                "collapse_key": kwargs.get("collapse_key", alert['alert_def']['id'] + "" + alert['entity']['id'])
+                "collapse_key": kwargs.get("collapse_key", "{}:{}".format(alert['alert_def']['id'], alert['entity']['id']))
             },
             "alert_id": alert['alert_def']['id'],
             "entity_id": alert['entity']['id'],
