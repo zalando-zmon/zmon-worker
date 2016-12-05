@@ -1,0 +1,8 @@
+[Core]
+Name = s3_bucket
+Module = s3_bucket
+
+[Documentation]
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides access to AWS S3 Buckets.
