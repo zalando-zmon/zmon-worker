@@ -1,6 +1,6 @@
 [Core]
-Name = s3_bucket
-Module = s3_bucket
+Name = s3
+Module = s3
 
 [Documentation]
 Version = 0.1

@@ -1,4 +1,4 @@
-from zmon_worker_monitor.builtins.plugins.s3_bucket import S3Bucket
+from zmon_worker_monitor.builtins.plugins.s3 import S3Bucket
 
 from mock import MagicMock, DEFAULT, ANY
 
