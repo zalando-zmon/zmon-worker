@@ -53,10 +53,7 @@ class S3Object(object):
         self.__key_value = key_value
 
     def json(self):
-        data = cStringIO.StringIO(self.text())
-        result = json.load(data)
-        data.close()
-        return result
+        return json.loads(self.__key_value)
 
     def text(self):
         return self.__key_value
