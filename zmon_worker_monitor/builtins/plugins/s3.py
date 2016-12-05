@@ -11,6 +11,7 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 
 logging.getLogger('botocore').setLevel(logging.WARN)
 
+
 class S3BucketWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(S3BucketWrapperFactory, self).__init__()
@@ -31,6 +32,7 @@ def get_region():
     r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
     return r.json()['region']
 
+
 class S3Bucket(object):
     def __init__(self, region=None):
         if not region:
@@ -43,19 +45,18 @@ class S3Bucket(object):
         result = data.getvalue()
         data.close()
         return S3Object(result)
-    
+
+
 class S3Object(object):
 
     def __init__(self, key_value):
         self.__key_value = key_value
-    
+
     def json(self):
         data = cStringIO.StringIO(self.text())
         result = json.load(data)
         data.close()
         return result
-        
+
     def text(self):
         return self.__key_value
-        
-
