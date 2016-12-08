@@ -80,6 +80,9 @@ class RedisWrapper(object):
     def scan(self, cursor, match=None, count=None):
         return self.__con.scan(cursor, match=match, count=count)
 
+    def ttl(self, key):
+        return self.__con.ttl(key)
+
     def statistics(self):
         '''
         Return general Redis statistics such as operations/s
