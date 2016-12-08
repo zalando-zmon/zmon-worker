@@ -42,6 +42,14 @@ class S3Bucket(object):
         self.__client = boto3.client('s3', region_name=region)
 
     def get_object_metadata(self, bucket_name, key):
+        """
+        Get metadata on the object in the given bucket and accessed with the given key.
+        The metadata is retieved without fetching the object so it can be safely used with large
+        S3 objects
+        :param bucket_name: the name of the S3 Bucket
+        :param key: the key that identifies the S3 Object within the S3 Bucket
+        :return: an S3ObjectMetadata object
+        """
         try:
             response = self.__client.head_object(Bucket=bucket_name, Key=key)
             return S3ObjectMetadata(response)
@@ -49,6 +57,13 @@ class S3Bucket(object):
             return S3ObjectMetadata({})
 
     def get_object(self, bucket_name, key):
+        """
+        Get the object in the given bucket and accessed with the given key.
+        The S3 Object is read into memory and the data within can be accessed as a string or parsed as JSON.
+        :param bucket_name: the name of the S3 Bucket
+        :param key: the key that identifies the S3 Object within the S3 Bucket
+        :return: an S3Object object
+        """
         data = cStringIO.StringIO()
         try:
             self.__client.download_fileobj(bucket_name, key, data)
@@ -66,18 +81,34 @@ class S3Object(object):
         self.__key_value = key_value
 
     def json(self):
+        """
+        Get the S3 Object data and parse it as JSON
+        :return: a dict containing the parsed JSON
+        """
         if self.exists():
             return json.loads(self.__key_value)
         else:
             return None
 
     def text(self):
+        """
+        Get the S3 Object data (we assume it's text)
+        :return: the raw S3 Object data
+        """
         return self.__key_value
 
     def exists(self):
+        """
+        Does this object exist?
+        :return: True if the object exists
+        """
         return self.__key_value is not None
 
     def size(self):
+        """
+        How large (in bytes) is the object data
+        :return: the size in bytes of the object, or -1 if the object does not exist.
+        """
         if self.exists():
             return len(self.__key_value)
         else:
@@ -90,9 +121,17 @@ class S3ObjectMetadata(object):
         self.__response = response
 
     def exists(self):
+        """
+        Does this object exist?
+        :return: True if the object exists
+        """
         return len(self.__response) > 0
 
     def size(self):
+        """
+        How large (in bytes) is the object data
+        :return: the size in bytes of the object, or -1 if the object does not exist.
+        """
         if self.exists():
             return self.__response['ContentLength']
         else:
