@@ -1,6 +1,6 @@
 from botocore.exceptions import ClientError
 
-from zmon_worker_monitor.builtins.plugins.s3 import S3Bucket
+from zmon_worker_monitor.builtins.plugins.s3 import S3Wrapper
 
 from mock import MagicMock, DEFAULT, ANY
 
@@ -16,9 +16,9 @@ def test_metadata_on_existing_object(monkeypatch):
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
-    s3_bucket = S3Bucket()
+    s3_wrapper = S3Wrapper()
 
-    meta_data = s3_bucket.get_object_metadata('bucket', 'key')
+    meta_data = s3_wrapper.get_object_metadata('bucket', 'key')
 
     assert meta_data is not None
     assert meta_data.exists() is True
@@ -36,9 +36,9 @@ def test_metadata_on_non_existent_object(monkeypatch):
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
-    s3_bucket = S3Bucket()
+    s3_wrapper = S3Wrapper()
 
-    meta_data = s3_bucket.get_object_metadata('bucket', 'key')
+    meta_data = s3_wrapper.get_object_metadata('bucket', 'key')
 
     assert meta_data is not None
     assert meta_data.exists() is False
@@ -55,9 +55,9 @@ def test_object_should_not_be_found_and_text_not_returned(monkeypatch):
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
-    s3_bucket = S3Bucket()
+    s3_wrapper = S3Wrapper()
 
-    s3_object = s3_bucket.get_object('bucket', 'key')
+    s3_object = s3_wrapper.get_object('bucket', 'key')
     raw_object = s3_object.text()
 
     client.download_fileobj.assert_called_with('bucket', 'key', ANY)
@@ -77,9 +77,9 @@ def test_object_should_be_found_and_text_returned(monkeypatch):
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
-    s3_bucket = S3Bucket()
+    s3_wrapper = S3Wrapper()
 
-    s3_object = s3_bucket.get_object('bucket', 'key')
+    s3_object = s3_wrapper.get_object('bucket', 'key')
     raw_object = s3_object.text()
 
     client.download_fileobj.assert_called_with('bucket', 'key', ANY)
@@ -100,9 +100,9 @@ def test_object_should_be_found_and_json_returned(monkeypatch):
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
-    s3_bucket = S3Bucket()
+    s3_wrapper = S3Wrapper()
 
-    s3_object = s3_bucket.get_object('bucket', 'key')
+    s3_object = s3_wrapper.get_object('bucket', 'key')
     json_object = s3_object.json()
 
     client.download_fileobj.assert_called_with('bucket', 'key', ANY)

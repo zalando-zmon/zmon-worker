@@ -27,7 +27,7 @@ class S3BucketWrapper(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(S3Bucket, region=factory_ctx.get('entity').get('region', None))
+        return propartial(S3Wrapper, region=factory_ctx.get('entity').get('region', None))
 
 
 def get_region():
@@ -35,7 +35,7 @@ def get_region():
     return r.json()['region']
 
 
-class S3Bucket(object):
+class S3Wrapper(object):
     def __init__(self, region=None):
         if not region:
             region = get_region()
