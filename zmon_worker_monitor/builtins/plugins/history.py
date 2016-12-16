@@ -118,9 +118,8 @@ class HistoryWrapper(object):
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-    def result(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
 
-        q = get_request(self.check_id, self.entities, int(time_from), int(time_to))
+    def __query(self, query):
         response = self.__session.post(self.url, json=q)
 
         if response.ok:
@@ -129,23 +128,22 @@ class HistoryWrapper(object):
             raise Exception(
                 'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
 
-    def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
 
+    def result(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         q = get_request(self.check_id, self.entities, int(time_from), int(time_to))
-        response = self.__session.post(self.url, json=q)
+        return self.__query(q)
 
-        if response.ok:
-            return response.json()['queries'][0]['results'][0]['values']
-        else:
-            raise Exception(
-                'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
+
+    def get_one(self, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
+        q = get_request(self.check_id, self.entities, int(time_from), int(time_to))
+        return self.__query(q)['queries'][0]['results'][0]['values']
+
 
     def get_aggregated(self, key, aggregator, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # read the list of results
-        query_result = (self.__session
-                        .post(self.url, json=get_request(self.check_id, self.entities, int(time_from),
-                                                         int(time_to), aggregator, int(time_from - time_to)))
-                        .json()['queries'][0]['results'])
+        q = get_request(self.check_id, self.entities, int(time_from),
+                                         int(time_to), aggregator, int(time_from - time_to))
+        query_result = self.__query(q)['queries'][0]['results']
 
         # filter for the key we are interested in
         filtered_for_key = [x for x in query_result if x['tags'].get('key', [''])[0] == key]
@@ -158,13 +156,16 @@ class HistoryWrapper(object):
         # since we have a sample size of 'all in the time range', return only the value, not the timestamp.
         return return_value
 
+
     def get_avg(self, key, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # self.logger.info("history get avg %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'avg', time_from, time_to)
 
+
     def get_std_dev(self, key, time_from=ONE_WEEK_AND_5MIN, time_to=ONE_WEEK):
         # self.logger.info("history get std %s %s %s", self.check_id, time_from, time_to)
         return self.get_aggregated(key, 'dev', time_from, time_to)
+
 
     def distance(self, weeks=4, snap_to_bin=True, bin_size='1h', dict_extractor_path=''):
         # self.logger.info("history distance %s %s ", self.check_id, weeks, bin_size)
