@@ -120,7 +120,7 @@ class HistoryWrapper(object):
 
 
     def __query(self, query):
-        response = self.__session.post(self.url, json=q)
+        response = self.__session.post(self.url, json=query)
 
         if response.ok:
             return response.json()
