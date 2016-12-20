@@ -83,6 +83,12 @@ class RedisWrapper(object):
     def ttl(self, key):
         return self.__con.ttl(key)
 
+    def keys(self, pattern):
+        return self.__con.keys(pattern)
+
+    def smembers(self, key):
+        return self.__con.smembers(key)
+
     def statistics(self):
         '''
         Return general Redis statistics such as operations/s
