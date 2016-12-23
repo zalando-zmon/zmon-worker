@@ -54,34 +54,66 @@ class CloudwatchWrapper(object):
             region = get_region()
         self.__client = boto3.client('cloudwatch', region_name=region)
 
-    def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None):
+    def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None,
+                  extended_statistics=None):
         '''Query single metric statistic and return scalar value (float), all parameters need to be known in advance'''
+
+        params = {}
+
         if period < 60 or period % 60 != 0:
             raise ValueError('Period must be greater than and a multiple of 60')
 
-        # special case to gather all types at once
-        if statistics is None:
-            statistics = ['Sum', 'Average', 'Maximum', 'SampleCount', 'Minimum']
-        elif isinstance(statistics, basestring):
+        if isinstance(extended_statistics, basestring):
+            extended_statistics = [extended_statistics]
+
+        if isinstance(statistics, basestring):
             statistics = [statistics]
 
-        end = end or datetime.datetime.utcnow()
-        start = start or (end - datetime.timedelta(minutes=minutes))
+        # special case to gather all types at once
+        if statistics is None and extended_statistics is None:
+            statistics = ['Sum', 'Average', 'Maximum', 'SampleCount', 'Minimum']
+            params['Statistics'] = statistics
+        elif statistics is None and extended_statistics is not None:
+            params['ExtendedStatistics'] = extended_statistics
+        elif statistics is not None and extended_statistics is None:
+            params['Statistics'] = statistics
+        elif statistics is not None and extended_statistics is not None:
+            params['Statistics'] = statistics
+            params['ExtendedStatistics'] = extended_statistics
+
         if isinstance(dimensions, dict):
             # transform Python dict to stupid AWS list structure
             # see http://boto3.readthedocs.org/en/latest/reference/services/cloudwatch.html#CloudWatch.Client.get_metric_statistics  # noqa
             dimensions = list({'Name': k, 'Value': v} for k, v in dimensions.items())
-        response = self.__client.get_metric_statistics(Namespace=namespace, MetricName=metric_name,
-                                                       Dimensions=dimensions,
-                                                       StartTime=start, EndTime=end, Period=period,
-                                                       Statistics=statistics)
+
+        end = end or datetime.datetime.utcnow()
+        start = start or (end - datetime.timedelta(minutes=minutes))
+
+        params['Namespace'] = namespace
+        params['MetricName'] = metric_name
+        params['Dimensions'] = dimensions
+        params['StartTime'] = start
+        params['EndTime'] = end
+        params['Period'] = period
+
+        response = self.__client.get_metric_statistics(**params)
         data_points = sorted(response['Datapoints'], key=lambda x: x["Timestamp"])
+
+        result = {}
         if not data_points:
             return None
-        if len(statistics) == 1:
-            return data_points[-1][statistics[0]]
-        else:
-            return {s: v for s, v in data_points[-1].items() if s in statistics}
+
+        if extended_statistics is None and len(statistics) == 1:
+            result = data_points[-1][statistics[0]]
+        elif statistics is not None:
+            result.update({s: v for s, v in data_points[-1].items() if s in statistics})
+
+        if statistics is None and len(extended_statistics) == 1:
+            result = data_points[-1]['ExtendedStatistics'][extended_statistics[0]]
+        elif extended_statistics is not None:
+            result.update({s: v for s, v in data_points[-1]['ExtendedStatistics'].items() if s in extended_statistics})
+
+        return result
 
     def query(self, dimensions, metric_name, statistics='Sum', namespace=None, period=60, minutes=5):
         '''Query one or more metric statistics; allows finding dimensions with wildcards'''
