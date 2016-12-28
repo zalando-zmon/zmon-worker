@@ -21,7 +21,7 @@ pythonwhois==2.4.3
 python-ldap==2.4.19
 Yapsy>=1.10.423
 python-snappy
-boto3
+boto3>=1.4.3
 stups-tokens>=1.0.14
 prometheus_client
 cassandra-driver==3.6.0
