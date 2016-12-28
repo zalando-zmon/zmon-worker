@@ -13,6 +13,7 @@ import socket
 import sys
 import time
 import urllib
+import math
 
 import eventlog
 from zmon_worker_monitor import eventloghttp
@@ -659,7 +660,9 @@ def build_default_context():
         'jsonpath_parse': jsonpath_rw.parse,
         'jsonpath_flat_filter': jsonpath_flat_filter,
         'filter_metrics': check_filter_metrics,
-        'filter_metric': check_filter_metric
+        'filter_metric': check_filter_metric,
+        # Include math package in context:
+        'math': math
     }
 
 
