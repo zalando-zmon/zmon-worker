@@ -7,8 +7,15 @@ import sys
 import urllib
 import urlparse
 import json
-from prometheus_client.parser import text_string_to_metric_families
+import ssl
+import socket
+import time
+
+import tokens
+
 from collections import defaultdict
+
+from prometheus_client.parser import text_string_to_metric_families
 
 from zmon_worker_monitor.zmon_worker.errors import HttpError, CheckError, ConfigurationError
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
@@ -16,14 +23,15 @@ from requests.adapters import HTTPAdapter
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-import tokens
-
 logger = logging.getLogger('zmon-worker.http-function')
 
 ACTUATOR_METRIC_NAMES = {'p99': '99th', 'p75': '75th', 'p50': 'median', 'm1_rate': 'mRate', '99%': '99th',
                          '75%': '75th', '1m.rate': 'mRate', 'count': 'count', 'oneMinuteRate': 'mRate',
                          'min': 'min', 'max': 'max', 'mean': 'mean', 'median': 'median', '75thPercentile': '75th',
                          '99thPercentile': '99th'}
+
+CERT_FORMAT = '%b %d %H:%M:%S %Y GMT'
+ZMON_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 class HttpFactory(IFunctionFactoryPlugin):
@@ -303,3 +311,34 @@ class HttpWrapper(object):
 
     def code(self):
         return self.__request(raise_error=False).status_code
+
+    def certs(self):
+        parse = urlparse.urlparse(self.url)
+
+        if parse.scheme != 'https':
+            raise CheckError('Expected "https" connection!')
+
+        parsed_host = parse.netloc.split(':')
+        host = parsed_host[0]
+        port = parsed_host[1] if len(parsed_host) > 1 else 443
+
+        # TODO: The following could be moved to a diff wrapper with more TLS related features.
+        try:
+            sock = socket.socket()
+            sock.settimeout(self.timeout)
+
+            ssl_sock = ssl.wrap_socket(sock, cert_reqs=ssl.CERT_REQUIRED)
+
+            ssl_sock.connect((host, int(port)))
+
+            # returns a single certificate, not the entire certificate chain!
+            cert = ssl_sock.getpeercert()
+            if cert:
+                # Inject ZMON friendly time. This will make it useful with time() wrapper in checks and alerts.
+                cert['not_before'] = time.strftime(ZMON_FORMAT, time.strptime(cert['notBefore'], CERT_FORMAT))
+                cert['not_after'] = time.strftime(ZMON_FORMAT, time.strptime(cert['notAfter'], CERT_FORMAT))
+            return [cert]
+        finally:
+            ssl_sock.close()
+
+        return []

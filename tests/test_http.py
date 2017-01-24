@@ -338,3 +338,47 @@ http_request_count{method="post",code="400"}    3 1395066363000
     expected = {u'http_request_count': [({u'code': u'200', u'method': u'post'}, 1027.0),
                                         ({u'code': u'400', u'method': u'post'}, 3.0)]}
     assert expected == http.prometheus()
+
+
+@pytest.mark.parametrize('url,port,err', (
+    ('https://zmon', 443, None), ('http://zmon', 80, CheckError), ('https://zmon:4443', 4443, None)
+))
+def test_http_certs(monkeypatch, url, port, err):
+    socket_mock = MagicMock()
+    sock = MagicMock()
+    ssl_sock = MagicMock()
+    wrap = MagicMock()
+
+    socket_mock.return_value = sock
+
+    ssl_sock.connect.return_value = True
+    ssl_sock.getpeercert.return_value = {
+        'issuer': '123',
+        'notAfter': 'Apr 23 17:57:00 2017 GMT',
+        'notBefore': 'Jan 23 17:57:00 2017 GMT',
+    }
+    wrap.return_value = ssl_sock
+
+    monkeypatch.setattr('socket.socket', socket_mock)
+    monkeypatch.setattr('ssl.wrap_socket', wrap)
+
+    http = HttpWrapper(url)
+
+    if err:
+        with pytest.raises(err):
+            res = http.certs()
+    else:
+        res = http.certs()
+
+        assert [{
+            'issuer': '123',
+            'notAfter': 'Apr 23 17:57:00 2017 GMT',
+            'notBefore': 'Jan 23 17:57:00 2017 GMT',
+            'not_after': '2017-04-23 17:57:00',
+            'not_before': '2017-01-23 17:57:00',
+        }] == res
+
+        sock.settimeout.assert_called_with(10)
+        ssl_sock.connect.assert_called_with(('zmon', port))
+
+        ssl_sock.close.assert_called()
