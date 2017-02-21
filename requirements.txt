@@ -1,3 +1,4 @@
+bs4
 dogpile.cache
 functional
 numpy

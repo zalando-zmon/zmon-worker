@@ -57,4 +57,5 @@ plugin.elasticsearch.url: 'https://es-cluster'
 
 plugin.appdynamics.url: 'https://appdynamics'
 
+plugin.saml.url: 'https://idp.example.com/profile/SAML2/Unsolicited/SSO?providerId=urn:self'
 plugin.openam.url: 'https://auth.zalando.com/z'

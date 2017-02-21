@@ -1,0 +1,20 @@
+[Core]
+Name = saml
+Module = saml
+
+[Documentation]
+Author = Rodrigo Reis
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides a SAML request check function.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed
+;; to configure the plugin.
+;; Note that these values may are overridden by zmon's global config.
+;; key = valueX
+;; Note valueX will be overridden if Zmon's global config has:
+;; plugin.{plugin_name}.{key} = valueY
+url = https://idp.example.com/profile/SAML2/Unsolicited/SSO?providerId=urn:self
