@@ -56,3 +56,5 @@ plugin.mssql.pass: '--secret--'
 plugin.elasticsearch.url: 'https://es-cluster'
 
 plugin.appdynamics.url: 'https://appdynamics'
+
+plugin.openam.url: 'https://auth.zalando.com/z'
