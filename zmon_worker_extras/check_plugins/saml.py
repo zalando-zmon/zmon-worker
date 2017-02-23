@@ -48,17 +48,15 @@ class SAMLWrapper(object):
             url,
             user=None,
             password=None,
-            params=None,
             timeout=10,
-            max_retries=0,
             verify=True,
             headers=None,
             ):
         self.url = url
-        self.params = params or {}
-        self.headers = headers or {}
         self.username = user
         self.__password = password
+        self.verify = verify
+        self.timeout = timeout
 
     def auth(self, user=None, password=None):
         """Authenticate against the provided SAML Identity Provider."""
@@ -77,7 +75,7 @@ class SAMLWrapper(object):
                     'j_password': password,
                     'submit': 'Login'}
 
-            r = session.post(r.url, data=data)
+            r = session.post(r.url, data=data, timeout=self.timeout, verify=self.verify)
         except Exception, e:
             raise SAMLError("failed to call SAML: " + str(e))
 

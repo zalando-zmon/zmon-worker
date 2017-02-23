@@ -47,8 +47,7 @@ class OpenAMWrapper(object):
             user=None,
             password=None,
             params=None,
-            timeout=10,
-            max_retries=0,
+            timeout=5,
             verify=True,
             headers=None,
             ):
@@ -57,6 +56,8 @@ class OpenAMWrapper(object):
         self.headers = headers or {}
         self.username = user
         self.__password = password
+        self.timeout = timeout
+        self.verify = verify
 
     def auth(self, chain=None, realm=None, user=None, password=None):
         if not user:
@@ -81,6 +82,8 @@ class OpenAMWrapper(object):
                 headers=self.headers,
                 json={},
                 allow_redirects=False,
+                timeout=self.timeout,
+                verify=self.verify,
             )
         except Exception, e:
             raise OpenAMError("failed to call OpenAM: "+str(e))
