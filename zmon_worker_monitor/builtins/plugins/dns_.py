@@ -1,4 +1,5 @@
 import socket
+import dns.resolver
 
 from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -33,7 +34,7 @@ class DnsWrapper(object):
 
     def resolve(self, host=None):
         if not self.host and not host:
-            raise ConfigurationError('DNS wrapper improperly configure. Host is required!')
+            raise ConfigurationError('DNS wrapper improperly configured. Host is required!')
 
         if not host:
             host = self.host
@@ -42,4 +43,24 @@ class DnsWrapper(object):
             result = socket.gethostbyname(host)
         except Exception, e:
             result = 'ERROR: ' + str(e)
+        return result
+
+    def query(self, host=None, recordtype=None, nameserver=None):
+        if not self.host and not host:
+            raise ConfigurationError('DNS wrapper improperly configured. Host is required!')
+
+        if not recordtype:
+            raise ConfigurationError('DNS wrapper improperly configure. Recordtype is required!')
+
+        resolver = dns.resolver.Resolver()
+        # Allow to use custom nameserver
+        if nameserver:
+            resolver.nameservers = nameserver
+
+        query = resolver.query(host, recordtype)
+        result = []
+
+        for response in query:
+            result.append(str(response).replace('"', ''))
+
         return result

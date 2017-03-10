@@ -36,10 +36,19 @@ Start Redis on localhost:6379:
 
 Install the required development libraries:
 
+Ubuntu/Debian:
+
 .. code-block:: bash
 
     $ sudo apt-get install build-essential python2.7-dev libpq-dev libldap2-dev libsasl2-dev libsnappy-dev
     $ sudo pip2 install -r requirements.txt
+
+macOS:
+
+.. code-block:: bash
+
+    $ brew install python snappy
+    $ sudo pip install -r requirements.txt
 
 Start the ZMON worker process:
 

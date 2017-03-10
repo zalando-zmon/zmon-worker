@@ -1,6 +1,6 @@
 [Core]
 Name = dns
-Module = dns
+Module = dns_
 
 [Documentation]
 Author = Mohab Usama
