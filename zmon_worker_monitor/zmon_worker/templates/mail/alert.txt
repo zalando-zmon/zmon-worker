@@ -12,6 +12,9 @@ Alert ended on {{ entity['id'] }}: {{ expanded_alert_name }}
 Current value: {{ value.value }}
 {% endif %}
 
+{% if alert_url %}
+Alert: {{ alert_url }}
+{% endif %}
 Worker: {{ worker }}
 
 {% if include_captures %}
@@ -28,7 +31,7 @@ Alert Definition
 Name (ID):     {{ alert_def.name }} (ID: {{ alert_def.id }})
 Priority:      {{ alert_def.priority }}
 Check ID:      {{ alert_def.check_id }}
-Condition      {{ alert_def.condition }}
+Condition:     {{ alert_def.condition }}
 Team:          {{ alert_def.team }}
 Resp. Team:    {{ alert_def.responsible_team }}
 Notifications: {{ alert_def.notifications }}

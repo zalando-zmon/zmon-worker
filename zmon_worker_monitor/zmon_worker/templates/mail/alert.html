@@ -11,6 +11,9 @@
         {% else %}
             <h2>Alert ended on {{ entity['id'] }}</h2>
         {% endif %}
+        {% if alert_url %}
+        <h2>Alert:</h2> <a href="{{ alert_url }}">{{ alert_url }}</a>
+        {% endif %}
         <h2>Worker: {{ worker }}</h2>
 
         {% if include_value %}

@@ -4,12 +4,14 @@
 import os
 import smtplib
 import logging
+import jinja2
+
+from urllib2 import urlparse
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTPAuthenticationError
 
-import jinja2
 
 from zmon_worker_monitor.zmon_worker.errors import NotificationError
 from notification import BaseNotification
@@ -30,7 +32,13 @@ class Mail(BaseNotification):
     @classmethod
     def notify(cls, alert, *args, **kwargs):
 
+        repeat = kwargs.get('repeat', 0)
         alert_def = alert['alert_def']
+
+        if not cls._config.get('notifications.mail.on', True):
+            logger.info('Not sending email for alert: {}. Mail notification is not enabled.'.format(alert_def['id']))
+            return repeat
+
         logger.info("Sending email for alert: {}".format(alert_def['id']))
 
         sender = cls._config.get('notifications.mail.sender')
@@ -38,12 +46,14 @@ class Mail(BaseNotification):
         html = kwargs.get('html', False)
         cc = kwargs.get('cc', [])
         hide_recipients = kwargs.get('hide_recipients', True)
-        repeat = kwargs.get('repeat', 0)
         include_value = kwargs.get('include_value', True)
         include_definition = kwargs.get('include_definition', True)
         include_captures = kwargs.get('include_captures', True)
         include_entity = kwargs.get('include_entity', True)
         expanded_alert_name = cls._get_expanded_alert_name(alert)
+
+        zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
+        alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_def['id'])) if zmon_host else ''
 
         try:
             tmpl = jinja_env.get_template('alert.txt')
@@ -52,6 +62,7 @@ class Mail(BaseNotification):
                                      include_definition=include_definition,
                                      include_captures=include_captures,
                                      include_entity=include_entity,
+                                     alert_url=alert_url,
                                      **alert)
         except Exception:
             logger.exception('Error parsing email template for alert %s with id %s', alert_def['name'], alert_def['id'])
@@ -64,6 +75,7 @@ class Mail(BaseNotification):
                                         include_definition=include_definition,
                                         include_captures=include_captures,
                                         include_entity=include_entity,
+                                        alert_url=alert_url,
                                         **alert)
                 part1 = MIMEText(body_plain.encode('utf-8'), 'plain', 'utf-8')
                 part2 = MIMEText(body_html.encode('utf-8'), 'html', 'utf-8')
@@ -87,43 +99,40 @@ class Mail(BaseNotification):
             mail_host = cls._config.get('notifications.mail.host', 'localhost')
             mail_port = cls._config.get('notifications.mail.port', '25')
 
-            # logger.info("Relaying via %s %s", mail_host, mail_port)
-
-            if cls._config.get('notifications.mail.on', True):
-                try:
-                    if mail_host != 'localhost':
-                        if cls._config.get('notifications.mail.tls', False):
-                            logger.info('Mail notification using TLS!')
-                            s = smtplib.SMTP(mail_host, mail_port)
-                            s.ehlo()
-                            if not s.has_extn('STARTTLS'):
-                                raise NotificationError('Mail server ({}) does not support TLS!'.format(mail_host))
-                            s.starttls()
-                            s.ehlo()
-                        else:
-                            s = smtplib.SMTP_SSL(mail_host, mail_port)
-                    else:
+            try:
+                if mail_host != 'localhost':
+                    if cls._config.get('notifications.mail.tls', False):
+                        logger.info('Mail notification using TLS!')
                         s = smtplib.SMTP(mail_host, mail_port)
-
-                except Exception:
-                    logger.exception('Error connecting to SMTP server %s for alert %s with id %s',
-                                     mail_host, alert_def['name'], alert_def['id'])
+                        s.ehlo()
+                        if not s.has_extn('STARTTLS'):
+                            raise NotificationError('Mail server ({}) does not support TLS!'.format(mail_host))
+                        s.starttls()
+                        s.ehlo()
+                    else:
+                        s = smtplib.SMTP_SSL(mail_host, mail_port)
                 else:
-                    try:
-                        mail_user = cls._config.get('notifications.mail.user', None)
-                        if mail_user is not None:
-                            s.login(mail_user, cls._config.get('notifications.mail.password'))
+                    s = smtplib.SMTP(mail_host, mail_port)
 
-                        s.sendmail(sender, list(args) + cc, msg.as_string())
-                    except SMTPAuthenticationError:
-                        logger.exception(
-                            'Error sending email for alert %s with id %s: authentication failed for %s',
-                            alert_def['name'], alert_def['id'], mail_user)
-                    except Exception:
-                        logger.exception(
-                            'Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
-                    finally:
-                        s.quit()
+            except Exception:
+                logger.exception('Error connecting to SMTP server %s for alert %s with id %s',
+                                 mail_host, alert_def['name'], alert_def['id'])
+            else:
+                try:
+                    mail_user = cls._config.get('notifications.mail.user', None)
+                    if mail_user is not None:
+                        s.login(mail_user, cls._config.get('notifications.mail.password'))
+
+                    s.sendmail(sender, list(args) + cc, msg.as_string())
+                except SMTPAuthenticationError:
+                    logger.exception(
+                        'Error sending email for alert %s with id %s: authentication failed for %s',
+                        alert_def['name'], alert_def['id'], mail_user)
+                except Exception:
+                    logger.exception(
+                        'Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
+                finally:
+                    s.quit()
         finally:
             return repeat
 

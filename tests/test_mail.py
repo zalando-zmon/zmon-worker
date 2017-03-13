@@ -19,6 +19,11 @@ alert = {
     'name': 'test_alert',
     'check_id': 1,
     'entity': {'id': 'e1'},
+    'team': 'ZMON',
+    'responsible_team': 'ZMON',
+    'notifications': 'notify_mail()',
+    'priority': 1,
+    'condition': 'value > 1',
 }
 
 
@@ -37,24 +42,25 @@ class TestTemplate(unittest.TestCase):
                            include_entity=True,
                            include_value=True,
                            is_alert=True,
+                           worker='worker-1',
                            value={'value': 1.0})
         expected = """New alert on e1: test_alert
 
 Current value: 1.0
 
-Worker: 
+Worker: worker-1
 
 Captures:
 foobar: 4
 
 Alert Definition
 Name (ID):     test_alert (ID: a1)
-Priority:      
+Priority:      1
 Check ID:      1
-Condition      
-Team:          
-Resp. Team:    
-Notifications: 
+Condition:     value > 1
+Team:          ZMON
+Resp. Team:    ZMON
+Notifications: notify_mail()
 
 Entity
 id: e1
@@ -74,11 +80,12 @@ id: e1
                            include_entity=False,
                            include_value=False,
                            is_alert=True,
+                           worker='worker-1',
                            value={'value': 1.0})
         expected = """New alert on e1: test_alert
 
 
-Worker: 
+Worker: worker-1
 
 Captures:
 foobar: 4
@@ -96,6 +103,7 @@ class TestMail(unittest.TestCase):
             'notifications.mail.port': 25,
             'notifications.mail.sender': 'test_sender',
             'notifications.mail.on': True,
+            'zmon.host': 'https://zmon.example.org'
         }
 
     @patch.object(smtplib, 'SMTP_SSL')
@@ -108,6 +116,7 @@ class TestMail(unittest.TestCase):
             'notifications': ['send_sms("42", repeat=5)', 'send_mail("test@example.org", repeat=5)'],
             'check_id': 1,
             'entity': {'id': 'e1'},
+            'worker': 'worker-1',
         }
         s = Mock()
         mock_smtp.return_value = s
@@ -122,6 +131,7 @@ class TestMail(unittest.TestCase):
             'value': {'value': 1.0},
             'entity': {'id': 'e1'},
             'is_alert': True,
+            'worker': 'worker-1',
             'alert_def': alert,
             'duration': datetime.timedelta(seconds=0),
         }, 'test@example.org', include_value=False, include_definition=False, include_entity=False)
@@ -140,6 +150,8 @@ class TestMail(unittest.TestCase):
                                             include_entity=False,
                                             include_value=False,
                                             is_alert=True,
+                                            alert_url='https://zmon.example.org/#/alert-details/a1',
+                                            worker='worker-1',
                                             value={'value': 1.0})
 
         # Send with repeat in HTML
