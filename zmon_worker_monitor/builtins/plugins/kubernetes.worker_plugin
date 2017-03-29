@@ -1,0 +1,19 @@
+[Core]
+Name = kubernetes
+Module = kubernetes
+
+[Documentation]
+Author = Mohab Usama
+Version = 0.1
+Website = https://github.com/zalando-zmon/zmon-worker
+Description = Kubernetes wrapper plugin.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+
+;; key = valueX
+
+;; Note valueX will be overridden if Zmon's global config has: plugin.{plugin_name}.{key} = valueY
+
