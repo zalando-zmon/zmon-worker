@@ -109,9 +109,11 @@ class CloudwatchWrapper(object):
             result.update({s: v for s, v in data_points[-1].items() if s in statistics})
 
         if statistics is None and len(extended_statistics) == 1:
-            result = data_points[-1]['ExtendedStatistics'][extended_statistics[0]]
+            result = data_points[-1].get('ExtendedStatistics', {}).get(extended_statistics[0])
         elif extended_statistics is not None:
-            result.update({s: v for s, v in data_points[-1]['ExtendedStatistics'].items() if s in extended_statistics})
+            result.update({
+                s: v for s, v in data_points[-1].get('ExtendedStatistics', {}).items() if s in extended_statistics
+            })
 
         return result
 

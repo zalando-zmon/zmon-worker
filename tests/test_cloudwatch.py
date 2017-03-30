@@ -199,6 +199,69 @@ def test_cloudwatch_query_one_multiple_and_extended_statistics(monkeypatch):
                                                     ExtendedStatistics=['p99', 'p95'])
 
 
+def test_cloudwatch_quey_one_extended_statistics_no_points(monkeypatch):
+    client = MagicMock()
+    client.get_metric_statistics.return_value = {
+        'Datapoints': [
+            {'Timestamp': 99},
+            {'Timestamp': 11}
+        ]}
+
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'myregion'}
+    monkeypatch.setattr('requests.get', get)
+
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+
+    cloudwatch = CloudwatchWrapper()
+
+    start = datetime.datetime.now()
+    end = start  # makes no sense, but works for our test
+
+    elb_data = cloudwatch.query_one({'LoadBalancerName': 'pierone-1'}, 'Latency', None, 'AWS/ELB',
+                                    extended_statistics='p99', start=start, end=end)
+    assert elb_data is None
+
+    client.get_metric_statistics.assert_called_with(Namespace='AWS/ELB', MetricName='Latency',
+                                                    Dimensions=[{'Name': 'LoadBalancerName', 'Value': 'pierone-1'}],
+                                                    StartTime=start,
+                                                    EndTime=end,
+                                                    Period=60,
+                                                    ExtendedStatistics=['p99'])
+
+
+def test_cloudwatch_query_one_multiple_and_extended_statistics_no_points(monkeypatch):
+    client = MagicMock()
+    client.get_metric_statistics.return_value = {
+        'Datapoints': [
+            {'Timestamp': 99, 'Average': 6.15, 'Maximum': 120.43},
+            {'Timestamp': 11, 'Average': 5.65, 'Maximum': 100.12}
+        ]}
+
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'myregion'}
+    monkeypatch.setattr('requests.get', get)
+
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+
+    cloudwatch = CloudwatchWrapper()
+
+    start = datetime.datetime.now()
+    end = start  # makes no sense, but works for our test
+    elb_data = cloudwatch.query_one({'LoadBalancerName': 'pierone-1'}, 'Latency', ['Average', 'Maximum'], 'AWS/ELB',
+                                    extended_statistics=['p99', 'p95'], start=start, end=end)
+
+    assert {'Average': 6.15, 'Maximum': 120.43} == elb_data
+
+    client.get_metric_statistics.assert_called_with(Namespace='AWS/ELB', MetricName='Latency',
+                                                    Dimensions=[{'Name': 'LoadBalancerName', 'Value': 'pierone-1'}],
+                                                    StartTime=start,
+                                                    EndTime=end,
+                                                    Period=60,
+                                                    Statistics=['Average', 'Maximum'],
+                                                    ExtendedStatistics=['p99', 'p95'])
+
+
 def test_cloudwatch_query_one_no_result(monkeypatch):
     client = MagicMock()
     client.get_metric_statistics.return_value = {'Datapoints': []}
