@@ -347,6 +347,48 @@ def test_statefulsets(monkeypatch, kwargs, filter_kwargs, res):
         (
             {}, {},
             [
+                resource_mock({'metadata': {'name': 'ds-1'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'ds-2'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'ds-3'}, 'spec': {}, 'status': {}}),
+            ]
+        ),
+        (
+            {'application': 'ds-1'}, {'selector': {'application': 'ds-1'}},
+            [resource_mock({'metadata': {'name': 'ds-1'}, 'spec': {}, 'status': {}}, replicas=2)]
+        ),
+        (
+            {'name': 'ds-2'}, {'field_selector': {'metadata.name': 'ds-2'}},
+            [resource_mock({'metadata': {'name': 'ds-2'}, 'spec': {}, 'status': {}})]
+        ),
+    ]
+)
+def test_daemonsets(monkeypatch, kwargs, filter_kwargs, res):
+    client_mock(monkeypatch)
+    get_resources = get_resources_mock(res)
+
+    statefulset = MagicMock()
+    query = statefulset.objects.return_value.filter.return_value
+
+    monkeypatch.setattr(
+        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
+    monkeypatch.setattr('pykube.DaemonSet', statefulset)
+
+    k = KubernetesWrapper()
+
+    daemonsets = k.daemonsets(**kwargs)
+
+    assert [r.obj for r in res] == daemonsets
+
+    get_resources.assert_called_with(query)
+    statefulset.objects.return_value.filter.assert_called_with(**filter_kwargs)
+
+
+@pytest.mark.parametrize(
+    'kwargs,filter_kwargs,res',
+    [
+        (
+            {}, {},
+            [
                 resource_mock({'metadata': {'name': 'rs-1'}, 'spec': {}, 'status': {}}),
                 resource_mock({'metadata': {'name': 'rs-2'}, 'spec': {}, 'status': {}}),
                 resource_mock({'metadata': {'name': 'rs-3'}, 'spec': {}, 'status': {}}),

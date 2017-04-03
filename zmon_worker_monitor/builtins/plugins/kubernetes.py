@@ -244,6 +244,27 @@ class KubernetesWrapper(object):
 
         return [statfulset.obj for statfulset in statfulsets if replicas is None or statfulset.replicas == replicas]
 
+    def daemonsets(self, name=None, **kwargs):
+        """
+        Return list of Daemonsets.
+
+        :param name: Daemonset name.
+        :type name: str
+
+        :param **kwargs: Daemonset labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of Daemonsets. Typical Daemonset has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
+
+        query = pykube.DaemonSet.objects(self.__client).filter(**filter_kwargs)
+
+        daemonsets = self._get_resources(query)
+
+        return [daemonset.obj for daemonset in daemonsets]
+
     def replicasets(self, name=None, replicas=None, **kwargs):
         """
         Return list of ReplicaSets.
