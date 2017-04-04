@@ -1,0 +1,11 @@
+[Core]
+Name = datapipeline
+Module = datapipeline
+
+[Documentation]
+Author = Grigore Duta
+Version = 0.1
+Website = https://github.com/zalando/zmon-worker
+Description = Builtin plugin that provides functionality to query Data Pipeline details
+
+[Configuration]
