@@ -11,7 +11,7 @@ from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from zmon_worker_monitor.zmon_worker.notifications.pagerduty import NotifyPagerduty, NotificationError, get_user_agent
 
 
-URL = 'https://events.pagerduty.com/generic/2010-04-15/create_event.json'
+URL = 'https://events.pagerduty.com/v2/enqueue'
 SERVICE_KEY = '123'
 
 MESSAGE = 'ZMON ALERT'
@@ -22,28 +22,37 @@ HEADERS = {'User-Agent': get_user_agent(), 'Content-type': 'application/json'}
 @pytest.mark.parametrize('is_alert', (True, False))
 def test_pagerduty_notification(monkeypatch, is_alert):
     post = MagicMock()
-
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123}, 'entity': {'id': 'e-1'}}
+    alert = {
+        'changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123, 'priority': 1}, 'entity': {'id': 'e-1'},
+        'worker': 'worker-1',
+    }
 
     NotifyPagerduty._config = {'notifications.pagerduty.servicekey': SERVICE_KEY}
 
     r = NotifyPagerduty.notify(alert, message=MESSAGE, include_alert=False)
 
     data = {
-        'service_key': SERVICE_KEY,
-        'event_type': 'trigger' if is_alert else 'resolve',
-        'incident_key': 'ZMON-123',
-        'description': MESSAGE,
+        'routing_key': SERVICE_KEY,
+        'event_action': 'trigger' if is_alert else 'resolve',
+        'dedup_key': 'ZMON-123',
         'client': 'ZMON',
         'client_url': '',
-        'details': '',
+        'payload': {
+            'summary': MESSAGE,
+            'source': 'worker-1',
+            'severity': 'critical',
+            'component': alert['entity']['id'],
+            'custom_details': {},
+            'class': '',
+            'group': '',
+        },
     }
 
     assert r == 0
 
-    post.assert_called_with(URL, json=data, headers=HEADERS, timeout=5)
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder), headers=HEADERS, timeout=5)
 
 
 def test_pagerduty_notification_error_service_key(monkeypatch):
@@ -58,7 +67,7 @@ def test_pagerduty_notification_exception(monkeypatch):
     post.side_effect = Exception
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123}, 'entity': {'id': 'e-1'}}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'}}
 
     NotifyPagerduty._config = {'notifications.pagerduty.servicekey': SERVICE_KEY}
 
@@ -72,7 +81,8 @@ def test_pagerduty_notification_per_entity(monkeypatch):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'changed': True, 'is_alert': True, 'alert_def': {'id': 123}, 'entity': {'id': 'e-1'}, 'time': datetime.now()
+        'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'},
+        'time': datetime.now(), 'worker': 'worker-1',
     }
 
     NotifyPagerduty._config = {
@@ -80,18 +90,25 @@ def test_pagerduty_notification_per_entity(monkeypatch):
         'zmon.host': 'https://zmon.example.org/'
     }
 
-    r = NotifyPagerduty.notify(alert, message=MESSAGE, per_entity=True)
+    r = NotifyPagerduty.notify(alert, message=MESSAGE, per_entity=True, alert_class='Health', alert_group='production')
 
     data = {
-        'service_key': SERVICE_KEY,
-        'event_type': 'trigger',
-        'incident_key': 'ZMON-123-e-1',
-        'description': MESSAGE,
+        'routing_key': SERVICE_KEY,
+        'event_action': 'trigger',
+        'dedup_key': 'ZMON-123-e-1',
         'client': 'ZMON',
         'client_url': 'https://zmon.example.org/#/alert-details/123',
-        'details': json.dumps(alert, cls=JsonDataEncoder),
+        'payload': {
+            'summary': MESSAGE,
+            'source': 'worker-1',
+            'severity': 'error',
+            'component': alert['entity']['id'],
+            'custom_details': alert,
+            'class': 'Health',
+            'group': 'production',
+        },
     }
 
     assert r == 0
 
-    post.assert_called_with(URL, json=data, headers=HEADERS, timeout=5)
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder), headers=HEADERS, timeout=5)
