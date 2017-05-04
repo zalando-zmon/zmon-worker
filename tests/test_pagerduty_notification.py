@@ -25,7 +25,7 @@ def test_pagerduty_notification(monkeypatch, is_alert):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123, 'priority': 1}, 'entity': {'id': 'e-1'},
+        'alert_changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123, 'priority': 1}, 'entity': {'id': 'e-1'},
         'worker': 'worker-1',
     }
 
@@ -57,7 +57,7 @@ def test_pagerduty_notification(monkeypatch, is_alert):
 
 def test_pagerduty_notification_no_change(monkeypatch):
     alert = {
-        'is_alert': True, 'changed': False, 'alert_def': {'id': 123, 'priority': 1},
+        'is_alert': True, 'alert_changed': False, 'alert_def': {'id': 123, 'priority': 1},
         'entity': {'id': 'e-1'}, 'worker': 'worker-1',
     }
 
@@ -80,7 +80,7 @@ def test_pagerduty_notification_exception(monkeypatch):
     post.side_effect = Exception
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'}}
+    alert = {'alert_changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'}}
 
     NotifyPagerduty._config = {'notifications.pagerduty.servicekey': SERVICE_KEY}
 
@@ -94,7 +94,7 @@ def test_pagerduty_notification_per_entity(monkeypatch):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'},
+        'alert_changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'},
         'time': datetime.now(), 'worker': 'worker-1',
     }
 

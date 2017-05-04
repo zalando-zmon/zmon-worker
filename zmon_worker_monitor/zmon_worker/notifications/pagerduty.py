@@ -31,7 +31,7 @@ class NotifyPagerduty(BaseNotification):
             raise NotificationError('Service key is required!')
 
         entity = alert.get('entity')
-        is_changed = alert.get('changed')
+        is_changed = alert.get('alert_changed')
         is_alert = alert.get('is_alert')
 
         if not is_changed and not per_entity:
