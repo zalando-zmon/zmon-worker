@@ -55,6 +55,19 @@ def test_pagerduty_notification(monkeypatch, is_alert):
     post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder), headers=HEADERS, timeout=5)
 
 
+def test_pagerduty_notification_no_change(monkeypatch):
+    alert = {
+        'is_alert': True, 'changed': False, 'alert_def': {'id': 123, 'priority': 1},
+        'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+    }
+
+    NotifyPagerduty._config = {'notifications.pagerduty.servicekey': SERVICE_KEY}
+
+    r = NotifyPagerduty.notify(alert, message=MESSAGE, include_alert=False)
+
+    assert r == 0
+
+
 def test_pagerduty_notification_error_service_key(monkeypatch):
     NotifyPagerduty._config = {}
 
