@@ -19,7 +19,7 @@ STMT = 'SELECT * FROM X'
         [{'col1': 1, 'col2': 2, 'col3': 3}] * RESULT_COUNT,
     ),
     (
-        {'shards': {'shard-1': 'pg-host:5432/db'}, 'shard': 'shard-1', 'created_by': 'zmon'},
+        {'shards': {'shard-1': 'pg-host:5432/db-2'}, 'shard': 'shard-1', 'created_by': 'zmon'},
         {'col1': 1, 'col2': 2, 'col3': 3},
         {'col1': 1, 'col2': 2, 'col3': 3},
         [{'col1': 1, 'col2': 2, 'col3': 3}] * RESULT_COUNT,

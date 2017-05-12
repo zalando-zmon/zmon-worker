@@ -15,7 +15,7 @@ CONNECTION_RE = \
     re.compile(r'''
 ^(?P<host>[^:/]+)       # host - either IP o hostname
 (:(?P<port>\d+))?       # port - integer, optional
-/(?P<dbname>\w+)        # database name
+/(?P<dbname>[^/]\S*)    # database name - allow punctuation, but not leading slash
 $
 ''', re.X)
 
