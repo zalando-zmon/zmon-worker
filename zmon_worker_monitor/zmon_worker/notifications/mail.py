@@ -34,9 +34,14 @@ class Mail(BaseNotification):
 
         repeat = kwargs.get('repeat', 0)
         alert_def = alert['alert_def']
+        per_entity = kwargs.get('per_entity', True)
 
         if not cls._config.get('notifications.mail.on', True):
             logger.info('Not sending email for alert: {}. Mail notification is not enabled.'.format(alert_def['id']))
+            return repeat
+
+        is_changed = alert.get('alert_changed')
+        if not is_changed and not per_entity:
             return repeat
 
         logger.info("Sending email for alert: {}".format(alert_def['id']))

@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from mock import patch, Mock, ANY
-
 import datetime
 import jinja2
 import zmon_worker_monitor.zmon_worker.notifications.mail as m
 import smtplib
 import unittest
+
+from mock import patch, Mock, ANY
+
 
 template_dir = "zmon_worker_monitor/zmon_worker/templates/mail"
 jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
@@ -215,5 +216,12 @@ class TestMail(unittest.TestCase):
         self.assertTrue(mock_smtp.called)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_send_mail_no_change(monkeypatch):
+    alert = {
+        'alert_def': {'id': 1},
+        'alert_changed': False
+    }
+
+    r = m.Mail.notify(alert, 'e-1@example.com', per_entity=False, repeat=5)
+
+    assert 5 == r
