@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 class NotifyOpsgenie(BaseNotification):
     @classmethod
-    def notify(cls, alert, per_entity=False, include_alert=True, message='', **kwargs):
-        url = 'https://api.opsgenie.com/v1/json/alert'
+    def notify(cls, alert, teams=None, per_entity=False, include_alert=True, message='', **kwargs):
+        url = 'https://api.opsgenie.com/v2/alerts'
 
         repeat = kwargs.get('repeat', 0)
 
@@ -30,8 +30,20 @@ class NotifyOpsgenie(BaseNotification):
         if not api_key:
             raise NotificationError('API key is required!')
 
+        if not isinstance(teams, (list, basestring)):
+            raise NotificationError('Missing "teams" parameter. Either a team name or list of team names is required.')
+
+        if teams and isinstance(teams, basestring):
+            teams = [{'name': teams}]
+        else:
+            teams = [{'name': t} for t in teams]
+
         entity = alert.get('entity')
+        is_changed = alert.get('alert_changed')
         is_alert = alert.get('is_alert')
+
+        if not is_changed and not per_entity:
+            return repeat
 
         alert_id = alert['alert_def']['id']
         alias = 'ZMON-{}'.format(alert_id) if not per_entity else 'ZMON-{}-{}'.format(alert_id, entity['id'])
@@ -40,28 +52,33 @@ class NotifyOpsgenie(BaseNotification):
 
         if is_alert:
             data = {
-                'apiKey': api_key,
                 'alias': alias,
+                'teams': teams,
                 'message': message if message else cls._get_subject(alert),
-                'source': 'ZMON',
+                'source': alert.get('worker', ''),
                 'entity': entity['id'],
                 'note': note,
                 'details': alert if include_alert else {},
+                'priority': 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3',
+                'tags': alert['alert_def'].get('tags', [])
             }
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
-            url = 'https://api.opsgenie.com/v1/json/alert/close'
+            url = 'https://api.opsgenie.com/v2/alerts/{}/close'.format(alias)
             data = {
-                'apiKey': api_key,
-                'alias': alias,
-                'source': 'ZMON',
+                'user': 'ZMON',
+                'source': alert.get('worker', 'ZMON Worker'),
                 'note': note,
             }
 
         try:
-            logger.info('Sending to %s %s', url, message)
-            headers = {'User-Agent': get_user_agent(), 'Content-type': 'application/json'}
+            logger.info('Notifying Opsgenie %s %s', url, message)
+            headers = {
+                'User-Agent': get_user_agent(),
+                'Content-type': 'application/json',
+                'Authorization': 'GenieKey {}'.format(api_key),
+            }
 
             r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=headers,
                               timeout=5)
