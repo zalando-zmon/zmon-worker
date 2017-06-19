@@ -31,19 +31,20 @@ def test_opsgenie_notification(monkeypatch, is_alert):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'alert_changed': True, 'changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123, 'priority': 1},
-        'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_changed': True, 'changed': True, 'is_alert': is_alert, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_def': {'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 1}
     }
 
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
 
     r = NotifyOpsgenie.notify(alert, message=MESSAGE, include_alert=False, teams=['team-1', 'team-2'])
 
+    params = {}
+
     if is_alert:
         data = {
             'alias': 'ZMON-123',
             'message': MESSAGE,
-            'details': {},
             'entity': 'e-1',
             'priority': 'P1',
             'tags': [],
@@ -59,11 +60,14 @@ def test_opsgenie_notification(monkeypatch, is_alert):
 
         }
 
+        params = {'identifierType': 'alias'}
+
     assert r == 0
 
     URL = URL_CREATE if is_alert else URL_CLOSE.format('ZMON-123')
 
-    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5)
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5,
+                            params=params)
 
 
 def test_opsgenie_notification_per_entity(monkeypatch):
@@ -71,8 +75,10 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3, 'tags': ['tag-1']},
-        'entity': {'id': 'e-1'}, 'worker': 'worker-1', 'time': datetime.now(),
+        'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1', 'time': datetime.now(),
+        'alert_def': {
+            'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 3, 'tags': ['tag-1']
+        },
     }
 
     NotifyOpsgenie._config = {
@@ -88,7 +94,15 @@ def test_opsgenie_notification_per_entity(monkeypatch):
         'source': 'worker-1',
         'note': 'https://zmon.example.org/#/alert-details/123',
         'entity': 'e-1',
-        'details': alert,
+        'details': {
+            'worker': alert['worker'],
+            'id': alert['alert_def']['id'],
+            'name': alert['alert_def']['name'],
+            'team': alert['alert_def']['team'],
+            'responsible_team': alert['alert_def']['responsible_team'],
+            'entity': alert['entity']['id'],
+            'infrastructure_account': 'UNKNOWN',
+        },
         'priority': 'P3',
         'tags': ['tag-1'],
         'teams': [{'name': 'team-1'}],
@@ -97,13 +111,13 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     assert r == 0
 
     post.assert_called_with(URL_CREATE, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS,
-                            timeout=5)
+                            timeout=5, params={})
 
 
 def test_opsgenie_notification_no_change(monkeypatch):
     alert = {
-        'is_alert': True, 'alert_changed': False, 'alert_def': {'id': 123, 'priority': 1},
-        'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'is_alert': True, 'alert_changed': False, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_def': {'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 1},
     }
 
     NotifyOpsgenie._config = {
@@ -136,8 +150,8 @@ def test_opsgenie_notification_exception(monkeypatch):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'alert_changed': True, 'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 1},
-        'entity': {'id': 'e-1'}
+        'alert_changed': True, 'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_def': {'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 1},
     }
 
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}

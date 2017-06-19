@@ -50,6 +50,18 @@ class NotifyOpsgenie(BaseNotification):
 
         note = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
 
+        details = {
+            'worker': alert['worker'],
+            'id': alert_id,
+            'name': alert['alert_def']['name'],
+            'team': alert['alert_def']['team'],
+            'responsible_team': alert['alert_def']['responsible_team'],
+            'entity': entity['id'],
+            'infrastructure_account': entity.get('infrastructure_account', 'UNKNOWN'),
+        }
+
+        params = {}
+
         if is_alert:
             data = {
                 'alias': alias,
@@ -58,10 +70,12 @@ class NotifyOpsgenie(BaseNotification):
                 'source': alert.get('worker', ''),
                 'entity': entity['id'],
                 'note': note,
-                'details': alert if include_alert else {},
                 'priority': 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3',
                 'tags': alert['alert_def'].get('tags', [])
             }
+
+            if include_alert:
+                data['details'] = details
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
@@ -72,6 +86,8 @@ class NotifyOpsgenie(BaseNotification):
                 'note': note,
             }
 
+            params = {'identifierType': 'alias'}
+
         try:
             logger.info('Notifying Opsgenie %s %s', url, message)
             headers = {
@@ -81,7 +97,7 @@ class NotifyOpsgenie(BaseNotification):
             }
 
             r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=headers,
-                              timeout=5)
+                              timeout=5, params=params)
 
             r.raise_for_status()
         except requests.HTTPError as e:
