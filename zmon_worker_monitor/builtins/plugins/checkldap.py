@@ -397,3 +397,11 @@ class LdapWrapper(object):
 
         # gc_count = round(self._counter.key('gcCount').per_second(gc_count), 2)
         return data
+
+    def search(self, base, fltr, attrs, scope=ldap.SCOPE_SUBTREE):
+        try:
+            self._connect(self.host)
+            return self._search(base, fltr, attrs, scope)
+
+        except Exception, e:
+            raise CheckError('Error searching LDAP: {}'.format(e))
