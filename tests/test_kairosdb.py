@@ -27,6 +27,10 @@ URL = 'http://kairosdb'
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]},
     ),
     (
+        {'name': 'check1-metric', 'aggregators': [{'name': 'sum'}], 'start_absolute': 1498049043491, 'end_absolute': 0},
+        {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
+    ),
+    (
         {'name': 'check1-metric'},
         requests.Timeout(),
     ),
@@ -81,22 +85,27 @@ def get_query(kwargs):
     time_unit = kwargs.get('time_unit', 'minutes')
     group_by = kwargs.get('group_by', [])
 
-    q = {
-        'start_relative': {
+    q = {'metrics': [{
+        'name': kwargs['name'],
+        'group_by': group_by
+    }]}
+
+    if 'start_absolute' in kwargs:
+        q['start_absolute'] = kwargs['start_absolute']
+    else:
+        q['start_relative'] = {
             'value': start,
             'unit': time_unit
-        },
-        'metrics': [{
-            'name': kwargs['name'],
-            'group_by': group_by
-        }]
-    }
-
-    if 'end' in kwargs:
-        q['end_relative'] = {
-            'value': kwargs['end'],
-            'unit': time_unit
         }
+
+    if 'end_absolute' in kwargs:
+        q['end_absolute'] = kwargs['end_absolute']
+    else:
+        if 'end' in kwargs:
+            q['end_relative'] = {
+                'value': kwargs['end'],
+                'unit': time_unit
+            }
 
     if 'aggregators' in kwargs:
         q['metrics'][0]['aggregators'] = kwargs.get('aggregators')

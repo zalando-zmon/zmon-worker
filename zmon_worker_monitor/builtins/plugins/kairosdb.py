@@ -58,7 +58,8 @@ class KairosdbWrapper(object):
         if oauth2:
             self.__session.headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
-    def query(self, name, group_by=None, tags=None, start=5, end=0, time_unit='minutes', aggregators=None):
+    def query(self, name, group_by=None, tags=None, start=5, end=0, time_unit='minutes', aggregators=None,
+              start_absolute=None, end_absolute=None):
         """
         Query kairosdb.
 
@@ -83,6 +84,12 @@ class KairosdbWrapper(object):
         :param aggregators: List of aggregators.
         :type aggregators: list
 
+        :param start_absolute: Absolute start time in milliseconds, overrides the start parameter which is relative
+        :type start_absolute: long
+
+        :param end_absolute: Absolute end time in milliseconds, overrides the end parameter which is relative
+        :type end_absolute: long
+
         :return: Result queries.
         :rtype: dict
         """
@@ -94,22 +101,27 @@ class KairosdbWrapper(object):
         if group_by is None:
             group_by = []
 
-        q = {
-            'start_relative': {
+        q = {'metrics': [{
+            'name': name,
+            'group_by': group_by
+        }]}
+
+        if start_absolute is None:
+            q['start_relative'] = {
                 'value': start,
                 'unit': time_unit
-            },
-            'metrics': [{
-                'name': name,
-                'group_by': group_by
-            }]
-        }
-
-        if end > 0:
-            q['end_relative'] = {
-                'value': end,
-                'unit': time_unit
             }
+        else:
+            q['start_absolute'] = start_absolute
+
+        if end_absolute is None:
+            if end > 0:
+                q['end_relative'] = {
+                    'value': end,
+                    'unit': time_unit
+                }
+        else:
+            q['end_absolute'] = end_absolute
 
         if aggregators:
             q['metrics'][0]['aggregators'] = aggregators
