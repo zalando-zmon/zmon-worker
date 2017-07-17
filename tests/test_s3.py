@@ -4,6 +4,8 @@ from zmon_worker_monitor.builtins.plugins.s3 import S3Wrapper
 
 from mock import MagicMock, DEFAULT, ANY
 
+from datetime import datetime
+
 
 def test_metadata_on_existing_object(monkeypatch):
 
@@ -110,3 +112,47 @@ def test_object_should_be_found_and_json_returned(monkeypatch):
     assert {'content': 'is here', 'some': 'random'} == json_object
     assert s3_object.exists() is True
     assert s3_object.size() is 40
+
+
+def test_listing_on_existing_prefix(monkeypatch):
+
+    client = MagicMock()
+
+    def writer_side_effect(*args, **kwargs):
+        return {'Contents': [{'Key': 'some_file', 'Size': 123, 'LastModified': datetime(2015, 1, 15, 14, 34, 56)}]}
+    client.list_objects_v2.side_effect = writer_side_effect
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    file_list = s3_wrapper.list_files('bucket', 'prefix')
+
+    assert file_list is not None
+    assert len(file_list.files()) is 1
+    assert file_list.files()[0]['file_name'] is 'some_file'
+    assert file_list.files()[0]['size'] is 123
+    assert file_list.files()[0]['last_modified'] == datetime(2015, 1, 15, 14, 34, 56)
+
+
+def test_listing_on_prefix_that_has_no_objects(monkeypatch):
+    """
+    Can be either because the prefix does not exist or there are no objects under it
+    """
+
+    client = MagicMock()
+
+    def writer_side_effect(*args, **kwargs):
+        return {}
+    client.head_object.side_effect = writer_side_effect
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    file_list = s3_wrapper.list_files('bucket', 'prefix')
+
+    assert file_list is not None
+    assert len(file_list.files()) is 0
