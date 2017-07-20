@@ -74,7 +74,7 @@ class S3Wrapper(object):
         finally:
             data.close()
 
-    def list_files(self, bucket_name, prefix, max_keys=100):
+    def list_bucket(self, bucket_name, prefix, max_keys=100):
         """
         List the objects in the bucket under the provided prefix.
         :param bucket_name: the name of the S3 Bucket
@@ -82,11 +82,8 @@ class S3Wrapper(object):
         :param max_keys: the maximum number of objects to list
         :return: an S3FileList object
         """
-        try:
-            response = self.__client.list_objects_v2(Bucket=bucket_name, Prefix=prefix, MaxKeys=max_keys)
-            return S3FileList(response)
-        except ClientError:
-            return S3FileList({})
+        response = self.__client.list_objects_v2(Bucket=bucket_name, Prefix=prefix, MaxKeys=max_keys)
+        return S3FileList(response)
 
 
 class S3Object(object):
@@ -156,6 +153,7 @@ class S3FileList(object):
 
     def __init__(self, response):
         self.__response = response
+        self.__has_contents = 'Contents' in self.__response
 
     def files(self):
         """
@@ -163,6 +161,9 @@ class S3FileList(object):
         :return: a list of dicts
             [{'file_name': 'string', 'last_modified': datetime(2015, 1, 15, 14, 34, 56), 'size': 123}, ...]
         """
-        return [dict(zip(['file_name', 'last_modified', 'size'],
-                         [item['Key'], item['LastModified'], item['Size']]))
-                for item in self.__response['Contents']]
+        if self.__has_contents:
+            return [dict(zip(['file_name', 'last_modified', 'size'],
+                             [item['Key'], item['LastModified'], item['Size']]))
+                    for item in self.__response['Contents']]
+        else:
+            return []

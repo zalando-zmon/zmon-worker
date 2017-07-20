@@ -4,6 +4,8 @@ from zmon_worker_monitor.builtins.plugins.s3 import S3Wrapper
 
 from mock import MagicMock, DEFAULT, ANY
 
+import pytest
+
 from datetime import datetime
 
 
@@ -127,7 +129,7 @@ def test_listing_on_existing_prefix(monkeypatch):
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
     s3_wrapper = S3Wrapper()
 
-    file_list = s3_wrapper.list_files('bucket', 'prefix')
+    file_list = s3_wrapper.list_bucket('bucket', 'prefix')
 
     assert file_list is not None
     assert len(file_list.files()) is 1
@@ -145,14 +147,33 @@ def test_listing_on_prefix_that_has_no_objects(monkeypatch):
 
     def writer_side_effect(*args, **kwargs):
         return {}
-    client.head_object.side_effect = writer_side_effect
+    client.list_objects_v2.side_effect = writer_side_effect
     get = MagicMock()
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
     monkeypatch.setattr('boto3.client', lambda x, region_name: client)
     s3_wrapper = S3Wrapper()
 
-    file_list = s3_wrapper.list_files('bucket', 'prefix')
+    file_list = s3_wrapper.list_bucket('bucket', 'prefix')
 
     assert file_list is not None
     assert len(file_list.files()) is 0
+
+
+def test_listing_bubbles_client_error_up(monkeypatch):
+    client = MagicMock()
+
+    def writer_side_effect(*args, **kwargs):
+        raise ClientError({'Error': {'Code': 403, 'Message': 'Access denied'}}, 'information')
+    client.list_objects_v2.side_effect = writer_side_effect
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    with pytest.raises(ClientError) as ex:
+        s3_wrapper.list_bucket('bucket', 'prefix').files()
+
+    # raise IOError(str(ex))
+    assert 'Access denied' == ex.value.response['Error']['Message']
