@@ -122,7 +122,7 @@ def test_listing_on_existing_prefix(monkeypatch):
 
     def writer_side_effect(*args, **kwargs):
         return {'Contents': [{'Key': 'some_file', 'Size': 123, 'LastModified': datetime(2015, 1, 15, 14, 34, 56)}]}
-    client.list_objects_v2.side_effect = writer_side_effect
+    client.get_paginator.return_value.paginate.return_value.build_full_result.side_effect = writer_side_effect
     get = MagicMock()
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
@@ -147,7 +147,7 @@ def test_listing_on_prefix_that_has_no_objects(monkeypatch):
 
     def writer_side_effect(*args, **kwargs):
         return {}
-    client.list_objects_v2.side_effect = writer_side_effect
+    client.get_paginator.return_value.paginate.return_value.build_full_result.side_effect = writer_side_effect
     get = MagicMock()
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
@@ -165,7 +165,7 @@ def test_listing_bubbles_client_error_up(monkeypatch):
 
     def writer_side_effect(*args, **kwargs):
         raise ClientError({'Error': {'Code': 403, 'Message': 'Access denied'}}, 'information')
-    client.list_objects_v2.side_effect = writer_side_effect
+    client.get_paginator.return_value.paginate.side_effect = writer_side_effect
     get = MagicMock()
     get.return_value.json.return_value = {'region': 'eu-central-1'}
     monkeypatch.setattr('requests.get', get)
@@ -175,5 +175,4 @@ def test_listing_bubbles_client_error_up(monkeypatch):
     with pytest.raises(ClientError) as ex:
         s3_wrapper.list_bucket('bucket', 'prefix').files()
 
-    # raise IOError(str(ex))
     assert 'Access denied' == ex.value.response['Error']['Message']

@@ -74,15 +74,19 @@ class S3Wrapper(object):
         finally:
             data.close()
 
-    def list_bucket(self, bucket_name, prefix, max_keys=100):
+    def list_bucket(self, bucket_name, prefix, max_items=100):
         """
-        List the objects in the bucket under the provided prefix.
+        List the objects in the bucket under the provided prefix.  Uses a paginator for cases when the number of objects
+        exceeds the hard limit of 1000.
         :param bucket_name: the name of the S3 Bucket
         :param prefix: the prefix to search under
-        :param max_keys: the maximum number of objects to list
+        :param max_items: the maximum number of objects to list
         :return: an S3FileList object
         """
-        response = self.__client.list_objects_v2(Bucket=bucket_name, Prefix=prefix, MaxKeys=max_keys)
+        paginator = self.__client.get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig={'MaxItems': max_items}) \
+                            .build_full_result()
+
         return S3FileList(response)
 
 
