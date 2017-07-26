@@ -92,17 +92,19 @@ def fx_sql_error(request):
     return request.param
 
 
-def get_connection_str(shard_def, user='zmon', password='', timeout=60000, created_by=None, check_id=None, **kwargs):
+def get_connection_str(shard_def, user='zmon', password='', connect_timeout=5, timeout=60000,
+                       created_by=None, check_id=None, **kwargs):
     m = CONNECTION_RE.match(shard_def)
 
     connection_str = ("host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' "
-                      "connect_timeout=5 options='-c statement_timeout={timeout}' "
+                      "connect_timeout='{connect_timeout}' options='-c statement_timeout={timeout}' "
                       "application_name='ZMON Check {check_id} (created by {created_by})' ").format(
         host=m.group('host'),
         port=int(m.group('port') or DEFAULT_PORT),
         dbname=m.group('dbname'),
         user=user,
         password=password,
+        connect_timeout=connect_timeout,
         timeout=timeout,
         check_id=check_id,
         created_by=make_safe(created_by),
