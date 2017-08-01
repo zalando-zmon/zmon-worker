@@ -17,6 +17,7 @@ prometheus_client
 psycopg2
 pykube
 pymongo==3.0.3
+pymssql>=2.1.3
 PyMySQL==0.6.1
 pysnmp
 python-ldap==2.4.19
