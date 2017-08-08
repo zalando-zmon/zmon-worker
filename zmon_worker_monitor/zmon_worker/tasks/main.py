@@ -338,6 +338,7 @@ def alert_series(f, n, con, check_id, entity_id):
 
     active_count = 0
     exception_count = 0
+    exceptions = []
 
     for v in vs:
         # counting exceptions thrown during eval as alert being active for that interval
@@ -345,15 +346,16 @@ def alert_series(f, n, con, check_id, entity_id):
             v = v["value"]
             r = 1 if f(v) else 0
             x = 0
-        except:
+        except Exception, e:
             r = 1
             x = 1
+            exceptions.append(e)
 
         active_count += r
         exception_count += x
 
     if exception_count == threshold:
-        raise Exception("All alert evaluations failed!")
+        raise Exception("All alert evaluations failed! {}".format(exceptions))
 
     return threshold == active_count
 

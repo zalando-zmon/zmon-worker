@@ -60,7 +60,7 @@ def test_alert_series():
     con.lrange.return_value = ['{}']
     with pytest.raises(Exception) as ex:
         alert_series(lambda x: x > -1, 1, con, 1, 'ent-1')
-    assert str(ex.value) == 'All alert evaluations failed!'
+    assert str(ex.value) == "All alert evaluations failed! [KeyError('value',)]"
 
     # We have less values than *n*
     con.lrange.return_value = ['{"value":0}', '{"value": 1}', '{"value": 2}']
