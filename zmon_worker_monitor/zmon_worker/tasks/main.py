@@ -1340,7 +1340,7 @@ class MainTask(object):
             repeat = safe_eval(notification, eval_source='<check-command>', **ctx)
         except:
             # TODO Define what should happen if sending emails or sms fails.
-            self.logger.exception('Sending notification failed!')
+            self.logger.exception('Sending notification failed! alertId={} entity={}'.format(context['alert_def']['id'], context['entity']['id']))
         else:
             if repeat:
                 self.con.hset('zmon:notifications:{}:{}'.format(context['alert_def']['id'], context['entity']['id']),
