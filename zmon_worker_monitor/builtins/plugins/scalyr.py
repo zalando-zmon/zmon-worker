@@ -37,26 +37,30 @@ class ScalyrWrapper(object):
         self.read_key = read_key
 
     def count(self, query, minutes=5):
-
         val = {
             'token': self.read_key,
-            'queryType': 'numeric',
-            'filter': query,
-            'function': 'count',
-            'startTime': str(minutes) + 'm',
-            'priority': 'low',
-            'buckets': 1
+            'queries': [
+                {
+                    'filter': query,
+                    'function': 'count',
+                    'startTime': str(minutes) + 'm',
+                    'buckets': 1,
+                    'priority': 'low',
+                }
+            ]
         }
 
-        r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
+        r = requests.post(self.__timeseries_url, json=val, headers={'Content-Type': 'application/json'})
 
         r.raise_for_status()
 
         j = r.json()
-        if 'values' in j:
-            return j['values'][0]
-        else:
-            return j
+        if j['status'] == 'success':
+            if len(j['results'][0]['values']) > 0:
+                return j['results'][0]['values'][0]
+            else:
+                return j['results'][0]
+        return j
 
     def function(self, function, query, minutes=5):
 
@@ -130,4 +134,4 @@ if __name__ == '__main__':
     import os
 
     s = ScalyrWrapper(read_key=os.getenv('SCALYR_READ_KEY'))
-    print s.count(query='$application_id="zmon-scheduler"')
+    print(s.count(query='$application_id="zmon-scheduler"'))

@@ -8,19 +8,39 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
 
 @pytest.fixture(params=[
     (
-        {'query': 'query-count'},
-        {'values': [5, 4, 3, 2]},
+        {'query': 'filter-query'},
+        {
+            'results': [{
+                'values': [5, 4, 3, 2, 1]
+            }],
+            'status': 'success'
+        },
         5
     ),
     (
-        {'query': 'query-count', 'minutes': 10},
-        {'values': [100, 4, 3, 2]},
-        100
+        {'query': 'filter-query', 'minutes': 10},
+        {
+            'results': [{
+                'values': [5, 4, 3, 2, 1]
+            }],
+            'status': 'success'
+        },
+        5
     ),
     (
-        {'query': 'query-count'},
-        {'count': 5},
-        {'count': 5},
+        {'query': 'filter-query'},
+        {
+            'results': [{
+                'values': []
+            }],
+            'status': 'success'
+        },
+        {'values': []}
+    ),
+    (
+        {'query': 'filter-query'},
+        {'status': 'failed', 'message': 'error'},
+        {'status': 'failed', 'message': 'error'},
     )
 ])
 def fx_count(request):
@@ -139,10 +159,17 @@ def test_scalyr_count(monkeypatch, fx_count):
 
     assert count == exp
 
-    query = get_query('numeric', 'count', read_key, **kwargs)
+    query = get_query('facet', kwargs.get('function', 'count'), read_key, **kwargs)
+
+    query.pop('queryType')
+
+    final_q = {
+        'token': query.pop('token'),
+        'queries': [query]
+    }
 
     post.assert_called_with(
-        scalyr._ScalyrWrapper__numeric_url, json=query, headers={'Content-Type': 'application/json'})
+        scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
 
 
 def test_scalyr_function(monkeypatch, fx_function):
