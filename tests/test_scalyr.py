@@ -15,7 +15,7 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
             }],
             'status': 'success'
         },
-        5
+        25
     ),
     (
         {'query': 'filter-query', 'minutes': 10},
@@ -25,7 +25,7 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
             }],
             'status': 'success'
         },
-        5
+        50
     ),
     (
         {'query': 'filter-query'},
@@ -35,7 +35,7 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
             }],
             'status': 'success'
         },
-        {'values': []}
+        {'status': 'success', 'message': 'no values returned'}
     ),
     (
         {'query': 'filter-query'},

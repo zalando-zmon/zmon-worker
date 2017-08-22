@@ -37,30 +37,16 @@ class ScalyrWrapper(object):
         self.read_key = read_key
 
     def count(self, query, minutes=5):
-        val = {
-            'token': self.read_key,
-            'queries': [
-                {
-                    'filter': query,
-                    'function': 'count',
-                    'startTime': str(minutes) + 'm',
-                    'buckets': 1,
-                    'priority': 'low',
-                }
-            ]
-        }
-
-        r = requests.post(self.__timeseries_url, json=val, headers={'Content-Type': 'application/json'})
-
-        r.raise_for_status()
-
-        j = r.json()
-        if j['status'] == 'success':
-            if len(j['results'][0]['values']) > 0:
-                return j['results'][0]['values'][0]
-            else:
-                return j['results'][0]
-        return j
+        j = self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low')
+        if isinstance(j, dict):
+            return j
+        l = len(j)
+        if l == 0:
+            return {'status': 'success', 'message': 'no values returned'}
+        elif l == 1:
+            return j
+        else:
+            return j[0]
 
     def function(self, function, query, minutes=5):
 
