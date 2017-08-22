@@ -19,6 +19,8 @@ MAX_ALARM_RECORDS = 50
 
 logging.getLogger('botocore').setLevel(logging.WARN)
 
+logger = logging.getLogger('zmon-worker.cloudwatch')
+
 
 class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):
@@ -49,10 +51,19 @@ def matches(dimensions, filters):
 
 
 class CloudwatchWrapper(object):
-    def __init__(self, region=None):
+    def __init__(self, region=None, assume_role_arn=None):
         if not region:
             region = get_region()
         self.__client = boto3.client('cloudwatch', region_name=region)
+
+        if assume_role_arn:
+            sts = boto3.client('sts', region_name=region)
+            resp = sts.assume_role(RoleArn=assume_role_arn, RoleSessionName='zmon-woker-session')
+            session = boto3.Session(aws_access_key_id=resp['Credentials']['AccessKeyId'],
+                                    aws_secret_access_key=resp['Credentials']['SecretAccessKey'],
+                                    aws_session_token=resp['Credentials']['SessionToken'])
+            self.__client = session.client('cloudwatch', region_name=region)
+            logger.info('Cloudwatch wrapper assumed role: {}'.format(assume_role_arn))
 
     def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None,
                   extended_statistics=None):
