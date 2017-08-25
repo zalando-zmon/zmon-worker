@@ -1,6 +1,7 @@
 import json
 
 import pytest
+import requests
 
 from datetime import datetime
 
@@ -24,8 +25,8 @@ HEADERS = {
 }
 
 
-@pytest.mark.parametrize('is_alert', (True, False))
-def test_opsgenie_notification(monkeypatch, is_alert):
+@pytest.mark.parametrize('is_alert,priority', ((True, None), (True, 'P4'), (False, None)))
+def test_opsgenie_notification(monkeypatch, is_alert, priority):
     post = MagicMock()
 
     monkeypatch.setattr('requests.post', post)
@@ -37,7 +38,13 @@ def test_opsgenie_notification(monkeypatch, is_alert):
 
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
 
-    r = NotifyOpsgenie.notify(alert, message=MESSAGE, include_alert=False, teams=['team-1', 'team-2'])
+    kwargs = {}
+    if priority:
+        kwargs['priority'] = priority
+    else:
+        priority = 'P1'
+
+    r = NotifyOpsgenie.notify(alert, message=MESSAGE, include_alert=False, teams=['team-1', 'team-2'], **kwargs)
 
     params = {}
 
@@ -46,7 +53,7 @@ def test_opsgenie_notification(monkeypatch, is_alert):
             'alias': 'ZMON-123',
             'message': MESSAGE,
             'entity': 'e-1',
-            'priority': 'P1',
+            'priority': priority,
             'tags': [],
             'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
             'source': 'worker-1',
@@ -125,9 +132,9 @@ def test_opsgenie_notification_no_change(monkeypatch):
         'zmon.host': 'https://zmon.example.org/'
     }
 
-    r = NotifyOpsgenie.notify(alert, message=MESSAGE, per_entity=True, teams='team-1')
+    r = NotifyOpsgenie.notify(alert, message=MESSAGE, per_entity=False, teams='team-1', repeat=55)
 
-    assert r == 0
+    assert r == 55
 
 
 def test_opsgenie_notification_error_api_key(monkeypatch):
@@ -143,6 +150,9 @@ def test_opsgenie_notification_error_teams(monkeypatch):
     with pytest.raises(NotificationError):
         NotifyOpsgenie.notify({}, message=MESSAGE)
 
+    with pytest.raises(NotificationError):
+        NotifyOpsgenie.notify({}, teams='team-1', message=MESSAGE, priority='p1')
+
 
 def test_opsgenie_notification_exception(monkeypatch):
     post = MagicMock()
@@ -155,6 +165,15 @@ def test_opsgenie_notification_exception(monkeypatch):
     }
 
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
+
+    r = NotifyOpsgenie.notify(alert, message=MESSAGE, per_entity=True, teams='team-1')
+
+    assert r == 0
+
+    resp = requests.Response()
+    resp.status_code = 400
+    post.side_effect = requests.HTTPError(response=resp)
+    monkeypatch.setattr('requests.post', post)
 
     r = NotifyOpsgenie.notify(alert, message=MESSAGE, per_entity=True, teams='team-1')
 

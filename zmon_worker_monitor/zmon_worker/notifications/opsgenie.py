@@ -13,12 +13,15 @@ from zmon_worker_monitor.zmon_worker.errors import NotificationError
 from notification import BaseNotification
 
 
+PRIORITIES = ('P1', 'P2', 'P3', 'P4', 'P5')
+
+
 logger = logging.getLogger(__name__)
 
 
 class NotifyOpsgenie(BaseNotification):
     @classmethod
-    def notify(cls, alert, teams=None, per_entity=False, include_alert=True, message='', **kwargs):
+    def notify(cls, alert, teams=None, per_entity=False, include_alert=True, priority=None, message='', **kwargs):
         url = 'https://api.opsgenie.com/v2/alerts'
 
         repeat = kwargs.get('repeat', 0)
@@ -32,6 +35,9 @@ class NotifyOpsgenie(BaseNotification):
 
         if not isinstance(teams, (list, basestring)):
             raise NotificationError('Missing "teams" parameter. Either a team name or list of team names is required.')
+
+        if priority and priority not in PRIORITIES:
+            raise NotificationError('Invalid priority. Valid values are: {}'.format(PRIORITIES))
 
         if teams and isinstance(teams, basestring):
             teams = [{'name': teams}]
@@ -49,6 +55,9 @@ class NotifyOpsgenie(BaseNotification):
         alias = 'ZMON-{}'.format(alert_id) if not per_entity else 'ZMON-{}-{}'.format(alert_id, entity['id'])
 
         note = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
+
+        if not priority:
+            priority = 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3'
 
         details = {
             'worker': alert['worker'],
@@ -70,7 +79,7 @@ class NotifyOpsgenie(BaseNotification):
                 'source': alert.get('worker', ''),
                 'entity': entity['id'],
                 'note': note,
-                'priority': 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3',
+                'priority': priority,
                 'tags': alert['alert_def'].get('tags', [])
             }
 
