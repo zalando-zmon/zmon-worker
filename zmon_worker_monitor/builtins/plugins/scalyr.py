@@ -37,16 +37,7 @@ class ScalyrWrapper(object):
         self.read_key = read_key
 
     def count(self, query, minutes=5):
-        j = self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low')
-        if isinstance(j, dict):
-            return j
-        l = len(j)
-        if l == 0:
-            return {'status': 'success', 'message': 'no values returned'}
-        elif l == 1:
-            return j
-        else:
-            return j[0]
+        return self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low')
 
     def function(self, function, query, minutes=5):
 

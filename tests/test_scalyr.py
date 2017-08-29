@@ -11,31 +11,21 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
         {'query': 'filter-query'},
         {
             'results': [{
-                'values': [5, 4, 3, 2, 1]
+                'values': [5],
             }],
             'status': 'success'
         },
-        25
+        5
     ),
     (
         {'query': 'filter-query', 'minutes': 10},
         {
             'results': [{
-                'values': [5, 4, 3, 2, 1]
+                'values': [5]
             }],
             'status': 'success'
         },
-        50
-    ),
-    (
-        {'query': 'filter-query'},
-        {
-            'results': [{
-                'values': []
-            }],
-            'status': 'success'
-        },
-        {'status': 'success', 'message': 'no values returned'}
+        5
     ),
     (
         {'query': 'filter-query'},
