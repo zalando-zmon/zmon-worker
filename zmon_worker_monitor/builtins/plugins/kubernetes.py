@@ -411,3 +411,22 @@ class KubernetesWrapper(object):
                 samples_by_name[s[0]].append((s[1], s[2]))
 
         return samples_by_name
+
+    def resourcequotas(self, name=None, **kwargs):
+        """
+        Return list of resource quotas.
+
+        :param name: quota name.
+        :type name: str
+
+        :param **kwargs: resourceQuota labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of resourceQuota. Typical resourceQuota has "metadata", "status" and "spec".
+        :rtype: list
+        """
+
+        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
+        query = pykube.ResourceQuota.objects(self.__client).filter(**filter_kwargs)
+        qs = self._get_resources(query)
+        return [q.obj for q in qs]
