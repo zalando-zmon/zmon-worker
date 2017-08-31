@@ -51,7 +51,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority):
     if is_alert:
         data = {
             'alias': 'ZMON-123',
-            'message': MESSAGE,
+            'message': '[zmon] - {}'.format(MESSAGE),
             'entity': 'e-1',
             'priority': priority,
             'tags': [],
@@ -84,7 +84,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     alert = {
         'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1', 'time': datetime.now(),
         'alert_def': {
-            'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 3, 'tags': ['tag-1']
+            'name': 'Alert', 'team': 'team-1', 'responsible_team': 'zmon', 'id': 123, 'priority': 3, 'tags': ['tag-1']
         },
     }
 
@@ -97,7 +97,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
 
     data = {
         'alias': 'ZMON-123-e-1',
-        'message': MESSAGE,
+        'message': '[zmon] - {}'.format(MESSAGE),
         'source': 'worker-1',
         'note': 'https://zmon.example.org/#/alert-details/123',
         'entity': 'e-1',

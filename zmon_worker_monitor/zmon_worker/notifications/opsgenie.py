@@ -59,6 +59,9 @@ class NotifyOpsgenie(BaseNotification):
         if not priority:
             priority = 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3'
 
+        responsible_team = alert['alert_def'].get('responsible_team', teams[0]['name'])
+        msg = message if message else cls._get_subject(alert)
+
         details = {
             'worker': alert['worker'],
             'id': alert_id,
@@ -75,7 +78,7 @@ class NotifyOpsgenie(BaseNotification):
             data = {
                 'alias': alias,
                 'teams': teams,
-                'message': message if message else cls._get_subject(alert),
+                'message': '[{}] - {}'.format(responsible_team, msg),  # TODO: remove when it is no longer needed!
                 'source': alert.get('worker', ''),
                 'entity': entity['id'],
                 'note': note,
