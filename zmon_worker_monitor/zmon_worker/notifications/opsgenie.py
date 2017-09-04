@@ -60,7 +60,7 @@ class NotifyOpsgenie(BaseNotification):
             priority = 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3'
 
         responsible_team = alert['alert_def'].get('responsible_team', teams[0]['name'])
-        msg = message if message else cls._get_subject(alert)
+        msg = message if message else cls._get_subject(alert, include_event=False)
 
         details = {
             'worker': alert['worker'],

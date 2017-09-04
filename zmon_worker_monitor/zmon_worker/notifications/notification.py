@@ -22,7 +22,7 @@ class BaseNotification(object):
         cls.__redis_conn = r
 
     @classmethod
-    def _get_subject(cls, alert, custom_message=None):
+    def _get_subject(cls, alert, custom_message=None, include_event=True):
         """
         >>> BaseNotification._get_subject({'is_alert': True, 'changed': True, 'alert_def':{'name': 'Test'}, 'entity':{'id':'hostxy'}, 'captures': {}})
         'NEW ALERT: Test on hostxy'
@@ -38,13 +38,17 @@ class BaseNotification(object):
 
         name = cls._get_expanded_alert_name(alert, custom_message)
 
+        prefix = ''
+        if include_event:
+            prefix = '{}: '.format(event)
+
         if not custom_message:
             if alert.get('duration'):
-                return '{}: {} on {} for {}'.format(event, name, alert['entity']['id'], str(alert['duration'])[:7])
+                return '{}{} on {} for {}'.format(prefix, name, alert['entity']['id'], str(alert['duration'])[:7])
             else:
-                return '{}: {} on {}'.format(event, name, alert['entity']['id'])
+                return '{}{} on {}'.format(prefix, name, alert['entity']['id'])
         else:
-            return '{}: {}'.format(event, name)
+            return '{}{}'.format(prefix, name)
 
     @classmethod
     def _get_expanded_alert_name(cls, alert, custom_message=None):

@@ -42,7 +42,7 @@ class NotifyPagerduty(BaseNotification):
         alert_id = alert['alert_def']['id']
         key = 'ZMON-{}'.format(alert_id) if not per_entity else 'ZMON-{}-{}'.format(alert_id, entity['id'])
 
-        description = message if message else cls._get_subject(alert)
+        description = message if message else cls._get_subject(alert, include_event=False)
 
         alert_class = kwargs.get('alert_class', '')
         alert_group = kwargs.get('alert_group', '')
