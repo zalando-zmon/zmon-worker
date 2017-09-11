@@ -22,7 +22,7 @@ class NotifyHipchat(BaseNotification):
         color = 'green' if alert and not alert.get('is_alert') else kwargs.get('color', 'red')
 
         message_text = cls._get_subject(alert, custom_message=kwargs.get('message'))
-        
+
         if kwargs.get('link', False):
             zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
             alert_id = alert['alert_def']['id']
