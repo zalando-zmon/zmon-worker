@@ -21,12 +21,14 @@ class NotifyHipchat(BaseNotification):
 
         color = 'green' if alert and not alert.get('is_alert') else kwargs.get('color', 'red')
 
-        zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
-        alert_id = alert['alert_def']['id']
-        alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
         message_text = cls._get_subject(alert, custom_message=kwargs.get('message'))
+        
         if kwargs.get('link', False):
-            message_text += ' -- <a href="{}">GO TO ALERT</a>'.format(alert_url)
+            zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
+            alert_id = alert['alert_def']['id']
+            alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
+            link_text = kwargs.get('link_text', 'go to alert')
+            message_text += ' -- <a href="{}" target="_blank">{}</a>'.format(alert_url, link_text)
 
         message = {
             'message': message_text,
