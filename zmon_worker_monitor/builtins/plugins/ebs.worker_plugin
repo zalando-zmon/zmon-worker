@@ -1,0 +1,8 @@
+[Core]
+Name = ebs
+Module = ebs
+
+[Documentation]
+Version = 0.1
+Website = https://github.com/zalando-zmon/zmon-worker
+Description = Builtin plugin that provides access to AWS EBS Volumes and Snapshots.

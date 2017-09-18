@@ -6,9 +6,9 @@ import collections
 import datetime
 import fnmatch
 import logging
-import requests
 
 from zmon_worker_monitor.zmon_worker.errors import CheckError
+from zmon_worker_monitor.builtins.plugins.aws_common import get_instance_identity_document
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 STATE_OK = 'OK'
@@ -38,11 +38,6 @@ class CloudwatchWrapperFactory(IFunctionFactoryPlugin):
         return propartial(CloudwatchWrapper, region=factory_ctx.get('entity').get('region', None))
 
 
-def get_region():
-    r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
-    return r.json()['region']
-
-
 def matches(dimensions, filters):
     for key, pattern in filters.items():
         if not fnmatch.fnmatch(''.join(dimensions.get(key, '')), pattern):
@@ -53,7 +48,7 @@ def matches(dimensions, filters):
 class CloudwatchWrapper(object):
     def __init__(self, region=None, assume_role_arn=None):
         if not region:
-            region = get_region()
+            region = get_instance_identity_document()['region']
         self.__client = boto3.client('cloudwatch', region_name=region)
 
         if assume_role_arn:
