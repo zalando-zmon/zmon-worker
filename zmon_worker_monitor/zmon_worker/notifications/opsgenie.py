@@ -21,7 +21,16 @@ logger = logging.getLogger(__name__)
 
 class NotifyOpsgenie(BaseNotification):
     @classmethod
-    def notify(cls, alert, teams=None, per_entity=False, include_alert=True, priority=None, message='', **kwargs):
+    def notify(cls,
+               alert,
+               teams=None,
+               per_entity=False,
+               include_alert=True,
+               priority=None,
+               message='',
+               description='',
+               **kwargs):
+
         url = 'https://api.opsgenie.com/v2/alerts'
 
         repeat = kwargs.get('repeat', 0)
@@ -61,6 +70,7 @@ class NotifyOpsgenie(BaseNotification):
 
         responsible_team = alert['alert_def'].get('responsible_team', teams[0]['name'])
         msg = message if message else cls._get_subject(alert, include_event=False)
+        desc = description if description else alert['alert_def'].get('description', None)
 
         details = {
             'worker': alert['worker'],
@@ -80,6 +90,7 @@ class NotifyOpsgenie(BaseNotification):
                 'teams': teams,
                 'message': '[{}] - {}'.format(responsible_team, msg),  # TODO: remove when it is no longer needed!
                 'source': alert.get('worker', ''),
+                'description': desc,
                 'entity': entity['id'],
                 'note': note,
                 'priority': priority,
