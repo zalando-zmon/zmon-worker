@@ -123,8 +123,8 @@ normalize_kairos_id = propartial(KAIROS_ID_FORBIDDEN_RE.sub, '_')
 
 
 def setp(check_id, entity, msg):
-    setproctitle.setproctitle('zmon-worker check {} on {} {} {}'.format(check_id, entity, msg,
-                                                                        datetime.now().strftime('%H:%M:%S.%f')))
+    setproctitle.setproctitle(
+        'zmon-worker check {} on {} {} {}'.format(check_id, entity, msg, datetime.now().isoformat()))
 
 
 def get_kairosdb_value(name, points, tags):
