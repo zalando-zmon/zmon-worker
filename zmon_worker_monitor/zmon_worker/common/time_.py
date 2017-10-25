@@ -45,7 +45,7 @@ def parse_timedelta(s):
     try:
         v = int(s[:-1])
         u = s[-1]
-    except:
+    except Exception:
         return None
 
     arg = TIME_UNITS.get(u)
@@ -89,6 +89,6 @@ def parse_datetime(s):
     for fmt in TIME_FORMATS:
         try:
             return datetime.strptime(s, fmt) - timezone_timedelta
-        except:
+        except Exception:
             pass
     return None

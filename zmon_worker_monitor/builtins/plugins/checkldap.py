@@ -6,7 +6,7 @@ import ldap
 
 try:
     import ldapapi
-except:
+except Exception:
     ldapapi = None
 import logging
 import time

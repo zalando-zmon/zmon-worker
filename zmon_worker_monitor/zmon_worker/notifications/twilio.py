@@ -62,7 +62,7 @@ class NotifyTwilio(BaseNotification):
             r = requests.post(url, data=json.dumps(data, cls=JsonDataEncoder), headers=headers, timeout=timeout)
 
             r.raise_for_status()
-        except:
+        except Exception:
             logger.exception('Twilio Request failed!')
 
         return repeat

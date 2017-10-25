@@ -71,7 +71,7 @@ class NotifyPagerduty(BaseNotification):
             r = requests.post(url, data=json.dumps(message, cls=JsonDataEncoder), headers=headers, timeout=5)
 
             r.raise_for_status()
-        except:
+        except Exception:
             logger.exception('Notifying Pagerduty failed')
 
         return repeat

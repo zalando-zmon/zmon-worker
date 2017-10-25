@@ -34,7 +34,7 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
             try:
                 with open(str(tmpdir) + 'data.json') as fd:
                     data = json.load(fd)
-            except:
+            except Exception:
                 time.sleep(0.2)
                 data = None
         return data

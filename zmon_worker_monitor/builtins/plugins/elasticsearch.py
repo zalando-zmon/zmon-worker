@@ -188,7 +188,7 @@ class ElasticsearchWrapper(object):
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
-        except:
+        except Exception:
             raise
 
 
