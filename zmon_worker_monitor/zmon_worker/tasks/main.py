@@ -578,8 +578,8 @@ def avg(sequence):
     2.5
     '''
 
-    l = len(sequence) * 1.0
-    return (sum(sequence) / l if l else 0)
+    seq_len = len(sequence) * 1.0
+    return (sum(sequence) / seq_len if seq_len else 0)
 
 
 def empty(v):
@@ -1095,7 +1095,7 @@ class MainTask(object):
 
         try:
             self._store_check_result_to_kairosdb(req, res)
-        except:
+        except Exception:
             pass
 
         # assume metric cache is not protected as not user exposed
@@ -1338,7 +1338,7 @@ class MainTask(object):
         ctx = _build_notify_context(context)
         try:
             repeat = safe_eval(notification, eval_source='<check-command>', **ctx)
-        except:
+        except Exception:
             # TODO Define what should happen if sending emails or sms fails.
             self.logger.exception('Sending notification failed!')
         else:
@@ -1691,7 +1691,7 @@ class MainTask(object):
                         else:
                             p.hdel('zmon:downtimes:{}:{}'.format(alert_id, entity_id), uuid)
                         p.execute()
-                except:
+                except Exception:
                     self.logger.exception('Exception while evaluating downtime!')
                     continue
 

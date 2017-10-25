@@ -6,7 +6,7 @@ Zalando-specific function to monitor job locking (Job Framework uses Redis to lo
 
 try:
     from cmdb.client import Client as cmdb_client
-except:
+except Exception:
     cmdb_client = None
 from dogpile.cache import make_region
 

@@ -65,7 +65,7 @@ class NotifyHttp(BaseNotification):
                               headers=headers, timeout=timeout)
 
             r.raise_for_status()
-        except:
+        except Exception:
             logger.exception('Request failed!')
 
         return repeat

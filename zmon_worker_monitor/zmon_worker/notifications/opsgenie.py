@@ -114,7 +114,7 @@ class NotifyOpsgenie(BaseNotification):
             r.raise_for_status()
         except requests.HTTPError as e:
             logger.error('HTTP Error ({}) {}'.format(e.response.status_code, e.response.text))
-        except:
+        except Exception:
             logger.exception('Notifying Opsgenie failed')
 
         return repeat

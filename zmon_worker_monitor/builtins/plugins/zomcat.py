@@ -94,7 +94,7 @@ class ZomcatWrapper(object):
                                         'CollectionTime').results()
                 gc_count += row['CollectionCount']
                 gc_time += row['CollectionTime']
-            except:
+            except Exception:
                 pass
 
         gc_count = round(self._counter.key('gcCount').per_second(gc_count), 2)
@@ -115,7 +115,7 @@ class ZomcatWrapper(object):
                 request_count += row['requestCount']
                 request_time += row['processingTime']
                 http_errors += row['errorCount']
-            except:
+            except Exception:
                 pass
         requests = round(self._counter.key('requestCount').per_second(request_count), 2)
         http_errors = round(self._counter.key('errorCount').per_second(http_errors), 2)
@@ -141,11 +141,11 @@ class ZomcatWrapper(object):
 
         try:
             heartbeat = self._http('/heartbeat.jsp', timeout=3).text().strip() == 'OK: Zalando JVM is running'
-        except:
+        except Exception:
             heartbeat = None
         try:
             jobs = self._http('/jobs.monitor?view=json', timeout=3).json()['operationMode'] == 'NORMAL'
-        except:
+        except Exception:
             jobs = None
 
         return {

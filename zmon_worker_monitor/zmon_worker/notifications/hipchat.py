@@ -44,7 +44,7 @@ class NotifyHipchat(BaseNotification):
                 '{}/v2/room/{}/notification'.format(url, urllib.quote(kwargs['room'])),
                 json=message, params={'auth_token': token}, headers={'Content-type': 'application/json'})
             r.raise_for_status()
-        except:
+        except Exception:
             logger.exception('Hipchat write failed!')
 
         return repeat

@@ -50,7 +50,7 @@ def process_config(config):
 
         resp = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone', timeout=3)
         config['region'] = resp.text[:-1]
-    except:
+    except Exception:
         logging.warning('Failed to retrieve AWS account info.')
         config['account'] = 'aws:error-during-startup'
         config['region'] = 'unknown'
