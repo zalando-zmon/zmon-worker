@@ -360,8 +360,9 @@ def alert_series(f, n, con, check_id, entity_id):
     return threshold == active_count
 
 
-def monotonic(count=2, increasing=True, strictly=False, con=None, check_id=None, entity_id=None):
-    data = get_results_user(count, con, check_id, entity_id)
+def monotonic(count=2, increasing=True, strictly=False, data=None, con=None, check_id=None, entity_id=None):
+    if not data:
+        data = get_results_user(count, con, check_id, entity_id)
     cur, data = data[0], data[1:]
     comp = None
     # we get data in "reversed" order, i.e. latest one comes first, oldest last
