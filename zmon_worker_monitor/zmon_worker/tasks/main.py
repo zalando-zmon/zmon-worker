@@ -360,6 +360,46 @@ def alert_series(f, n, con, check_id, entity_id):
     return threshold == active_count
 
 
+def monotonic(count=2, increasing=True, strictly=False, data=None, con=None, check_id=None, entity_id=None):
+    if not data:
+        data = get_results_user(count, con, check_id, entity_id)
+    cur, data = data[0], data[1:]
+    comp = None
+    # we get data in "reversed" order, i.e. latest one comes first, oldest last
+    if increasing:
+        if strictly:
+            comp = _less_or_equal
+        else:
+            comp = _less
+    else:
+        if strictly:
+            comp = _greater_or_equal
+        else:
+            comp = _greater
+
+    for d in data:
+        if comp(cur, d):
+            return False
+        cur = d
+    return True
+
+
+def _greater_or_equal(c, d):
+    return c >= d
+
+
+def _greater(c, d):
+    return c > d
+
+
+def _less_or_equal(c, d):
+    return c <= d
+
+
+def _less(c, d):
+    return c < d
+
+
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
     >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
@@ -379,6 +419,7 @@ def build_condition_context(con, check_id, alert_id, entity, captures, alert_par
     ctx['entity'] = dict(entity)
     ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
     ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
+    ctx['monotonic'] = functools.partial(monotonic, con=con, check_id=check_id, entity_id=entity['id'])
 
     # check plugins available in alert condition!
     ctx['time'] = time_factory.create({})
