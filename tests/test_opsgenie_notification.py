@@ -25,15 +25,26 @@ HEADERS = {
 }
 
 
-@pytest.mark.parametrize('is_alert,priority', ((True, None), (True, 'P4'), (False, None)))
-def test_opsgenie_notification(monkeypatch, is_alert, priority):
+@pytest.mark.parametrize('is_alert,priority,override_description',
+                         ((True, None, None),
+                          (True, 'P4', None),
+                          (False, None, None),
+                          (True, None, "override description"))
+                         )
+def test_opsgenie_notification(monkeypatch, is_alert, priority, override_description):
     post = MagicMock()
 
     monkeypatch.setattr('requests.post', post)
 
     alert = {
         'alert_changed': True, 'changed': True, 'is_alert': is_alert, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
-        'alert_def': {'name': 'Alert', 'team': 'zmon', 'responsible_team': 'zmon', 'id': 123, 'priority': 1}
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1
+        }
     }
 
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
@@ -44,7 +55,23 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority):
     else:
         priority = 'P1'
 
-    r = NotifyOpsgenie.notify(alert, message=MESSAGE, include_alert=False, teams=['team-1', 'team-2'], **kwargs)
+    if override_description:
+        r = NotifyOpsgenie.notify(
+            alert,
+            message=MESSAGE,
+            include_alert=False,
+            teams=['team-1', 'team-2'],
+            description=override_description,
+            **kwargs
+        )
+    else:
+        r = NotifyOpsgenie.notify(
+            alert,
+            message=MESSAGE,
+            include_alert=False,
+            teams=['team-1', 'team-2'],
+            **kwargs
+        )
 
     params = {}
 
@@ -52,6 +79,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority):
         data = {
             'alias': 'ZMON-123',
             'message': '[zmon] - {}'.format(MESSAGE),
+            'description': '',
             'entity': 'e-1',
             'priority': priority,
             'tags': [],
@@ -59,6 +87,10 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority):
             'source': 'worker-1',
             'note': '',
         }
+
+        if override_description:
+            data['description'] = override_description
+
     else:
         data = {
             'user': 'ZMON',
@@ -84,7 +116,12 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     alert = {
         'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1', 'time': datetime.now(),
         'alert_def': {
-            'name': 'Alert', 'team': 'team-1', 'responsible_team': 'zmon', 'id': 123, 'priority': 3, 'tags': ['tag-1']
+            'name': 'Alert',
+            'team': 'team-1',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 3,
+            'tags': ['tag-1']
         },
     }
 
@@ -98,6 +135,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     data = {
         'alias': 'ZMON-123-e-1',
         'message': '[zmon] - {}'.format(MESSAGE),
+        'description': '',
         'source': 'worker-1',
         'note': 'https://zmon.example.org/#/alert-details/123',
         'entity': 'e-1',
