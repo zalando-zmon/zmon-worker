@@ -134,6 +134,20 @@ def get_query(query_type, func, key, **kwargs):
     return q
 
 
+def test_scalyr_eu_region():
+    read_key = '123'
+    region = 'eu'
+    numeric_url = 'https://eu.scalyr.com/api/numericQuery'
+    timeseries_url = 'https://eu.scalyr.com/api/timeseriesQuery'
+    facet_url = 'https://eu.scalyr.com/api/facetQuery'
+
+    scalyr = ScalyrWrapper(read_key, region)
+
+    assert numeric_url == scalyr._ScalyrWrapper__numeric_url
+    assert timeseries_url == scalyr._ScalyrWrapper__timeseries_url
+    assert facet_url == scalyr._ScalyrWrapper__facet_url
+
+
 def test_scalyr_count(monkeypatch, fx_count):
     kwargs, res, exp = fx_count
 
