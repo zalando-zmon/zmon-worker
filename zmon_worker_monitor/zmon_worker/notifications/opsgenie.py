@@ -70,7 +70,6 @@ class NotifyOpsgenie(BaseNotification):
 
         responsible_team = alert['alert_def'].get('responsible_team', teams[0]['name'])
         msg = message if message else cls._get_subject(alert, include_event=False)
-        desc = description if description else alert['alert_def'].get('description', None)
 
         details = {
             'worker': alert['worker'],
@@ -90,7 +89,7 @@ class NotifyOpsgenie(BaseNotification):
                 'teams': teams,
                 'message': '[{}] - {}'.format(responsible_team, msg),  # TODO: remove when it is no longer needed!
                 'source': alert.get('worker', ''),
-                'description': desc,
+                'description': description,
                 'entity': entity['id'],
                 'note': note,
                 'priority': priority,
