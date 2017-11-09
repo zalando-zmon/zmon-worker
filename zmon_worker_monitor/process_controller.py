@@ -434,7 +434,8 @@ class ProcessPlus(Process):
             agg_data['percent_idle'] = round(float(sum([p['percent_idle'] for p in pings])) / len(pings), FLOAT_DIGITS)
             agg_data['pings_received'] = len(pings)
             if agg_data['tasks_done']:
-                agg_data['average_task_duration'] = sum([p['task_duration'] for p in pings]) / float(agg_data['tasks_done'])
+                agg_data['average_task_duration'] = sum([p['task_duration'] for p in pings]
+                                                        ) / float(agg_data['tasks_done'])
 
         return agg_data
 
