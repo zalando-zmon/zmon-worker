@@ -211,6 +211,7 @@ class FlowControlReactor(object):
         'timedelta': None,
         'tasks_done': 0,
         'percent_idle': 0,
+        'task_time': 0.0,
     }
 
     _event_template = {
@@ -357,11 +358,13 @@ class FlowControlReactor(object):
 
     def task_ended(self, exc=None):
         # delete the task from the list
-        self._current_task_by_thread.pop(threading.currentThread().getName(), {})
+        task_time = self._current_task_by_thread.pop(threading.currentThread().getName(), ())
         if not exc:
             # update ping data
             with self._ping_lock:
                 self._ping_data['tasks_done'] += 1
+                if len(list(task_time)) == 4:
+                    self._ping_data['task_time'] += time.time() - list(task_time)[3]
         else:
             # register error event
             self.add_event('FlowControlReactor.task_ended', 'ERROR', str(exc))
