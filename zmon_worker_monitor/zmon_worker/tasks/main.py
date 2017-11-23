@@ -1590,8 +1590,8 @@ class MainTask(object):
                 # 'entity_id': req['entity']['id'],
                 check_result["entity"] = {"id": req['entity']['id']}
 
-                for k in ["application_id", "application_version", "stack_name", "stack_version", "team",
-                          "account_alias"]:
+                for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
+                          'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias']:
                     if k in req["entity"]:
                         check_result["entity"][k] = req["entity"][k]
 
