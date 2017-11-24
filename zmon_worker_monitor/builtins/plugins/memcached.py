@@ -8,15 +8,19 @@ from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
+VALUE_KEYS = frozenset([
+        'curr_items',
+        'bytes',
+        # 'rusage_user',
+        # 'rusage_system',
+    ])
+
 COUNTER_KEYS = frozenset([
     'total_connections',
-    'rejected_connections',
     'cmd_get',
     'cmd_set',
     'cmd_flush',
     'cmd_touch',
-    'cmd_config_get',
-    'cmd_config_set',
     'get_hits',
     'get_misses',
     'get_expired',
@@ -36,30 +40,7 @@ COUNTER_KEYS = frozenset([
     'auth_errors',
     'bytes_read',
     'bytes_written',
-    'conn_yields',
-    'slab_reassign_rescues',
-    'slab_reassign_chunk_rescues',
-    'slab_reassign_evictions_nomem',
-    'slab_reassign_inline_reclaim',
-    'slab_reassign_busy_items',
-    'slab_reassign_running',
-    'slabs_moved',
-    'lru_crawler_starts',
-    'lru_maintainer_juggles',
-    'malloc_fails',
-    'log_worker_dropped',
-    'log_worker_written',
-    'log_watcher_skipped',
-    'log_watcher_sent',
-    'crawler_reclaimed',
     'evictions',
-    'reclaimed',
-    'crawler_items_checked',
-    'lrutail_reflocked',
-    'moves_to_cold',
-    'moves_to_warm',
-    'moves_within_lru',
-    'direct_reclaims',
 ])
 
 
@@ -93,7 +74,7 @@ class MemcachedWrapper(object):
 
     def __init__(self, counter, host, port=11211, socket_connect_timeout=1):
         if not host:
-            raise ConfigurationError('Memcached wrapper improperly configured. Valid redis host is required!')
+            raise ConfigurationError('Memcached wrapper improperly configured. Valid memcached host is required!')
 
         self.__con = Client((host, port))
         self._counter = counter('')
@@ -104,15 +85,18 @@ class MemcachedWrapper(object):
     def get(self, key):
         return self.__con.get(key)
 
-    def stats(self):
+    def stats(self, extra_keys=[]):
         data = self.__con.stats()
         ret = {}
         for key in data:
             if key in COUNTER_KEYS:
                 ret['{}_per_sec'.format(key.replace('total_', ''))] = \
                     round(self._counter.key(key).per_second(data.get(key, 0)), 2)
-            else:
+            elif key in VALUE_KEYS:
                 ret[key] = data[key]
+            elif key in extra_keys:
+                ret[key] = data[key]
+        return ret
 
 
 if __name__ == '__main__':

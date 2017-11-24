@@ -3,9 +3,9 @@ Name = memcached
 Module = memcached
 
 [Documentation]
-Author = John Doe
+Author = Hanno Hecker
 Version = 0.1
-Website = https://github.com/zalando/zmon-worker
+Website = https://github.com/zalando-zmon/zmon-worker
 Description = Builtin plugin that provides an memcached request check function.
 
 
