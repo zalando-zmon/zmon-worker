@@ -195,7 +195,9 @@ class CloudwatchWrapper(object):
         if alarm_names and alarm_name_prefix:
             raise CheckError('"alarm_name_prefix" cannot be sprecified if "alarm_names" is specified!')
 
-        kwargs = dict(StateValue=state_value, MaxRecords=max_records)
+        kwargs = dict(MaxRecords=max_records)
+        if state_value:
+            kwargs.update({'StateValue': state_value})
 
         if alarm_names:
             alarm_names = [alarm_names] if isinstance(alarm_names, basestring) else alarm_names
