@@ -201,7 +201,7 @@ class AppdynamicsWrapper(object):
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
-        except:
+        except Exception:
             logger.exception('AppDynamics request failed')
             raise
 
@@ -253,7 +253,7 @@ class AppdynamicsWrapper(object):
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
-        except:
+        except Exception:
             logger.exception('AppDynamics request failed')
             raise
 

@@ -342,6 +342,45 @@ def test_cloudwatch_alarms(monkeypatch, fx_alarms):
     client.describe_alarms.assert_called_with(**transformed)
 
 
+def test_cloudwatch_alarms_with_assume_role(monkeypatch, fx_alarms):
+    kwargs, res = fx_alarms
+
+    client = MagicMock()
+    client.describe_alarms.return_value = {'MetricAlarms': res}
+
+    assume_role_resp = {
+        'Credentials': {
+            'AccessKeyId': 'key-1',
+            'SecretAccessKey': 'secret-key-1',
+            'SessionToken': 'session-token-1',
+        }
+    }
+    client.assume_role.return_value = assume_role_resp
+
+    session = MagicMock()
+    session.return_value.client.return_value = client
+
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    monkeypatch.setattr('boto3.Session', session)
+
+    role = 'arn:aws:123456789:role/ROLE'
+    region = 'my-region'
+    cli = CloudwatchWrapper(region=region, assume_role_arn=role)
+    result = cli.alarms(**kwargs)
+
+    assert result == res
+
+    transformed = transform_kwargs(kwargs)
+
+    client.describe_alarms.assert_called_with(**transformed)
+    client.assume_role.assert_called_with(RoleArn=role, RoleSessionName='zmon-woker-session')
+    session.return_value.client.assert_called_with('cloudwatch', region_name=region)
+    session.assert_called_with(
+        aws_access_key_id=assume_role_resp['Credentials']['AccessKeyId'],
+        aws_secret_access_key=assume_role_resp['Credentials']['SecretAccessKey'],
+        aws_session_token=assume_role_resp['Credentials']['SessionToken'])
+
+
 def test_cloudwatch_alarms_error(monkeypatch):
     with pytest.raises(CheckError):
         cli = CloudwatchWrapper(region='my-region')

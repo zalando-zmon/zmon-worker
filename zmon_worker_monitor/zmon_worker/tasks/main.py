@@ -13,6 +13,7 @@ import socket
 import sys
 import time
 import urllib
+from urllib3.util import parse_url
 import math
 
 import eventlog
@@ -123,8 +124,8 @@ normalize_kairos_id = propartial(KAIROS_ID_FORBIDDEN_RE.sub, '_')
 
 
 def setp(check_id, entity, msg):
-    setproctitle.setproctitle('zmon-worker check {} on {} {} {}'.format(check_id, entity, msg,
-                                                                        datetime.now().strftime('%H:%M:%S.%f')))
+    setproctitle.setproctitle(
+        'zmon-worker check {} on {} {} {}'.format(check_id, entity, msg, datetime.now().isoformat()))
 
 
 def get_kairosdb_value(name, points, tags):
@@ -360,6 +361,46 @@ def alert_series(f, n, con, check_id, entity_id):
     return threshold == active_count
 
 
+def monotonic(count=2, increasing=True, strictly=False, data=None, con=None, check_id=None, entity_id=None):
+    if not data:
+        data = get_results_user(count, con, check_id, entity_id)
+    cur, data = data[0], data[1:]
+    comp = None
+    # we get data in "reversed" order, i.e. latest one comes first, oldest last
+    if increasing:
+        if strictly:
+            comp = _less_or_equal
+        else:
+            comp = _less
+    else:
+        if strictly:
+            comp = _greater_or_equal
+        else:
+            comp = _greater
+
+    for d in data:
+        if comp(cur, d):
+            return False
+        cur = d
+    return True
+
+
+def _greater_or_equal(c, d):
+    return c >= d
+
+
+def _greater(c, d):
+    return c > d
+
+
+def _less_or_equal(c, d):
+    return c <= d
+
+
+def _less(c, d):
+    return c < d
+
+
 def build_condition_context(con, check_id, alert_id, entity, captures, alert_parameters):
     '''
     >>> plugin_manager.collect_plugins(); 'timeseries_median' in build_condition_context(None, 1, 1, {'id': '1'}, {}, {})
@@ -379,6 +420,7 @@ def build_condition_context(con, check_id, alert_id, entity, captures, alert_par
     ctx['entity'] = dict(entity)
     ctx['value_series'] = functools.partial(get_results_user, con=con, check_id=check_id, entity_id=entity['id'])
     ctx['alert_series'] = functools.partial(alert_series, con=con, check_id=check_id, entity_id=entity['id'])
+    ctx['monotonic'] = functools.partial(monotonic, con=con, check_id=check_id, entity_id=entity['id'])
 
     # check plugins available in alert condition!
     ctx['time'] = time_factory.create({})
@@ -435,8 +477,8 @@ def _time_slice(time_spec, results):
     return results[idx:]
 
 
-def _get_results_for_time(con, check_id, entity_id, time_spec):
-    results = get_results(con, check_id, entity_id, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
+def _get_results_for_time(con, check_id, entity_id, time_spec, size=DEFAULT_CHECK_RESULTS_HISTORY_LENGTH):
+    results = get_results(con, check_id, entity_id, size)
     return _time_slice(time_spec, results)
 
 
@@ -578,8 +620,8 @@ def avg(sequence):
     2.5
     '''
 
-    l = len(sequence) * 1.0
-    return (sum(sequence) / l if l else 0)
+    seq_len = len(sequence) * 1.0
+    return (sum(sequence) / seq_len if seq_len else 0)
 
 
 def empty(v):
@@ -591,6 +633,13 @@ def empty(v):
     '''
 
     return not bool(v)
+
+
+def urlparse(url):
+    try:
+        return parse_url(url)
+    except Exception:
+        return None
 
 
 def check_filter_metric(metric, keep):
@@ -657,6 +706,7 @@ def build_default_context():
         'tuple': tuple,
         'unichr': unichr,
         'unicode': unicode,
+        'urlparse': urlparse,
         'xrange': xrange,
         'zip': zip,
         'jsonpath_parse': jsonpath_rw.parse,
@@ -755,6 +805,10 @@ class MainTask(object):
 
         cls._metric_cache_check_ids = map(int, filter(None, metric_cache_check_ids))
 
+        # Check result history size
+        cls.max_result_history_size = min(
+            int(config.get('result.history.size', DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)),
+            DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
         # Result limits
         cls.max_result_size = int(config.get('result.size', MAX_RESULT_SIZE))
         cls.max_result_keys = int(config.get('result.keys.count', MAX_RESULT_KEYS))
@@ -1038,7 +1092,7 @@ class MainTask(object):
         key = 'zmon:checks:{}:{}'.format(req['check_id'], req['entity']['id'])
         value = json.dumps(result, cls=JsonDataEncoder)
         self.con.lpush(key, value)
-        self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
+        self.con.ltrim(key, 0, self.max_result_history_size - 1)
 
     def _check_result_limit(self, result):
         if isinstance(result, dict):
@@ -1095,7 +1149,7 @@ class MainTask(object):
 
         try:
             self._store_check_result_to_kairosdb(req, res)
-        except:
+        except Exception:
             pass
 
         # assume metric cache is not protected as not user exposed
@@ -1338,7 +1392,7 @@ class MainTask(object):
         ctx = _build_notify_context(context)
         try:
             repeat = safe_eval(notification, eval_source='<check-command>', **ctx)
-        except:
+        except Exception:
             # TODO Define what should happen if sending emails or sms fails.
             self.logger.exception('Sending notification failed! alertId={} entity={}'.format(context['alert_def']['id'],
                                                                                              context['entity']['id']))
@@ -1550,8 +1604,8 @@ class MainTask(object):
                 # 'entity_id': req['entity']['id'],
                 check_result["entity"] = {"id": req['entity']['id']}
 
-                for k in ["application_id", "application_version", "stack_name", "stack_version", "team",
-                          "account_alias"]:
+                for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
+                          'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias']:
                     if k in req["entity"]:
                         check_result["entity"][k] = req["entity"][k]
 
@@ -1692,7 +1746,7 @@ class MainTask(object):
                         else:
                             p.hdel('zmon:downtimes:{}:{}'.format(alert_id, entity_id), uuid)
                         p.execute()
-                except:
+                except Exception:
                     self.logger.exception('Exception while evaluating downtime!')
                     continue
 

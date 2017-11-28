@@ -390,6 +390,7 @@ def test_process_plus_pings(monkeypatch):
         'timedelta': 10.0,
         'tasks_done': 1,
         'percent_idle': 95.0,
+        'task_duration': 3.14,
     }
     pp.add_ping(ping_worker_ok)
 
@@ -401,6 +402,7 @@ def test_process_plus_pings(monkeypatch):
         'timedelta': 10.0,
         'tasks_done': 0,
         'percent_idle': 99.9,
+        'task_duration': 3.14,
     }
     pp.stored_pings = [ping_worker_idle]
 
@@ -412,6 +414,7 @@ def test_process_plus_pings(monkeypatch):
         'timedelta': 10.0,
         'tasks_done': 0,
         'percent_idle': 0.1,
+        'task_duration': 3.14,
     }
     pp.stored_pings = [ping_worker_idle]
 
@@ -435,6 +438,7 @@ def test_process_plus_pings(monkeypatch):
         'timedelta': 30.0,
         'tasks_done': 5,
         'percent_idle': 15.7,
+        'task_duration': 3.14,
     }
 
     ping_data2 = {
@@ -442,6 +446,7 @@ def test_process_plus_pings(monkeypatch):
         'timedelta': 30.0,
         'tasks_done': 1,
         'percent_idle': 91.2,
+        'task_duration': 3.14,
     }
 
     # lets add 2 pings
@@ -549,7 +554,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
 
     # check ping aggretation with no ping data
     aggregated_pings_no_data = {'tasks_per_sec': -1, 'tasks_per_min': -1, 'percent_idle': -1, 'interval': 0,
-                                'tasks_done': -1, 'pings_received': -1}
+                                'tasks_done': -1, 'pings_received': -1, 'average_task_duration': -1}
 
     assert pp.aggregate_pings() == aggregated_pings_no_data
 
@@ -570,6 +575,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
             'timedelta': ping_delta,
             'tasks_done': 1,
             'percent_idle': 85.0,
+            'task_duration': 3.14,
         }
         for i in range(num_pings)
     ]
@@ -592,6 +598,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
         'interval': interval,
         'tasks_done': sum_tasks,
         'pings_received': len(pings_sample),
+        'average_task_duration': sum([p['task_duration'] for p in pings_sample]) / sum_tasks,
     }
 
     # Because of rounding we need to compare the dicts values differ in less than a delta
@@ -611,6 +618,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
         'interval': interval,
         'tasks_done': pings_sample[-1]['tasks_done'],
         'pings_received': 1,
+        'average_task_duration': pings_sample[-1]['task_duration'] / pings_sample[-1]['tasks_done'],
     }
 
     assert compare_float_values(pp.aggregate_pings(interval=interval), aggregated_results_last_ping)

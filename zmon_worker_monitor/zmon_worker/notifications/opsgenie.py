@@ -13,12 +13,24 @@ from zmon_worker_monitor.zmon_worker.errors import NotificationError
 from notification import BaseNotification
 
 
+PRIORITIES = ('P1', 'P2', 'P3', 'P4', 'P5')
+
+
 logger = logging.getLogger(__name__)
 
 
 class NotifyOpsgenie(BaseNotification):
     @classmethod
-    def notify(cls, alert, teams=None, per_entity=False, include_alert=True, message='', **kwargs):
+    def notify(cls,
+               alert,
+               teams=None,
+               per_entity=False,
+               include_alert=True,
+               priority=None,
+               message='',
+               description='',
+               **kwargs):
+
         url = 'https://api.opsgenie.com/v2/alerts'
 
         repeat = kwargs.get('repeat', 0)
@@ -32,6 +44,9 @@ class NotifyOpsgenie(BaseNotification):
 
         if not isinstance(teams, (list, basestring)):
             raise NotificationError('Missing "teams" parameter. Either a team name or list of team names is required.')
+
+        if priority and priority not in PRIORITIES:
+            raise NotificationError('Invalid priority. Valid values are: {}'.format(PRIORITIES))
 
         if teams and isinstance(teams, basestring):
             teams = [{'name': teams}]
@@ -50,6 +65,12 @@ class NotifyOpsgenie(BaseNotification):
 
         note = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
 
+        if not priority:
+            priority = 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3'
+
+        responsible_team = alert['alert_def'].get('responsible_team', teams[0]['name'])
+        msg = message if message else cls._get_subject(alert, include_event=False)
+
         details = {
             'worker': alert['worker'],
             'id': alert_id,
@@ -66,11 +87,12 @@ class NotifyOpsgenie(BaseNotification):
             data = {
                 'alias': alias,
                 'teams': teams,
-                'message': message if message else cls._get_subject(alert),
+                'message': '[{}] - {}'.format(responsible_team, msg),  # TODO: remove when it is no longer needed!
                 'source': alert.get('worker', ''),
+                'description': description,
                 'entity': entity['id'],
                 'note': note,
-                'priority': 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3',
+                'priority': priority,
                 'tags': alert['alert_def'].get('tags', [])
             }
 
@@ -102,7 +124,7 @@ class NotifyOpsgenie(BaseNotification):
             r.raise_for_status()
         except requests.HTTPError as e:
             logger.error('HTTP Error ({}) {}'.format(e.response.status_code, e.response.text))
-        except:
+        except Exception:
             logger.exception('Notifying Opsgenie failed')
 
         return repeat

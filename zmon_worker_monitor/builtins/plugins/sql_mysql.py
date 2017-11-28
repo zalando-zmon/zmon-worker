@@ -128,7 +128,7 @@ class MySqlWrapper(object):
         for k, v in result.items():
             try:
                 result[k] = agg(v)
-            except:
+            except Exception:
                 # just use list if aggregation function fails
                 # (e.g. if we try to sum strings)
                 result[k] = v

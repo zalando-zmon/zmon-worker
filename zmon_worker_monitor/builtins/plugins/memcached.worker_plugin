@@ -1,0 +1,17 @@
+[Core]
+Name = memcached
+Module = memcached
+
+[Documentation]
+Author = Hanno Hecker
+Version = 0.1
+Website = https://github.com/zalando-zmon/zmon-worker
+Description = Builtin plugin that provides an memcached request check function.
+
+
+[Configuration]
+
+;; The configuration section is optional, you can put here any parameters needed to configure the plugin.
+;; Note that these values may are overridden by zmon's global config.
+
+;; key = value

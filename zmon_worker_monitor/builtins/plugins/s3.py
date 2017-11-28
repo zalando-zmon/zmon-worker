@@ -4,11 +4,11 @@
 import boto3
 import json
 import logging
-import requests
 import cStringIO
 
 from botocore.exceptions import ClientError
 
+from zmon_worker_monitor.builtins.plugins.aws_common import get_instance_identity_document
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logging.getLogger('botocore').setLevel(logging.WARN)
@@ -30,15 +30,10 @@ class S3BucketWrapper(IFunctionFactoryPlugin):
         return propartial(S3Wrapper, region=factory_ctx.get('entity').get('region', None))
 
 
-def get_region():
-    r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
-    return r.json()['region']
-
-
 class S3Wrapper(object):
     def __init__(self, region=None):
         if not region:
-            region = get_region()
+            region = get_instance_identity_document()['region']
         self.__client = boto3.client('s3', region_name=region)
 
     def get_object_metadata(self, bucket_name, key):
@@ -88,6 +83,17 @@ class S3Wrapper(object):
                             .build_full_result()
 
         return S3FileList(response)
+
+    def bucket_exists(self, bucket_name):
+        """
+        Check if the given bucket exists
+        :param bucket_name: the name of the S3 Bucket
+        """
+        try:
+            self.__client.head_bucket(Bucket=bucket_name)
+            return True
+        except Exception:
+            return False
 
 
 class S3Object(object):

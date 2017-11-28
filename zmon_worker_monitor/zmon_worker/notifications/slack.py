@@ -35,7 +35,7 @@ class NotifySlack(BaseNotification):
             logger.info('Sending to %s %s', url, message)
             r = requests.post(url, json=message, headers=headers, timeout=5)
             r.raise_for_status()
-        except:
+        except Exception:
             logger.exception('Slack notification failed!')
 
         return repeat

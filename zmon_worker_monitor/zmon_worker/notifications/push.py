@@ -54,7 +54,7 @@ class NotifyPush(BaseNotification):
             r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type': 'application/json'},
                               data=json.dumps(message))
             r.raise_for_status()
-        except:
+        except Exception:
             pass
 
         return repeat

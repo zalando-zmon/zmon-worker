@@ -3,12 +3,10 @@
 
 import boto3
 import logging
-import requests
-
 
 from zmon_worker_monitor.zmon_worker.errors import CheckError
+from zmon_worker_monitor.builtins.plugins.aws_common import get_instance_identity_document
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
-
 
 logging.getLogger('botocore').setLevel(logging.WARN)
 
@@ -29,11 +27,6 @@ class DataPipelineWrapperFactory(IFunctionFactoryPlugin):
         return propartial(DataPipelineWrapper, region=factory_ctx.get('entity').get('region', None))
 
 
-def get_region():
-    r = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document', timeout=3)
-    return r.json()['region']
-
-
 # create a dict of keys from a list of dicts
 def create_dict_from_list_of_fields(fields):
     fields_dict = {}
@@ -46,7 +39,7 @@ def create_dict_from_list_of_fields(fields):
 class DataPipelineWrapper(object):
     def __init__(self, region=None):
         if not region:
-            region = get_region()
+            region = get_instance_identity_document()['region']
         self.__client = boto3.client('datapipeline', region_name=region)
 
     def get_details(self, pipeline_ids):

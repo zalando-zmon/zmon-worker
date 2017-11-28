@@ -8,19 +8,29 @@ from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, Configura
 
 @pytest.fixture(params=[
     (
-        {'query': 'query-count'},
-        {'values': [5, 4, 3, 2]},
+        {'query': 'filter-query'},
+        {
+            'results': [{
+                'values': [5],
+            }],
+            'status': 'success'
+        },
         5
     ),
     (
-        {'query': 'query-count', 'minutes': 10},
-        {'values': [100, 4, 3, 2]},
-        100
+        {'query': 'filter-query', 'minutes': 10},
+        {
+            'results': [{
+                'values': [5]
+            }],
+            'status': 'success'
+        },
+        5
     ),
     (
-        {'query': 'query-count'},
-        {'count': 5},
-        {'count': 5},
+        {'query': 'filter-query'},
+        {'status': 'failed', 'message': 'error'},
+        {'status': 'failed', 'message': 'error'},
     )
 ])
 def fx_count(request):
@@ -124,6 +134,20 @@ def get_query(query_type, func, key, **kwargs):
     return q
 
 
+def test_scalyr_eu_region():
+    read_key = '123'
+    region = 'eu'
+    numeric_url = 'https://eu.scalyr.com/api/numericQuery'
+    timeseries_url = 'https://eu.scalyr.com/api/timeseriesQuery'
+    facet_url = 'https://eu.scalyr.com/api/facetQuery'
+
+    scalyr = ScalyrWrapper(read_key, region)
+
+    assert numeric_url == scalyr._ScalyrWrapper__numeric_url
+    assert timeseries_url == scalyr._ScalyrWrapper__timeseries_url
+    assert facet_url == scalyr._ScalyrWrapper__facet_url
+
+
 def test_scalyr_count(monkeypatch, fx_count):
     kwargs, res, exp = fx_count
 
@@ -139,10 +163,17 @@ def test_scalyr_count(monkeypatch, fx_count):
 
     assert count == exp
 
-    query = get_query('numeric', 'count', read_key, **kwargs)
+    query = get_query('facet', kwargs.get('function', 'count'), read_key, **kwargs)
+
+    query.pop('queryType')
+
+    final_q = {
+        'token': query.pop('token'),
+        'queries': [query]
+    }
 
     post.assert_called_with(
-        scalyr._ScalyrWrapper__numeric_url, json=query, headers={'Content-Type': 'application/json'})
+        scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
 
 
 def test_scalyr_function(monkeypatch, fx_function):

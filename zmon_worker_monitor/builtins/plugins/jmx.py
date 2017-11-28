@@ -105,7 +105,7 @@ class JmxWrapper(object):
 
             if r.status_code == 500:
                 raise Exception('-do-one-try-')
-        except:
+        except Exception:
             time.sleep(1)
             r = requests.get('http://{}:{}'.format(self.jmxquery_host, self.jmxquery_port),
                              params={'host': self.host, 'port': self.port,
@@ -115,7 +115,7 @@ class JmxWrapper(object):
 
         try:
             data = json.loads(output)
-        except:
+        except Exception:
             raise JmxQueryError(output)
 
         return self._transform_results(data)
