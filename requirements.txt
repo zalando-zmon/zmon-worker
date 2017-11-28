@@ -12,6 +12,7 @@ ipaddress
 Jinja2
 jsonpath-rw
 MarkupSafe
+pymemcache>=1.4.3
 numpy
 prometheus_client
 psycopg2
