@@ -13,6 +13,7 @@ import socket
 import sys
 import time
 import urllib
+from urllib3.util import parse_url
 import math
 
 import eventlog
@@ -634,6 +635,13 @@ def empty(v):
     return not bool(v)
 
 
+def urlparse(url):
+    try:
+        return parse_url(url)
+    except Exception:
+        return None
+
+
 def check_filter_metric(metric, keep):
     return dict((k, v) for k, v in metric.items() if k in keep)
 
@@ -698,6 +706,7 @@ def build_default_context():
         'tuple': tuple,
         'unichr': unichr,
         'unicode': unicode,
+        'urlparse': urlparse,
         'xrange': xrange,
         'zip': zip,
         'jsonpath_parse': jsonpath_rw.parse,
