@@ -477,8 +477,8 @@ def _time_slice(time_spec, results):
     return results[idx:]
 
 
-def _get_results_for_time(con, check_id, entity_id, time_spec):
-    results = get_results(con, check_id, entity_id, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
+def _get_results_for_time(con, check_id, entity_id, time_spec, size=DEFAULT_CHECK_RESULTS_HISTORY_LENGTH):
+    results = get_results(con, check_id, entity_id, size)
     return _time_slice(time_spec, results)
 
 
@@ -805,6 +805,10 @@ class MainTask(object):
 
         cls._metric_cache_check_ids = map(int, filter(None, metric_cache_check_ids))
 
+        # Check result history size
+        cls.max_result_history_size = min(
+            int(config.get('result.history.size', DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)),
+            DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
         # Result limits
         cls.max_result_size = int(config.get('result.size', MAX_RESULT_SIZE))
         cls.max_result_keys = int(config.get('result.keys.count', MAX_RESULT_KEYS))
@@ -1088,7 +1092,7 @@ class MainTask(object):
         key = 'zmon:checks:{}:{}'.format(req['check_id'], req['entity']['id'])
         value = json.dumps(result, cls=JsonDataEncoder)
         self.con.lpush(key, value)
-        self.con.ltrim(key, 0, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH - 1)
+        self.con.ltrim(key, 0, self.max_result_history_size - 1)
 
     def _check_result_limit(self, result):
         if isinstance(result, dict):
