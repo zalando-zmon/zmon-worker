@@ -70,7 +70,7 @@ class MemcachedFactory(IFunctionFactoryPlugin):
 
 
 class MemcachedWrapper(object):
-    '''Class to allow only readonly access to underlying redis connection'''
+    '''Class to allow readonly access to underlying memcached connection'''
 
     def __init__(self, counter, host, port=11211, socket_connect_timeout=1):
         if not host:
