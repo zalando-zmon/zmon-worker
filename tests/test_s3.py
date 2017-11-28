@@ -176,3 +176,28 @@ def test_listing_bubbles_client_error_up(monkeypatch):
         s3_wrapper.list_bucket('bucket', 'prefix').files()
 
     assert 'Access denied' == ex.value.response['Error']['Message']
+
+
+def test_bucket_exists(monkeypatch):
+    client = MagicMock()
+    client.head_bucket.return_value = {}
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    assert s3_wrapper.bucket_exists('foo') is True
+
+
+def test_bucket_exists_not(monkeypatch):
+    client = MagicMock()
+    client.head_bucket.side_effect = Exception("no such bucket")
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    assert s3_wrapper.bucket_exists('foo') is False
+    client.head_bucket.assert_called_with(Bucket='foo')

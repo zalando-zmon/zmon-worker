@@ -84,6 +84,17 @@ class S3Wrapper(object):
 
         return S3FileList(response)
 
+    def bucket_exists(self, bucket_name):
+        """
+        Check if the given bucket exists
+        :param bucket_name: the name of the S3 Bucket
+        """
+        try:
+            self.__client.head_bucket(Bucket=bucket_name)
+            return True
+        except Exception:
+            return False
+
 
 class S3Object(object):
 
