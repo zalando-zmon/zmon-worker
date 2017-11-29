@@ -57,6 +57,4 @@ def test_memcached_json(monkeypatch):
     get.return_value = '{"foo": 1, "bar": 2}'
     monkeypatch.setattr('pymemcache.client.base.Client.get', get)
     ret = mc.json('somekey')
-    assert 'foo' in ret
-    assert 'bar' in ret
-    assert 'somekey' not in ret
+    assert ret == {'foo': 1, 'bar': 2}
