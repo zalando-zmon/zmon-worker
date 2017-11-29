@@ -1497,8 +1497,10 @@ class MainTask(object):
                     self.con.hset('zmon:alerts:{}:entities'.format(alert_id),
                                   entity_id,
                                   json.dumps(captures, cls=JsonDataEncoder))
-                except Exception:
+                except Exception, e:
                     self.logger.exception("failed to store captures")
+                    if isinstance(captures, dict) and 'exception' not in captures:
+                        captures['exception'] = str(e)
 
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
@@ -1542,10 +1544,18 @@ class MainTask(object):
 
                         # create or refresh stored alert
                         alert_stored = dict(captures=captures, downtimes=downtimes, start_time=start_time, **val)
+                        alert_json = None
                         try:
-                            self.con.set(alerts_key, json.dumps(alert_stored, cls=JsonDataEncoder))
-                        except Exception:
-                            self.logger.exception("failed to store alert data")
+                            alert_json = json.dumps(alert_stored, cls=JsonDataEncoder)
+                        except Exception, e:
+                            self.logger.exception("failed to serialize alert data for alert %s", alert_id)
+                            alert_json = "failed to serialize: {}".format(e)
+                            if isinstance(captures, dict) and 'exception' not in captures:
+                                captures['exception'] = alert_json
+                                if not check_result['alerts'][alert_id].get('exception', False):
+                                    check_result['alerts'][alert_id]['exception'] = True
+
+                        self.con.set(alerts_key, alert_json)
                     else:
                         self.con.delete(alerts_key)
                         self.con.delete(notifications_key)
