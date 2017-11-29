@@ -8,6 +8,8 @@ from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 from zmon_worker_monitor import plugin_manager
 
+import json as pyjson
+
 VALUE_KEYS = frozenset([
         'curr_items',
         'bytes',
@@ -84,6 +86,9 @@ class MemcachedWrapper(object):
 
     def get(self, key):
         return self.__con.get(key)
+
+    def json(self, key):
+        return pyjson.loads(self.get(key))
 
     def stats(self, extra_keys=[]):
         data = self.__con.stats()
