@@ -1090,7 +1090,12 @@ class MainTask(object):
         self.con.sadd('zmon:checks', req['check_id'])
         self.con.sadd('zmon:checks:{}'.format(req['check_id']), req['entity']['id'])
         key = 'zmon:checks:{}:{}'.format(req['check_id'], req['entity']['id'])
-        value = json.dumps(result, cls=JsonDataEncoder)
+        value = "NONE"
+        try:
+            value = json.dumps(result, cls=JsonDataEncoder)
+        except Exception, e:
+            self.logger.exception("failed to serialize check result for check %s", req['check_id'])
+            value = "Serialization error: {}".format(e)
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, self.max_result_history_size - 1)
 
@@ -1101,7 +1106,12 @@ class MainTask(object):
                 raise ResultSizeError(
                     'Result keys count ({}) exceeded the maximum value: {}'.format(key_count, self.max_result_keys))
 
-        result_str = json.dumps(result, separators=(',', ':'), cls=JsonDataEncoder)
+        result_str = ""
+        try:
+            result_str = json.dumps(result, separators=(',', ':'), cls=JsonDataEncoder)
+        except Exception, e:
+            self.logger.exception("failed to serialize check result")
+            result_str = "Serialization error: {}".format(e)
 
         size = len(result_str) / 1024.0
         if size > self.max_result_size:
@@ -1329,9 +1339,9 @@ class MainTask(object):
 
         if len(values) > 0:
             self.logger.debug(values)
-            serialized_values = json.dumps(values, cls=JsonDataEncoder)
 
             try:
+                serialized_values = json.dumps(values, cls=JsonDataEncoder)
                 r = requests.post('http://{}:{}/api/v1/datapoints'.format(self._kairosdb_host, self._kairosdb_port),
                                   serialized_values, timeout=2)
 
@@ -1483,8 +1493,12 @@ class MainTask(object):
                 # Always store captures for given alert-entity pair, this is also used a list of all entities matching
                 # given alert id. Captures are stored here because this way we can easily link them with check results
                 # (see PF-3146).
-                self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, json.dumps(captures,
-                                                                                                cls=JsonDataEncoder))
+                try:
+                    self.con.hset('zmon:alerts:{}:entities'.format(alert_id),
+                                  entity_id,
+                                  json.dumps(captures, cls=JsonDataEncoder))
+                except Exception:
+                    self.logger.exception("failed to store captures")
 
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
@@ -1528,7 +1542,10 @@ class MainTask(object):
 
                         # create or refresh stored alert
                         alert_stored = dict(captures=captures, downtimes=downtimes, start_time=start_time, **val)
-                        self.con.set(alerts_key, json.dumps(alert_stored, cls=JsonDataEncoder))
+                        try:
+                            self.con.set(alerts_key, json.dumps(alert_stored, cls=JsonDataEncoder))
+                        except Exception:
+                            self.logger.exception("failed to store alert data")
                     else:
                         self.con.delete(alerts_key)
                         self.con.delete(notifications_key)
