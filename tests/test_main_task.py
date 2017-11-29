@@ -208,6 +208,7 @@ def test_notify(monkeypatch):
     notify_result = task.notify(result, req, [alert_def])
     assert [] == notify_result
 
+    # this is the condensed version of what we saw failing:
     alert_def['condition'] = """def alert():
         return capture(foo=Try(lambda x: 0, 1))"""
 
