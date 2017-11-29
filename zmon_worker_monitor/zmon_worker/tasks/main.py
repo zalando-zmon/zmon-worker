@@ -1493,15 +1493,16 @@ class MainTask(object):
                 # Always store captures for given alert-entity pair, this is also used a list of all entities matching
                 # given alert id. Captures are stored here because this way we can easily link them with check results
                 # (see PF-3146).
+                capt_json = {}
                 try:
-                    self.con.hset('zmon:alerts:{}:entities'.format(alert_id),
-                                  entity_id,
-                                  json.dumps(captures, cls=JsonDataEncoder))
+                    capt_json = json.dumps(captures, cls=JsonDataEncoder)
                 except Exception, e:
-                    self.logger.exception("failed to store captures")
-                    if isinstance(captures, dict) and 'exception' not in captures:
-                        captures['exception'] = str(e)
+                    self.logger.exception("failed to serialize captures")
+                    captures = {'exception': str(e)}
+                    capt_json = json.dumps(captures, cls=JsonDataEncoder)
+                    # FIXME - set is_alert = True?
 
+                self.con.hset('zmon:alerts:{}:entities'.format(alert_id), entity_id, capt_json)
                 # prepare report - alert part
                 check_result['alerts'][alert_id] = {
                     'alert_id': alert_id,
