@@ -1604,7 +1604,7 @@ class MainTask(object):
                 check_result["entity"] = {"id": req['entity']['id']}
 
                 for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
-                          'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias']:
+                          'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias','spilo_role']:
                     if k in req["entity"]:
                         check_result["entity"][k] = req["entity"][k]
 
