@@ -49,3 +49,12 @@ def test_memcached_stats(monkeypatch):
         assert 'bytes_per_sec' not in ret
         assert 'version' in ret
         assert 'uptime' not in ret
+
+
+def test_memcached_json(monkeypatch):
+    mc = MemcachedWrapper(CounterMock().wrapper(), 'localhost')
+    get = MagicMock()
+    get.return_value = '{"foo": 1, "bar": 2}'
+    monkeypatch.setattr('pymemcache.client.base.Client.get', get)
+    ret = mc.json('somekey')
+    assert ret == {'foo': 1, 'bar': 2}
