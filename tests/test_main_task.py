@@ -208,6 +208,14 @@ def test_notify(monkeypatch):
     notify_result = task.notify(result, req, [alert_def])
     assert [] == notify_result
 
+    # this is the condensed version of what we saw failing:
+    alert_def['condition'] = """def alert():
+        return capture(foo=Try(lambda x: 0, 1))"""
+
+    result = {'ts': 10, 'value': 0}
+    notify_result = task.notify(result, req, [alert_def])
+    assert [] == notify_result
+
 
 def test_send_to_dataservice(monkeypatch):
     check_results = [{'check_id': 123, 'ts': 10, 'value': 'CHECK-VAL'}]
