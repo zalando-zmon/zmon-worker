@@ -344,7 +344,7 @@ def alert_series(f, n, con, check_id, entity_id):
     for v in vs:
         # counting exceptions thrown during eval as alert being active for that interval
         try:
-            v = v["value"]
+            v = v['value']
             r = 1 if f(v) else 0
             x = 0
         except Exception, e:
@@ -356,7 +356,7 @@ def alert_series(f, n, con, check_id, entity_id):
         exception_count += x
 
     if exception_count == threshold:
-        raise Exception("All alert evaluations failed! {}".format(exceptions))
+        raise Exception('All alert evaluations failed! {}'.format(exceptions))
 
     return threshold == active_count
 
@@ -598,14 +598,14 @@ class Try(Callable):
 
 
 def get_results_user(count=1, con=None, check_id=None, entity_id=None):
-    return map(lambda x: x["value"], get_results(con, check_id, entity_id, count))
+    return map(lambda x: x['value'], get_results(con, check_id, entity_id, count))
 
 
 def get_results(con, check_id, entity_id, count=1):
     r = map(json.loads, con.lrange('zmon:checks:{}:{}'.format(check_id, entity_id), 0, count - 1))
 
     for x in r:
-        x.update({"entity_id": entity_id})
+        x.update({'entity_id': entity_id})
 
     return r
 
@@ -765,7 +765,7 @@ class MainTask(object):
         cls._kairosdb_host = config.get('kairosdb.host')
         cls._kairosdb_port = config.get('kairosdb.port')
         cls._zmon_url = config.get('zmon.url')
-        cls._queues = config.get('zmon.queues', "zmon:queue:default/16")
+        cls._queues = config.get('zmon.queues', 'zmon:queue:default/16')
         cls._safe_repositories = sorted(config.get('safe_repositories', []))
 
         cls._logger = cls.get_configured_logger()
@@ -786,9 +786,9 @@ class MainTask(object):
 
         if cls._dataservice_url:
             # start action loop for sending reports to dataservice
-            cls._logger.info("Enabling data service: {}".format(cls._dataservice_url))
+            cls._logger.info('Enabling data service: {}'.format(cls._dataservice_url))
             if cls._dataservice_url and cls._dataservice_oauth2:
-                cls._logger.info("Enabling OAUTH2 for data service")
+                cls._logger.info('Enabling OAUTH2 for data service')
                 tokens.configure()
                 # TODO: configure proper OAuth scopes
                 tokens.manage('uid', ['uid'], ignore_expiration=True)
@@ -905,13 +905,13 @@ class MainTask(object):
                 try:
                     serialized_data = json.dumps(worker_result, cls=JsonDataEncoder)
                 except Exception as ex:
-                    logger.exception("Failed to serialize data for check {} {}: {}".format(check_id, ex, results))
+                    logger.exception('Failed to serialize data for check {} {}: {}'.format(check_id, ex, results))
 
                 if serialized_data is not None:
                     r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
                     r.raise_for_status()
         except Exception as ex:
-            logger.error("Error in data service send: url={} ex={}".format(cls._dataservice_url, ex))
+            logger.error('Error in data service send: url={} ex={}'.format(cls._dataservice_url, ex))
             raise
 
     def check_and_notify(self, req, alerts, task_context=None):
@@ -1090,12 +1090,12 @@ class MainTask(object):
         self.con.sadd('zmon:checks', req['check_id'])
         self.con.sadd('zmon:checks:{}'.format(req['check_id']), req['entity']['id'])
         key = 'zmon:checks:{}:{}'.format(req['check_id'], req['entity']['id'])
-        value = "NONE"
+        value = 'NONE'
         try:
             value = json.dumps(result, cls=JsonDataEncoder)
         except Exception, e:
-            self.logger.exception("failed to serialize check result for check %s", req['check_id'])
-            value = "Serialization error: {}".format(e)
+            self.logger.exception('failed to serialize check result for check %s', req['check_id'])
+            value = 'Serialization error: {}'.format(e)
         self.con.lpush(key, value)
         self.con.ltrim(key, 0, self.max_result_history_size - 1)
 
@@ -1106,12 +1106,12 @@ class MainTask(object):
                 raise ResultSizeError(
                     'Result keys count ({}) exceeded the maximum value: {}'.format(key_count, self.max_result_keys))
 
-        result_str = ""
+        result_str = ''
         try:
             result_str = json.dumps(result, separators=(',', ':'), cls=JsonDataEncoder)
         except Exception, e:
-            self.logger.exception("failed to serialize check result")
-            result_str = "Serialization error: {}".format(e)
+            self.logger.exception('failed to serialize check result')
+            result_str = 'Serialization error: {}'.format(e)
 
         size = len(result_str) / 1024.0
         if size > self.max_result_size:
@@ -1165,17 +1165,17 @@ class MainTask(object):
         # assume metric cache is not protected as not user exposed
         if int(req['check_id']) in self._metric_cache_check_ids:
             temp_entity = {
-                "id": req["entity"]["id"],
-                "application_id": req["entity"]["application_id"],
-                "application_version": req["entity"].get('application_version', "1")
+                'id': req['entity']['id'],
+                'application_id': req['entity']['application_id'],
+                'application_version': req['entity'].get('application_version', '1')
             }
             try:
                 requests.post(self._metric_cache_url,
-                              data=json.dumps([{"entity_id": req['entity']['id'],
-                                                "entity": temp_entity,
-                                                "check_result": res}], cls=JsonDataEncoder))
+                              data=json.dumps([{'entity_id': req['entity']['id'],
+                                                'entity': temp_entity,
+                                                'check_result': res}], cls=JsonDataEncoder))
             except Exception:
-                logger.exception("failed to write to metric cache...")
+                logger.exception('failed to write to metric cache...')
                 pass
 
         setp(req['check_id'], req['entity']['id'], 'stored')
@@ -1497,7 +1497,7 @@ class MainTask(object):
                 try:
                     capt_json = json.dumps(captures, cls=JsonDataEncoder)
                 except Exception, e:
-                    self.logger.exception("failed to serialize captures")
+                    self.logger.exception('failed to serialize captures')
                     captures = {'exception': str(e)}
                     capt_json = json.dumps(captures, cls=JsonDataEncoder)
                     # FIXME - set is_alert = True?
@@ -1549,8 +1549,8 @@ class MainTask(object):
                         try:
                             alert_json = json.dumps(alert_stored, cls=JsonDataEncoder)
                         except Exception, e:
-                            self.logger.exception("failed to serialize alert data for alert %s", alert_id)
-                            alert_json = "failed to serialize: {}".format(e)
+                            self.logger.exception('failed to serialize alert data for alert %s', alert_id)
+                            alert_json = 'failed to serialize: {}'.format(e)
                             if isinstance(captures, dict) and 'exception' not in captures:
                                 captures['exception'] = alert_json
                                 if not check_result['alerts'][alert_id].get('exception', False):
@@ -1629,12 +1629,12 @@ class MainTask(object):
             # enqueue report to be sent via http request
             if self._dataservice_poster:
                 # 'entity_id': req['entity']['id'],
-                check_result["entity"] = {"id": req['entity']['id']}
+                check_result['entity'] = {'id': req['entity']['id']}
 
                 for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
                           'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias']:
-                    if k in req["entity"]:
-                        check_result["entity"][k] = req["entity"][k]
+                    if k in req['entity']:
+                        check_result['entity'][k] = req['entity'][k]
 
                 # overwrite timestamp with scheduled time for datapoint alignment
                 if (isinstance(check_result['check_result']['value'], dict) and
@@ -1661,16 +1661,16 @@ class MainTask(object):
                 'result': result
             }
 
-            headers = {"Content-Type": "application/json"}
+            headers = {'Content-Type': 'application/json'}
             if self._dataservice_oauth2:
                 headers.update({'Authorization': 'Bearer {}'.format(tokens.get('uid'))})
 
             try:
-                requests.put(self._dataservice_url + "/api/v1/data/trial-run/",
+                requests.put(self._dataservice_url + '/api/v1/data/trial-run/',
                              data=json.dumps(val, cls=JsonDataEncoder),
                              headers=headers)
             except Exception:
-                self.logger.exception("Posting trial run failed")
+                self.logger.exception('Posting trial run failed')
 
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
         """Like notify(), but for trial runs!"""
