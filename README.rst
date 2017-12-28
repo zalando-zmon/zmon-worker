@@ -91,14 +91,11 @@ Alternative way of running unit tests within Docker:
     $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir $WORKER_IMAGE python setup.py flake8
     $ docker run -it -u $(id -u) -v $(pwd):/workdir -w /workdir $WORKER_IMAGE python setup.py test
 
-
 Building the Docker Image
 =========================
 
 .. code-block:: bash
 
-    $ sudo pip3 install -U scm-source
-    $ scm-source
     $ docker build -t zmon-worker .
     $ docker run -it zmon-worker
 

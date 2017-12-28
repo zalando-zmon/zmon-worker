@@ -1,0 +1,30 @@
+version: "2017-09-20"
+pipeline:
+  - id: build
+    type: script
+    commands:
+      - desc: "Install dependencies"
+        cmd: |
+          apt-get install -q -y --no-install-recommends \
+            git \
+            python3.5 \
+            python3-pip \
+            python3-setuptools
+
+          curl -fLOsS https://delivery.cloud.zalando.com/utils/ensure-docker && sh ensure-docker && rm ensure-docker
+          pip3 install -U flake8
+
+      - desc: "Push Docker Image"
+        cmd: |
+          IS_PR_BUILD=${CDP_PULL_REQUEST_NUMBER+"true"}
+          if [[ ${IS_PR_BUILD} != "true" ]]
+          then
+            VERSION=$(git describe --tags --always --dirty)
+          else
+            VERSION=${CDP_BUILD_VERSION}
+          fi
+
+          IMAGE=registry-write.opensource.zalan.do/zmon/zmon-worker:${VERSION}
+
+          docker build --tag "$IMAGE" .
+          docker push "$IMAGE"
