@@ -46,6 +46,8 @@ def test_cassandra_execute(monkeypatch, kwargs):
     cluster.assert_called_with([node], connect_timeout=cassandra.connect_timeout, auth_provider=auth_provider,
                                port=port, protocol_version=protocol_version)
 
+    cassandra = None
+
     client.connect.assert_called_once()
     client.shutdown.assert_called_once()
 
@@ -68,9 +70,8 @@ def test_cassandra_execute_exception(monkeypatch):
 
     monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.cassandra_wrapper.Cluster', cluster)
 
-    cassandra = CassandraWrapper(node, keyspace)
-
     with pytest.raises(RuntimeError):
+        cassandra = CassandraWrapper(node, keyspace)
         res = cassandra.execute('SELECT')
 
         assert res == result

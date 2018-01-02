@@ -54,7 +54,6 @@ class CassandraWrapper(object):
         self.connect_timeout = connect_timeout
         self.protocol_version = protocol_version
 
-    def execute(self, stmt):
         auth_provider = None
         if self.__username and self.__password:
             auth_provider = PlainTextAuthProvider(username=self.__username, password=self.__password)
@@ -62,12 +61,17 @@ class CassandraWrapper(object):
         cl = Cluster(self.seeds, connect_timeout=self.connect_timeout, auth_provider=auth_provider,
                      protocol_version=self.protocol_version, port=self.port)
 
-        session = None
-        try:
-            session = cl.connect()
-            session.set_keyspace(self.keyspace)
+        self._session = cl.connect()
+        self._cluster = cl
+        self._session.set_keyspace(self.keyspace)
 
-            rs = session.execute(stmt)
+    def __del__(self):
+        if self._cluster:
+            self._cluster.shutdown()
+
+    def execute(self, stmt):
+        try:
+            rs = self._session.execute(stmt)
 
             result = []
 
@@ -76,7 +80,8 @@ class CassandraWrapper(object):
 
             return result
 
-        finally:
-            cl.shutdown()
+        except Exception:
+            self._cluster.shutdown()
+            self._cluster = None
 
         return {}
