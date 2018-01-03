@@ -101,4 +101,4 @@ def test_cassandra_execute_exception(monkeypatch):
 
     session.execute.assert_called_with('SELECT')
     client.connect.assert_called_once()
-    client.shutdown.assert_not_called()
+    client.shutdown.assert_called_once()
