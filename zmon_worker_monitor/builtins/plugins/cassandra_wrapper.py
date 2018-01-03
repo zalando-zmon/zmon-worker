@@ -71,11 +71,7 @@ class CassandraWrapper(object):
 
     def execute(self, stmt):
         result = []
-        try:
-            rs = self._session.execute(stmt)
-        except Exception:
-            self._cluster.shutdown()
-            raise
+        rs = self._session.execute(stmt)
 
         for r in rs:
             result.append(r)

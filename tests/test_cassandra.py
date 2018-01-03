@@ -94,10 +94,12 @@ def test_cassandra_execute_exception(monkeypatch):
     session.execute.side_effect = RuntimeError
 
     monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.cassandra_wrapper.Cluster', cluster)
-    cassandra = CassandraWrapper(node, keyspace)
 
     with pytest.raises(RuntimeError):
-        cassandra.execute('SELECT')
+        def f():
+            cassandra = CassandraWrapper(node, keyspace)
+            cassandra.execute('SELECT')
+        f()
 
     session.execute.assert_called_with('SELECT')
     client.connect.assert_called_once()
