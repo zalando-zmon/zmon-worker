@@ -70,18 +70,11 @@ class CassandraWrapper(object):
             self._cluster.shutdown()
 
     def execute(self, stmt):
-        try:
-            rs = self._session.execute(stmt)
+        rs = self._session.execute(stmt)
 
-            result = []
+        result = []
 
-            for r in rs:
-                result.append(r)
+        for r in rs:
+            result.append(r)
 
-            return result
-
-        except Exception:
-            self._cluster.shutdown()
-            self._cluster = None
-
-        return {}
+        return result
