@@ -46,6 +46,8 @@ def test_cassandra_execute(monkeypatch, kwargs):
     cluster.assert_called_with([node], connect_timeout=cassandra.connect_timeout, auth_provider=auth_provider,
                                port=port, protocol_version=protocol_version)
 
+    cassandra = None
+
     client.connect.assert_called_once()
     client.shutdown.assert_called_once()
 
@@ -53,27 +55,52 @@ def test_cassandra_execute(monkeypatch, kwargs):
     session.execute.assert_called_with(stmt)
 
 
-def test_cassandra_execute_exception(monkeypatch):
+def test_cassandra_connect_exception(monkeypatch):
     node = 'cassandra-node'
     keyspace = 'users'
 
-    result = {}
-
     client = MagicMock()
     cluster = MagicMock()
+    session = MagicMock()
 
     cluster.return_value = client
 
+    client.connect.return_value = session
     client.connect.side_effect = RuntimeError
 
     monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.cassandra_wrapper.Cluster', cluster)
 
-    cassandra = CassandraWrapper(node, keyspace)
+    with pytest.raises(RuntimeError):
+        cassandra = CassandraWrapper(node, keyspace)
+        cassandra.execute('SELECT')
+
+    client.connect.assert_called_once()
+    client.shutdown.assert_not_called()
+    session.execute.assert_not_called()
+
+
+def test_cassandra_execute_exception(monkeypatch):
+    node = 'cassandra-node'
+    keyspace = 'users'
+
+    client = MagicMock()
+    cluster = MagicMock()
+    session = MagicMock()
+
+    cluster.return_value = client
+
+    client.connect.return_value = session
+
+    session.execute.side_effect = RuntimeError
+
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.cassandra_wrapper.Cluster', cluster)
 
     with pytest.raises(RuntimeError):
-        res = cassandra.execute('SELECT')
+        def f():
+            cassandra = CassandraWrapper(node, keyspace)
+            cassandra.execute('SELECT')
+        f()
 
-        assert res == result
-
-        client.connect.assert_called_once()
-        client.shutdown.assert_called_once()
+    session.execute.assert_called_with('SELECT')
+    client.connect.assert_called_once()
+    client.shutdown.assert_called_once()
