@@ -58,7 +58,7 @@ class CloudwatchWrapper(object):
                                     aws_secret_access_key=resp['Credentials']['SecretAccessKey'],
                                     aws_session_token=resp['Credentials']['SessionToken'])
             self.__client = session.client('cloudwatch', region_name=region)
-            logger.info('Cloudwatch wrapper assumed role: {}'.format(assume_role_arn))
+            logger.debug('Cloudwatch wrapper assumed role: {}'.format(assume_role_arn))
 
     def query_one(self, dimensions, metric_name, statistics, namespace, period=60, minutes=5, start=None, end=None,
                   extended_statistics=None):
