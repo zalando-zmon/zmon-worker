@@ -7,7 +7,8 @@ from mock import MagicMock
 
 from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values, \
         build_condition_context
-from zmon_worker_monitor.zmon_worker.tasks.main import MAX_RESULT_KEYS, ResultSizeError
+from zmon_worker_monitor.zmon_worker.tasks.main import MAX_RESULT_KEYS, ResultSizeError, \
+        DEFAULT_CHECK_RESULTS_HISTORY_LENGTH
 from zmon_worker_monitor import plugin_manager
 
 
@@ -80,7 +81,7 @@ def test_timeseries():
     ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
     res = ts('5m')
     assert con.lrange.called_once()
-    assert con.lrange.called_with('zmon:checks:1234:ent-1', 20)
+    assert con.lrange.called_with('zmon:checks:1234:ent-1', DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
     assert res == 12
 
     con.lrange.return_value = [
