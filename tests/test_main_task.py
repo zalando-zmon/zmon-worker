@@ -60,52 +60,22 @@ def test_timeseries():
 
     con = MagicMock()
     con.lrange.return_value = [
-            '{"ts": 1480, "value": 1}',
-            '{"ts": 1450, "value": 1}',
-            '{"ts": 1420, "value": 2}',
-            '{"ts": 1390, "value": 1}',
-            '{"ts": 1360, "value": 1}',
-            '{"ts": 1330, "value": 1}',
-            '{"ts": 1300, "value": 1}',
-            '{"ts": 1270, "value": 1}',
-            '{"ts": 1240, "value": 1}',
-            '{"ts": 1210, "value": 1}',
-            '{"ts": 1180, "value": 1}',
-            '{"ts": 1150, "value": 1}',
-            '{"ts": 1120, "value": 1}',
-            '{"ts": 1090, "value": 1}',
-            '{"ts": 1060, "value": 1}',
-            '{"ts": 1030, "value": 1}',
-            '{"ts": 1000, "value": 1}',
+            '{{"ts": {}, "value": 1}}'.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
         ]
+
     ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
     res = ts('5m')
     assert con.lrange.called_once()
     assert con.lrange.called_with('zmon:checks:1234:ent-1', DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
-    assert res == 12
+    assert res == 11
 
+    js = '{{"ts": {}, "value": {{"key": 1}}}}'
     con.lrange.return_value = [
-            '{"ts": 1000, "value": {"key": 1}}',
-            '{"ts": 1030, "value": {"key": 1}}',
-            '{"ts": 1060, "value": {"key": 1}}',
-            '{"ts": 1090, "value": {"key": 1}}',
-            '{"ts": 1120, "value": {"key": 1}}',
-            '{"ts": 1150, "value": {"key": 1}}',
-            '{"ts": 1180, "value": {"key": 1}}',
-            '{"ts": 1210, "value": {"key": 1}}',
-            '{"ts": 1240, "value": {"key": 1}}',
-            '{"ts": 1270, "value": {"key": 1}}',
-            '{"ts": 1300, "value": {"key": 1}}',
-            '{"ts": 1330, "value": {"key": 1}}',
-            '{"ts": 1360, "value": {"key": 2}}',
-            '{"ts": 1390, "value": {"key": 1}}',
-            '{"ts": 1420, "value": {"key": 1}}',
-            '{"ts": 1450, "value": {"key": 1}}',
-            '{"ts": 1480, "value": {"key": 1}}',
+            js.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
         ]
 
     ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
-    assert ts('300s', key=lambda x: x['key']) == 12
+    assert ts('300s', key=lambda x: x['key']) == 11
 
 
 def test_alert_series():
