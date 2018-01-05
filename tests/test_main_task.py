@@ -5,7 +5,8 @@ import time
 
 from mock import MagicMock
 
-from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values
+from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values, \
+        build_condition_context
 from zmon_worker_monitor.zmon_worker.tasks.main import MAX_RESULT_KEYS, ResultSizeError
 from zmon_worker_monitor import plugin_manager
 
@@ -49,6 +50,61 @@ def test_entity_results():
     con.lrange.return_value = ['{"value":7}']
     assert [{'entity_id': 'foo', 'value': 7}] == entity_results(con, 1, 2)
     assert [7] == entity_values(con, 1, 2)
+
+
+def test_timeseries():
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+    plugin_manager.collect_plugins()
+
+    con = MagicMock()
+    con.lrange.return_value = [
+            '{"ts": 1480, "value": 1}',
+            '{"ts": 1450, "value": 1}',
+            '{"ts": 1420, "value": 2}',
+            '{"ts": 1390, "value": 1}',
+            '{"ts": 1360, "value": 1}',
+            '{"ts": 1330, "value": 1}',
+            '{"ts": 1300, "value": 1}',
+            '{"ts": 1270, "value": 1}',
+            '{"ts": 1240, "value": 1}',
+            '{"ts": 1210, "value": 1}',
+            '{"ts": 1180, "value": 1}',
+            '{"ts": 1150, "value": 1}',
+            '{"ts": 1120, "value": 1}',
+            '{"ts": 1090, "value": 1}',
+            '{"ts": 1060, "value": 1}',
+            '{"ts": 1030, "value": 1}',
+            '{"ts": 1000, "value": 1}',
+        ]
+    ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
+    res = ts('5m')
+    assert con.lrange.called_once()
+    assert con.lrange.called_with('zmon:checks:1234:ent-1', 20)
+    assert res == 12
+
+    con.lrange.return_value = [
+            '{"ts": 1000, "value": {"key": 1}}',
+            '{"ts": 1030, "value": {"key": 1}}',
+            '{"ts": 1060, "value": {"key": 1}}',
+            '{"ts": 1090, "value": {"key": 1}}',
+            '{"ts": 1120, "value": {"key": 1}}',
+            '{"ts": 1150, "value": {"key": 1}}',
+            '{"ts": 1180, "value": {"key": 1}}',
+            '{"ts": 1210, "value": {"key": 1}}',
+            '{"ts": 1240, "value": {"key": 1}}',
+            '{"ts": 1270, "value": {"key": 1}}',
+            '{"ts": 1300, "value": {"key": 1}}',
+            '{"ts": 1330, "value": {"key": 1}}',
+            '{"ts": 1360, "value": {"key": 2}}',
+            '{"ts": 1390, "value": {"key": 1}}',
+            '{"ts": 1420, "value": {"key": 1}}',
+            '{"ts": 1450, "value": {"key": 1}}',
+            '{"ts": 1480, "value": {"key": 1}}',
+        ]
+
+    ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
+    assert ts('300s', key=lambda x: x['key']) == 12
 
 
 def test_alert_series():
