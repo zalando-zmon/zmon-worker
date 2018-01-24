@@ -580,12 +580,6 @@ def evaluate_condition(val, condition, **ctx):
     return safe_eval(_prepare_condition(condition), eval_source='<alert-condition>', value=val, **ctx)
 
 
-def exception_line_number(e):
-    _, _, tb = sys.exc_info()
-    ex = traceback.extract_tb(tb)
-    return "{} line {}: {}".format(e.__class__.__name__, ex[-1][1], e)
-
-
 class MalformedCheckResult(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
@@ -1211,7 +1205,7 @@ class MainTask(object):
         except (SecurityError, InsufficientPermissionsError), e:
             raise(e)
         except Exception, e:
-            raise Exception(exception_line_number(e))
+            raise Exception(traceback.format_exc())
 
     def _get_check_result(self, req):
         r = self._get_check_result_internal(req)
@@ -1390,7 +1384,7 @@ class MainTask(object):
                                                                                    captures,
                                                                                    alert_parameters))
         except Exception, e:
-            captures['exception'] = exception_line_number(e)
+            captures['exception'] = traceback.format_exc()
             result = True
 
         try:
