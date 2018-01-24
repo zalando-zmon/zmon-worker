@@ -81,7 +81,7 @@ def execute_check(tmpdir, monkeypatch, check_command, expected_strings):
 
 def test_check_failure(tmpdir, monkeypatch):
     execute_check(tmpdir, monkeypatch, 'invalid_python_code',
-                  ['"value": "name \'invalid_python_code\' is not defined"', '"exc": 1'])
+                  ['"value": "NameError line 1: name \'invalid_python_code\' is not defined"', '"exc": 1'])
 
 
 def test_check_success(tmpdir, monkeypatch):
