@@ -45,6 +45,55 @@ def fx_query(request):
 
 @pytest.fixture(params=[
     (
+        {'names': ['check1-metric', 'check2-metric']},
+        {'queries': [{'results': [1, 2]}]},
+    ),
+    (
+        {'names': ['check1-metric', 'check2-metric'], 'tags': {'application_id': ['my-app']}},
+        {'queries': [{'results': [1, 2, 3]}]},
+    ),
+    (
+        {
+            'names': ['check1-metric', 'check2-metric'],
+            'aggregators': [{'name': 'sum'}],
+            'group_by': [{'name': 'tags', 'tags': ['k']}]
+        },
+        {'queries': [{'results': [1, 2, 3, 4]}]},
+    ),
+    (
+        {
+            'names': ['check1-metric', 'check2-metric'],
+            'aggregators': [{'name': 'sum'}],
+            'start': 2,
+            'end': 1,
+            'time_unit': 'hours'
+        },
+        {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]},
+    ),
+    (
+        {
+            'names': ['check1-metric', 'check2-metric'],
+            'aggregators': [{'name': 'sum'}],
+            'start_absolute': 1498049043491,
+            'end_absolute': 0
+        },
+        {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
+    ),
+    (
+        {'names': ['check1-metric', 'check2-metric']},
+        requests.Timeout(),
+    ),
+    (
+        {'names': ['check1-metric', 'check2-metric']},
+        requests.ConnectionError(),
+    )
+])
+def fx_query_batch(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    (
         {'name': 'check1-metric', 'start': -5},
         ValueError(),
     ),
@@ -77,18 +126,24 @@ def requests_mock(resp, failure=None):
 
 
 def get_final_url():
+
     return URL + '/' + DATAPOINTS_ENDPOINT
 
 
 def get_query(kwargs):
+    kwargs_batch = dict(kwargs)
+    del kwargs_batch['name']
+    kwargs_batch['names'] = [kwargs['name']]
+
+    return get_query_batch(kwargs_batch)
+
+
+def get_query_batch(kwargs):
     start = kwargs.get('start', 5)
     time_unit = kwargs.get('time_unit', 'minutes')
     group_by = kwargs.get('group_by', [])
 
-    q = {'metrics': [{
-        'name': kwargs['name'],
-        'group_by': group_by
-    }]}
+    q = {'metrics': []}
 
     if 'start_absolute' in kwargs:
         q['start_absolute'] = kwargs['start_absolute']
@@ -107,11 +162,19 @@ def get_query(kwargs):
                 'unit': time_unit
             }
 
-    if 'aggregators' in kwargs:
-        q['metrics'][0]['aggregators'] = kwargs.get('aggregators')
+    for name in kwargs['names']:
+        metric = {
+            'name': name,
+            'group_by': group_by
+        }
 
-    if 'tags' in kwargs:
-        q['metrics'][0]['tags'] = kwargs.get('tags')
+        if 'aggregators' in kwargs:
+            metric['aggregators'] = kwargs.get('aggregators')
+
+        if 'tags' in kwargs:
+            metric['tags'] = kwargs.get('tags')
+
+        q['metrics'].append(metric)
 
     return q
 
@@ -140,6 +203,35 @@ def test_kairosdb_query(monkeypatch, fx_query):
             cli.query(**kwargs)
     else:
         result = cli.query(**kwargs)
+        assert result == res['queries'][0]
+
+    post.assert_called_with(get_final_url(), json=q)
+
+
+def test_kairosdb_query_batch(monkeypatch, fx_query_batch):
+    kwargs, res = fx_query_batch
+
+    print res
+    failure = True if isinstance(res, Exception) else False
+
+    if failure:
+        resp = resp_mock(res, failure=True)
+        post = requests_mock(resp, failure=res)
+    else:
+        resp = resp_mock(res)
+        post = requests_mock(resp)
+
+    monkeypatch.setattr('requests.Session.post', post)
+
+    cli = KairosdbWrapper(URL)
+
+    q = get_query_batch(kwargs)
+
+    if failure:
+        with pytest.raises(HttpError):
+            cli.query_batch(**kwargs)
+    else:
+        result = cli.query_batch(**kwargs)
         assert result == res['queries'][0]
 
     post.assert_called_with(get_final_url(), json=q)

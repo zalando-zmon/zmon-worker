@@ -69,7 +69,11 @@ class KairosdbWrapper(object):
         :param group_by: List of fields to group by.
         :type group_by: list
 
-        :param tags: Filtering tags.
+        :param tags: Filtering tags. Example of "tags" object:
+        {
+            "key": ["max"]
+        }
+        This one filters out records that have "key" tag equals "max"
         :type tags: dict
 
         :param start: Relative start time. Default is 5.
@@ -81,7 +85,72 @@ class KairosdbWrapper(object):
         :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'.
         :type time_unit: str.
 
-        :param aggregators: List of aggregators.
+        :param aggregators: List of aggregators. Aggregator is an object that looks like
+        {
+            "name": "max",
+            "sampling": {
+                "value": "1",
+                "unit": "minutes"
+            },
+            "align_sampling": true
+        }
+        :type aggregators: list
+
+        :param start_absolute: Absolute start time in milliseconds, overrides the start parameter which is relative
+        :type start_absolute: long
+
+        :param end_absolute: Absolute end time in milliseconds, overrides the end parameter which is relative
+        :type end_absolute: long
+
+        :return: Result queries.
+        :rtype: dict
+        """
+        return self.query_batch([name], group_by, tags, start, end, time_unit, aggregators,
+                                start_absolute, end_absolute)
+
+    def tagnames(self):
+        return []
+
+    def metric_tags(self):
+        return {}
+
+    def query_batch(self, names, group_by=None, tags=None, start=5, end=0, time_unit='minutes', aggregators=None,
+                    start_absolute=None, end_absolute=None):
+        """
+        Query kairosdb for several checks at once. All the filters and aggregators are applied to
+        each queried metric.
+
+        :param names: list of metric names.
+        :type name: list
+
+        :param group_by: List of fields to group by.
+        :type group_by: list
+
+        :param tags: Filtering tags. Example of "tags" object:
+        {
+            "key": ["max"]
+        }
+        This one filters out records that have "key" tag equals "max"
+        :type tags: dict
+
+        :param start: Relative start time. Default is 5.
+        :type start: int
+
+        :param end: End time. Default is 0.
+        :type end: int
+
+        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'.
+        :type time_unit: str.
+
+        :param aggregators: List of aggregators. Aggregator is an object that looks like
+        {
+            "name": "max",
+            "sampling": {
+                "value": "1",
+                "unit": "minutes"
+            },
+            "align_sampling": true
+        }
         :type aggregators: list
 
         :param start_absolute: Absolute start time in milliseconds, overrides the start parameter which is relative
@@ -101,10 +170,7 @@ class KairosdbWrapper(object):
         if group_by is None:
             group_by = []
 
-        q = {'metrics': [{
-            'name': name,
-            'group_by': group_by
-        }]}
+        q = {'metrics': []}
 
         if start_absolute is None:
             q['start_relative'] = {
@@ -123,11 +189,19 @@ class KairosdbWrapper(object):
         else:
             q['end_absolute'] = end_absolute
 
-        if aggregators:
-            q['metrics'][0]['aggregators'] = aggregators
+        for name in names:
+            metric = {
+                'name': name,
+                'group_by': group_by
+            }
 
-        if tags:
-            q['metrics'][0]['tags'] = tags
+            if aggregators:
+                metric['aggregators'] = aggregators
+
+            if tags:
+                metric['tags'] = tags
+
+            q['metrics'].append(metric)
 
         try:
             response = self.__session.post(url, json=q)
@@ -140,9 +214,3 @@ class KairosdbWrapper(object):
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
-
-    def tagnames(self):
-        return []
-
-    def metric_tags(self):
-        return {}
