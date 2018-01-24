@@ -11,6 +11,7 @@ import requests
 import setproctitle
 import socket
 import sys
+import traceback
 import time
 import urllib
 from urllib3.util import parse_url
@@ -1201,6 +1202,10 @@ class MainTask(object):
 
         except (SyntaxError, InvalidEvalExpression), e:
             raise CheckError(str(e))
+        except (SecurityError, InsufficientPermissionsError), e:
+            raise(e)
+        except Exception, e:
+            raise Exception(traceback.format_exc())
 
     def _get_check_result(self, req):
         r = self._get_check_result_internal(req)
@@ -1379,7 +1384,7 @@ class MainTask(object):
                                                                                    captures,
                                                                                    alert_parameters))
         except Exception, e:
-            captures['exception'] = str(e)
+            captures['exception'] = traceback.format_exc()
             result = True
 
         try:

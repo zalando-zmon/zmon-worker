@@ -183,7 +183,8 @@ def test_evaluate_alert(monkeypatch):
     # produce exception
     alert_def['condition'] = 'value["missing-key"] > 0'
     is_alert, captures = task.evaluate_alert(alert_def, req, result)
-    assert {'p1': 'x', 'exception': "'int' object has no attribute '__getitem__'"} == captures
+    assert 'p1' in captures and captures.get('p1') == 'x'
+    assert 'exception' in captures and "'int' object has no attribute '__getitem__'" in captures.get('exception')
     assert is_alert
 
 
