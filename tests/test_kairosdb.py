@@ -226,7 +226,7 @@ def get_query_batch(kwargs):
     start = kwargs.get('start', 5)
     time_unit = kwargs.get('time_unit', 'minutes')
 
-    q = {'metrics': []}
+    q = {'metrics': kwargs['metrics']}
 
     if 'start_absolute' in kwargs:
         q['start_absolute'] = kwargs['start_absolute']
@@ -244,8 +244,6 @@ def get_query_batch(kwargs):
                 'value': kwargs['end'],
                 'unit': time_unit
             }
-
-    q['metrics'] = kwargs['metrics']
 
     return q
 
