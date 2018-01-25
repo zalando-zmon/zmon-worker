@@ -187,27 +187,39 @@ def get_final_url():
 
 
 def get_query(kwargs):
-    kwargs_batch = dict(kwargs)
-    del kwargs_batch['name']
+    start = kwargs.get('start', 5)
+    time_unit = kwargs.get('time_unit', 'minutes')
+    group_by = kwargs.get('group_by', [])
 
-    metric = {
+    q = {'metrics': [{
         'name': kwargs['name'],
-        'group_by': kwargs.get('group_by', [])
-    }
+        'group_by': group_by
+    }]}
 
-    if 'group_by' in kwargs:
-        del kwargs_batch['group_by']
+    if 'start_absolute' in kwargs:
+        q['start_absolute'] = kwargs['start_absolute']
+    else:
+        q['start_relative'] = {
+            'value': start,
+            'unit': time_unit
+        }
+
+    if 'end_absolute' in kwargs:
+        q['end_absolute'] = kwargs['end_absolute']
+    else:
+        if 'end' in kwargs:
+            q['end_relative'] = {
+                'value': kwargs['end'],
+                'unit': time_unit
+            }
 
     if 'aggregators' in kwargs:
-        del kwargs_batch['aggregators']
-        metric['aggregators'] = kwargs.get('aggregators')
+        q['metrics'][0]['aggregators'] = kwargs.get('aggregators')
 
     if 'tags' in kwargs:
-        del kwargs_batch['tags']
-        metric['tags'] = kwargs.get('tags')
+        q['metrics'][0]['tags'] = kwargs.get('tags')
 
-    kwargs_batch['metrics'] = [metric]
-    return get_query_batch(kwargs_batch)
+    return q
 
 
 def get_query_batch(kwargs):
@@ -241,7 +253,6 @@ def get_query_batch(kwargs):
 def test_kairosdb_query(monkeypatch, fx_query):
     kwargs, res = fx_query
 
-    print res
     failure = True if isinstance(res, Exception) else False
 
     if failure:
@@ -270,7 +281,6 @@ def test_kairosdb_query(monkeypatch, fx_query):
 def test_kairosdb_query_batch(monkeypatch, fx_query_batch):
     kwargs, res = fx_query_batch
 
-    print res
     failure = True if isinstance(res, Exception) else False
 
     if failure:
