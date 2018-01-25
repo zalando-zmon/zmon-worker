@@ -45,25 +45,58 @@ def fx_query(request):
 
 @pytest.fixture(params=[
     (
-        {'names': ['check1-metric', 'check2-metric']},
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
         {'queries': [{'results': [1, 2]}]},
     ),
     (
-        {'names': ['check1-metric', 'check2-metric'], 'tags': {'application_id': ['my-app']}},
+        {
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'tags': {'application_id': ['my-app']},
+                },
+                {
+                    'name': 'check2-metric',
+                    'tags': {'application_id': ['my-app']},
+                },
+            ]
+        },
         {'queries': [{'results': [1, 2, 3]}]},
     ),
     (
         {
-            'names': ['check1-metric', 'check2-metric'],
-            'aggregators': [{'name': 'sum'}],
-            'group_by': [{'name': 'tags', 'tags': ['k']}]
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                    'group_by': [{'name': 'tags', 'tags': ['k']}]
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                    'group_by': [{'name': 'tags', 'tags': ['foo']}]
+                },
+            ],
         },
         {'queries': [{'results': [1, 2, 3, 4]}]},
     ),
     (
         {
-            'names': ['check1-metric', 'check2-metric'],
-            'aggregators': [{'name': 'sum'}],
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                },
+            ],
             'start': 2,
             'end': 1,
             'time_unit': 'hours'
@@ -72,19 +105,37 @@ def fx_query(request):
     ),
     (
         {
-            'names': ['check1-metric', 'check2-metric'],
-            'aggregators': [{'name': 'sum'}],
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                },
+            ],
             'start_absolute': 1498049043491,
             'end_absolute': 0
         },
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
     ),
     (
-        {'names': ['check1-metric', 'check2-metric']},
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
         requests.Timeout(),
     ),
     (
-        {'names': ['check1-metric', 'check2-metric']},
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
         requests.ConnectionError(),
     )
 ])
@@ -133,15 +184,30 @@ def get_final_url():
 def get_query(kwargs):
     kwargs_batch = dict(kwargs)
     del kwargs_batch['name']
-    kwargs_batch['names'] = [kwargs['name']]
 
+    metric = {
+        'name': kwargs['name'],
+        'group_by': kwargs.get('group_by', [])
+    }
+
+    if 'group_by' in kwargs:
+        del kwargs_batch['group_by']
+
+    if 'aggregators' in kwargs:
+        del kwargs_batch['aggregators']
+        metric['aggregators'] = kwargs.get('aggregators')
+
+    if 'tags' in kwargs:
+        del kwargs_batch['tags']
+        metric['tags'] = kwargs.get('tags')
+
+    kwargs_batch['metrics'] = [metric]
     return get_query_batch(kwargs_batch)
 
 
 def get_query_batch(kwargs):
     start = kwargs.get('start', 5)
     time_unit = kwargs.get('time_unit', 'minutes')
-    group_by = kwargs.get('group_by', [])
 
     q = {'metrics': []}
 
@@ -162,19 +228,7 @@ def get_query_batch(kwargs):
                 'unit': time_unit
             }
 
-    for name in kwargs['names']:
-        metric = {
-            'name': name,
-            'group_by': group_by
-        }
-
-        if 'aggregators' in kwargs:
-            metric['aggregators'] = kwargs.get('aggregators')
-
-        if 'tags' in kwargs:
-            metric['tags'] = kwargs.get('tags')
-
-        q['metrics'].append(metric)
+    q['metrics'] = kwargs['metrics']
 
     return q
 
