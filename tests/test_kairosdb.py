@@ -27,7 +27,12 @@ URL = 'http://kairosdb'
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]},
     ),
     (
-        {'name': 'check1-metric', 'aggregators': [{'name': 'sum'}], 'start_absolute': 1498049043491, 'end_absolute': 0},
+        {
+            'name': 'check1-metric',
+            'aggregators': [{'name': 'sum'}],
+            'start_absolute': 1498049043491,
+            'end_absolute': 0
+        },
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
     ),
     (
