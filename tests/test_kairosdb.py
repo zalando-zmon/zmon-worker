@@ -56,7 +56,7 @@ def fx_query(request):
                 {'name': 'check2-metric'}
             ]
         },
-        {'queries': [{'results': [1, 2]}]},
+        {'queries': [{'results': [1, 2]}, {'results': [2, 3]}]},
     ),
     (
         {
@@ -71,7 +71,7 @@ def fx_query(request):
                 },
             ]
         },
-        {'queries': [{'results': [1, 2, 3]}]},
+        {'queries': [{'results': [1, 2, 3]}, {'results': [2, 3]}]},
     ),
     (
         {
@@ -88,7 +88,7 @@ def fx_query(request):
                 },
             ],
         },
-        {'queries': [{'results': [1, 2, 3, 4]}]},
+        {'queries': [{'results': [1, 2, 3, 4]}, {'results': [4, 3, 2, 1]}]},
     ),
     (
         {
@@ -106,7 +106,7 @@ def fx_query(request):
             'end': 1,
             'time_unit': 'hours'
         },
-        {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]},
+        {'queries': [{'results': [1, 2, 3, 4, 5, 6]}, {'results': [6, 5, 4, 3, 2, 1]}]},
     ),
     (
         {
@@ -123,7 +123,7 @@ def fx_query(request):
             'start_absolute': 1498049043491,
             'end_absolute': 0
         },
-        {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
+        {'queries': [{'results': [1, 2, 3, 4, 5]}, {'results': [5, 4, 3, 2, 1]}]},
     ),
     (
         {
@@ -291,7 +291,7 @@ def test_kairosdb_query_batch(monkeypatch, fx_query_batch):
             cli.query_batch(**kwargs)
     else:
         result = cli.query_batch(**kwargs)
-        assert result == res['queries'][0]
+        assert result == res['queries']
 
     post.assert_called_with(get_final_url(), json=q)
 

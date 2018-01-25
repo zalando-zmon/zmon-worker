@@ -120,7 +120,7 @@ class KairosdbWrapper(object):
         if tags:
             metric['tags'] = tags
 
-        return self.query_batch([metric], start, end, time_unit, start_absolute, end_absolute)
+        return self.query_batch([metric], start, end, time_unit, start_absolute, end_absolute)[0]
 
     def tagnames(self):
         return []
@@ -170,8 +170,8 @@ class KairosdbWrapper(object):
         :param end_absolute: Absolute end time in milliseconds, overrides the end parameter which is relative
         :type end_absolute: long
 
-        :return: Result queries.
-        :rtype: dict
+        :return: Array of results for each queried metric
+        :rtype: list
         """
         url = os.path.join(self.url, DATAPOINTS_ENDPOINT)
 
@@ -200,7 +200,7 @@ class KairosdbWrapper(object):
         try:
             response = self.__session.post(url, json=q)
             if response.ok:
-                return response.json()['queries'][0]
+                return response.json()['queries']
             else:
                 raise Exception(
                     'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
