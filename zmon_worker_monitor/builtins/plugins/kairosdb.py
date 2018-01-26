@@ -152,8 +152,8 @@ class KairosdbWrapper(object):
                                             # all the records with given tag and given values
                 }
             }
-        }
-        :type queries: dict
+        ]
+        :type metrics: dict
 
         :param start: Relative start time. Default is 5.
         :type start: int
