@@ -69,7 +69,11 @@ class KairosdbWrapper(object):
         :param group_by: List of fields to group by.
         :type group_by: list
 
-        :param tags: Filtering tags.
+        :param tags: Filtering tags. Example of "tags" object:
+        {
+            "key": ["max"]
+        }
+        This one filters out records that have "key" tag equals "max"
         :type tags: dict
 
         :param start: Relative start time. Default is 5.
@@ -81,7 +85,15 @@ class KairosdbWrapper(object):
         :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'.
         :type time_unit: str.
 
-        :param aggregators: List of aggregators.
+        :param aggregators: List of aggregators. Aggregator is an object that looks like
+        {
+            "name": "max",
+            "sampling": {
+                "value": "1",
+                "unit": "minutes"
+            },
+            "align_sampling": true
+        }
         :type aggregators: list
 
         :param start_absolute: Absolute start time in milliseconds, overrides the start parameter which is relative
@@ -93,18 +105,80 @@ class KairosdbWrapper(object):
         :return: Result queries.
         :rtype: dict
         """
+
+        if group_by is None:
+            group_by = []
+
+        metric = {
+            'name': name,
+            'group_by': group_by,
+        }
+
+        if aggregators:
+            metric['aggregators'] = aggregators
+
+        if tags:
+            metric['tags'] = tags
+
+        return self.query_batch([metric], start, end, time_unit, start_absolute, end_absolute)[0]
+
+    def tagnames(self):
+        return []
+
+    def metric_tags(self):
+        return {}
+
+    def query_batch(self, metrics, start=5, end=0, time_unit='minutes', start_absolute=None, end_absolute=None):
+        """
+        Query kairosdb for several checks at once.
+
+        :param metrics: list of KairosDB metric queries, one query per metric name.
+        [
+            {
+                'name': 'metric_name',      # name of the metric
+                'group_by': ['foo'],        # list of fields to group by
+                'aggregators': [            # list of aggregator objects
+                    {                       # structure of a single aggregator
+                        'name': 'max',
+                        'sampling': {
+                            'value': '1',
+                            'unit': 'minutes'
+                        },
+                        'align_sampling': True
+                    }
+                ],
+                'tags': {                   # dict with filtering tags
+                    'key': ['max']          # a key is a tag name, list of values is used to filter
+                                            # all the records with given tag and given values
+                }
+            }
+        ]
+        :type metrics: dict
+
+        :param start: Relative start time. Default is 5.
+        :type start: int
+
+        :param end: End time. Default is 0.
+        :type end: int
+
+        :param time_unit: Time unit ('seconds', 'minutes', 'hours'). Default is 'minutes'.
+        :type time_unit: str.
+
+        :param start_absolute: Absolute start time in milliseconds, overrides the start parameter which is relative
+        :type start_absolute: long
+
+        :param end_absolute: Absolute end time in milliseconds, overrides the end parameter which is relative
+        :type end_absolute: long
+
+        :return: Array of results for each queried metric
+        :rtype: list
+        """
         url = os.path.join(self.url, DATAPOINTS_ENDPOINT)
 
         if start < 1 or end < 0:
             raise ValueError('Time relative "start" and "end" must be greater than or equal to 1')
 
-        if group_by is None:
-            group_by = []
-
-        q = {'metrics': [{
-            'name': name,
-            'group_by': group_by
-        }]}
+        q = {'metrics': metrics}
 
         if start_absolute is None:
             q['start_relative'] = {
@@ -123,16 +197,10 @@ class KairosdbWrapper(object):
         else:
             q['end_absolute'] = end_absolute
 
-        if aggregators:
-            q['metrics'][0]['aggregators'] = aggregators
-
-        if tags:
-            q['metrics'][0]['tags'] = tags
-
         try:
             response = self.__session.post(url, json=q)
             if response.ok:
-                return response.json()['queries'][0]
+                return response.json()['queries']
             else:
                 raise Exception(
                     'KairosDB Query failed: {} with status {}:{}'.format(q, response.status_code, response.text))
@@ -140,9 +208,3 @@ class KairosdbWrapper(object):
             raise HttpError('timeout', self.url), None, sys.exc_info()[2]
         except requests.ConnectionError:
             raise HttpError('connection failed', self.url), None, sys.exc_info()[2]
-
-    def tagnames(self):
-        return []
-
-    def metric_tags(self):
-        return {}

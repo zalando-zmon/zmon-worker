@@ -27,7 +27,12 @@ URL = 'http://kairosdb'
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]},
     ),
     (
-        {'name': 'check1-metric', 'aggregators': [{'name': 'sum'}], 'start_absolute': 1498049043491, 'end_absolute': 0},
+        {
+            'name': 'check1-metric',
+            'aggregators': [{'name': 'sum'}],
+            'start_absolute': 1498049043491,
+            'end_absolute': 0
+        },
         {'queries': [{'results': [1, 2, 3, 4, 5, 6, 7, 8]}]}
     ),
     (
@@ -40,6 +45,106 @@ URL = 'http://kairosdb'
     )
 ])
 def fx_query(request):
+    return request.param
+
+
+@pytest.fixture(params=[
+    (
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
+        {'queries': [{'results': [1, 2]}, {'results': [2, 3]}]},
+    ),
+    (
+        {
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'tags': {'application_id': ['my-app']},
+                },
+                {
+                    'name': 'check2-metric',
+                    'tags': {'application_id': ['my-app']},
+                },
+            ]
+        },
+        {'queries': [{'results': [1, 2, 3]}, {'results': [2, 3]}]},
+    ),
+    (
+        {
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                    'group_by': [{'name': 'tags', 'tags': ['k']}]
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                    'group_by': [{'name': 'tags', 'tags': ['foo']}]
+                },
+            ],
+        },
+        {'queries': [{'results': [1, 2, 3, 4]}, {'results': [4, 3, 2, 1]}]},
+    ),
+    (
+        {
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                },
+            ],
+            'start': 2,
+            'end': 1,
+            'time_unit': 'hours'
+        },
+        {'queries': [{'results': [1, 2, 3, 4, 5, 6]}, {'results': [6, 5, 4, 3, 2, 1]}]},
+    ),
+    (
+        {
+            'metrics': [
+                {
+                    'name': 'check1-metric',
+                    'aggregators':  [{'name': 'sum'}],
+                },
+                {
+                    'name': 'check2-metric',
+                    'aggregators':  [{'name': 'max'}],
+                },
+            ],
+            'start_absolute': 1498049043491,
+            'end_absolute': 0
+        },
+        {'queries': [{'results': [1, 2, 3, 4, 5]}, {'results': [5, 4, 3, 2, 1]}]},
+    ),
+    (
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
+        requests.Timeout(),
+    ),
+    (
+        {
+            'metrics': [
+                {'name': 'check1-metric'},
+                {'name': 'check2-metric'}
+            ]
+        },
+        requests.ConnectionError(),
+    )
+])
+def fx_query_batch(request):
     return request.param
 
 
@@ -77,6 +182,7 @@ def requests_mock(resp, failure=None):
 
 
 def get_final_url():
+
     return URL + '/' + DATAPOINTS_ENDPOINT
 
 
@@ -116,10 +222,35 @@ def get_query(kwargs):
     return q
 
 
+def get_query_batch(kwargs):
+    start = kwargs.get('start', 5)
+    time_unit = kwargs.get('time_unit', 'minutes')
+
+    q = {'metrics': kwargs['metrics']}
+
+    if 'start_absolute' in kwargs:
+        q['start_absolute'] = kwargs['start_absolute']
+    else:
+        q['start_relative'] = {
+            'value': start,
+            'unit': time_unit
+        }
+
+    if 'end_absolute' in kwargs:
+        q['end_absolute'] = kwargs['end_absolute']
+    else:
+        if 'end' in kwargs:
+            q['end_relative'] = {
+                'value': kwargs['end'],
+                'unit': time_unit
+            }
+
+    return q
+
+
 def test_kairosdb_query(monkeypatch, fx_query):
     kwargs, res = fx_query
 
-    print res
     failure = True if isinstance(res, Exception) else False
 
     if failure:
@@ -141,6 +272,34 @@ def test_kairosdb_query(monkeypatch, fx_query):
     else:
         result = cli.query(**kwargs)
         assert result == res['queries'][0]
+
+    post.assert_called_with(get_final_url(), json=q)
+
+
+def test_kairosdb_query_batch(monkeypatch, fx_query_batch):
+    kwargs, res = fx_query_batch
+
+    failure = True if isinstance(res, Exception) else False
+
+    if failure:
+        resp = resp_mock(res, failure=True)
+        post = requests_mock(resp, failure=res)
+    else:
+        resp = resp_mock(res)
+        post = requests_mock(resp)
+
+    monkeypatch.setattr('requests.Session.post', post)
+
+    cli = KairosdbWrapper(URL)
+
+    q = get_query_batch(kwargs)
+
+    if failure:
+        with pytest.raises(HttpError):
+            cli.query_batch(**kwargs)
+    else:
+        result = cli.query_batch(**kwargs)
+        assert result == res['queries']
 
     post.assert_called_with(get_final_url(), json=q)
 
