@@ -5,10 +5,12 @@ import time
 
 from mock import MagicMock
 
-from zmon_worker_monitor.zmon_worker.tasks.main import MainTask, alert_series, entity_results, entity_values, \
-        build_condition_context
-from zmon_worker_monitor.zmon_worker.tasks.main import MAX_RESULT_KEYS, ResultSizeError, \
-        DEFAULT_CHECK_RESULTS_HISTORY_LENGTH
+from zmon_worker_monitor.zmon_worker.tasks.main import (
+    MainTask, alert_series, entity_results, entity_values, build_condition_context
+)
+from zmon_worker_monitor.zmon_worker.tasks.main import (
+    MAX_RESULT_KEYS, ResultSizeError, DEFAULT_CHECK_RESULTS_HISTORY_LENGTH
+)
 from zmon_worker_monitor import plugin_manager
 
 
@@ -60,8 +62,8 @@ def test_timeseries():
 
     con = MagicMock()
     con.lrange.return_value = [
-            '{{"ts": {}, "value": 1}}'.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
-        ]
+        '{{"ts": {}, "value": 1}}'.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
+    ]
 
     ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
     res = ts('5m')
@@ -71,8 +73,8 @@ def test_timeseries():
 
     js = '{{"ts": {}, "value": {{"key": 1}}}}'
     con.lrange.return_value = [
-            js.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
-        ]
+        js.format(1000 + 30 * i) for i in range(DEFAULT_CHECK_RESULTS_HISTORY_LENGTH)
+    ]
 
     ts = build_condition_context(con, 1234, 2345, {'id': 'ent-1'}, {}, {})['timeseries_sum']
     assert ts('300s', key=lambda x: x['key']) == 11

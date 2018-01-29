@@ -796,7 +796,11 @@ class MainTask(object):
                 tokens.manage('uid', ['uid'], ignore_expiration=True)
                 tokens.start()
 
-            cls._dataservice_poster = PeriodicBufferedAction(cls.send_to_dataservice, retries=10, t_wait=5)
+            cls._dataservice_poster = PeriodicBufferedAction(
+                cls.send_to_dataservice,
+                retries=int(config.get('dataservice.buffer.retries', 10)),
+                t_wait=int(config.get('dataservice.buffer.delay', 5))
+            )
             cls._dataservice_poster.start()
 
         cls._metric_cache_url = config.get('metriccache.url', '')
@@ -1464,6 +1468,9 @@ class MainTask(object):
                 notifications_key = 'zmon:notifications:{}:{}'.format(alert_id, entity_id)
                 is_alert, captures = ((True, {}) if force_alert else self.evaluate_alert(alert, req, val))
 
+                # Timestamp of alert evaluation - useful in alerting metrics
+                alert_evaluation_ts = time.time()
+
                 alert_changed = False
                 func = getattr(self.con, ('sadd' if is_alert else 'srem'))
                 changed = bool(func(alert_entities_key, entity_id))
@@ -1520,6 +1527,7 @@ class MainTask(object):
                     'changed': changed,
                     'in_period': is_in_period,
                     'start_time': None,
+                    'alert_evaluation_ts': alert_evaluation_ts,
                     # '_alert_stored': None,
                 }
 
