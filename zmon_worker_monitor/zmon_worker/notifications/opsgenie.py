@@ -1,3 +1,4 @@
+import time
 import json
 import logging
 
@@ -72,6 +73,10 @@ class NotifyOpsgenie(BaseNotification):
         msg = message if message else cls._get_subject(alert, include_event=False)
 
         details = {
+            'alert_evaluation_ts': alert.get('alert_evaluation_ts', time.time())
+        }
+
+        alert_details = {
             'worker': alert['worker'],
             'id': alert_id,
             'name': alert['alert_def']['name'],
@@ -93,11 +98,12 @@ class NotifyOpsgenie(BaseNotification):
                 'entity': entity['id'],
                 'note': note,
                 'priority': priority,
-                'tags': alert['alert_def'].get('tags', [])
+                'tags': alert['alert_def'].get('tags', []),
+                'details': details,
             }
 
             if include_alert:
-                data['details'] = details
+                data['details'].update(alert_details)
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 

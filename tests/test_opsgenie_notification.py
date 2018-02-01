@@ -38,12 +38,13 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
 
     alert = {
         'alert_changed': True, 'changed': True, 'is_alert': is_alert, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
         'alert_def': {
             'name': 'Alert',
             'team': 'zmon',
             'responsible_team': 'zmon',
             'id': 123,
-            'priority': 1
+            'priority': 1,
         }
     }
 
@@ -86,6 +87,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
             'source': 'worker-1',
             'note': '',
+            'details': {'alert_evaluation_ts': 1234},
         }
 
         if override_description:
@@ -115,13 +117,14 @@ def test_opsgenie_notification_per_entity(monkeypatch):
 
     alert = {
         'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1', 'time': datetime.now(),
+        'alert_evaluation_ts': 1234,
         'alert_def': {
             'name': 'Alert',
             'team': 'team-1',
             'responsible_team': 'zmon',
             'id': 123,
             'priority': 3,
-            'tags': ['tag-1']
+            'tags': ['tag-1'],
         },
     }
 
@@ -147,6 +150,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
             'responsible_team': alert['alert_def']['responsible_team'],
             'entity': alert['entity']['id'],
             'infrastructure_account': 'UNKNOWN',
+            'alert_evaluation_ts': 1234,
         },
         'priority': 'P3',
         'tags': ['tag-1'],

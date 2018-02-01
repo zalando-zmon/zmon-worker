@@ -1,3 +1,4 @@
+import time
 import json
 import logging
 
@@ -58,7 +59,9 @@ class NotifyPagerduty(BaseNotification):
                 'source': alert.get('worker', ''),
                 'severity': 'critical' if int(alert['alert_def']['priority']) == 1 else 'error',
                 'component': entity['id'],
-                'custom_details': alert if include_alert else {},
+                'custom_details': alert if include_alert else {
+                    'alert_evaluation_ts': alert.get('alert_evaluation_ts', time.time())
+                },
                 'class': alert_class,
                 'group': alert_group,
             },

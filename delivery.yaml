@@ -20,11 +20,10 @@ pipeline:
           if [[ ${IS_PR_BUILD} != "true" ]]
           then
             VERSION=$(git describe --tags --always --dirty)
+            IMAGE=registry-write.opensource.zalan.do/zmon/zmon-worker:${VERSION}
+            docker build --tag "$IMAGE" .
+            docker push "$IMAGE"
           else
             VERSION=${CDP_BUILD_VERSION}
+            docker build -t zmon-worker .
           fi
-
-          IMAGE=registry-write.opensource.zalan.do/zmon/zmon-worker:${VERSION}
-
-          docker build --tag "$IMAGE" .
-          docker push "$IMAGE"

@@ -26,7 +26,7 @@ def test_pagerduty_notification(monkeypatch, is_alert):
 
     alert = {
         'alert_changed': True, 'is_alert': is_alert, 'alert_def': {'id': 123, 'priority': 1}, 'entity': {'id': 'e-1'},
-        'worker': 'worker-1',
+        'alert_evaluation_ts': 1234, 'worker': 'worker-1',
     }
 
     NotifyPagerduty._config = {'notifications.pagerduty.servicekey': SERVICE_KEY}
@@ -44,7 +44,7 @@ def test_pagerduty_notification(monkeypatch, is_alert):
             'source': 'worker-1',
             'severity': 'critical',
             'component': alert['entity']['id'],
-            'custom_details': {},
+            'custom_details': {'alert_evaluation_ts': 1234},
             'class': '',
             'group': '',
         },
@@ -95,7 +95,7 @@ def test_pagerduty_notification_per_entity(monkeypatch):
 
     alert = {
         'alert_changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'priority': 3}, 'entity': {'id': 'e-1'},
-        'time': datetime.now(), 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234, 'time': datetime.now(), 'worker': 'worker-1',
     }
 
     NotifyPagerduty._config = {
