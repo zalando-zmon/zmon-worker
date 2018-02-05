@@ -1587,6 +1587,7 @@ class MainTask(object):
                         'alert_changed': alert_changed,
                         'changed': changed,
                         'duration': timedelta(seconds=(time.time() - start_time if is_alert and not changed else 0)),
+                        'alert_evaluation_ts': alert_evaluation_ts,
                     }
 
                     # do not send notifications for downtimed alerts
