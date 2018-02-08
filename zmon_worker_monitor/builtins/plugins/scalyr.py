@@ -5,6 +5,7 @@ import requests
 import logging
 
 from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
+from zmon_worker_monitor.zmon_worker.errors import CheckError
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
 logger = logging.getLogger('zmon-worker.scalyr-function')
@@ -38,6 +39,7 @@ class ScalyrWrapper(object):
         if scalyr_region == 'eu':
             scalyr_prefix = SCALYR_URL_PREFIX_EU
 
+        self.__query_url = '{}/query'.format(scalyr_prefix)
         self.__numeric_url = '{}/numericQuery'.format(scalyr_prefix)
         self.__timeseries_url = '{}/timeseriesQuery'.format(scalyr_prefix)
         self.__facet_url = '{}/facetQuery'.format(scalyr_prefix)
@@ -48,6 +50,38 @@ class ScalyrWrapper(object):
 
     def count(self, query, minutes=5):
         return self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low')
+
+    def logs(self, query, max_count=100, minutes=5, continuation_token=None):
+
+        if not query or not query.strip():
+            raise CheckError('query "{}" is not allowed to be blank'.format(query))
+
+        val = {
+            'token': self.__read_key,
+            'queryType': 'log',
+            'maxCount': max_count,
+            'filter': query,
+            'startTime': str(minutes) + 'm',
+            'priority': 'low'
+        }
+
+        if continuation_token:
+            val['continuationToken'] = continuation_token
+
+        r = requests.post(self.__query_url,
+                          json=val,
+                          headers={'Content-Type': 'application/json', 'errorStatus': 'always200'})
+
+        j = r.json()
+
+        if 'matches' in j:
+            new_continuation_token = j.get('continuationToken', None)
+            messages = [match['message'] for match in j['matches']]
+            return {'messages': messages, 'continuation_token': new_continuation_token}
+        if j.get('status', '').startswith('error'):
+            raise CheckError(j['message'])
+        else:
+            raise CheckError('No logs or error message was returned from scalyr')
 
     def function(self, function, query, minutes=5):
 
