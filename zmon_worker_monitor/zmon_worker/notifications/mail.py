@@ -8,6 +8,8 @@ import jinja2
 
 from urllib2 import urlparse
 
+from opentracing_utils import trace, extract_span_from_kwargs
+
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTPAuthenticationError
@@ -30,21 +32,32 @@ jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
 class Mail(BaseNotification):
 
     @classmethod
+    @trace(operation_name='notification_mail', pass_span=True, tags={'notification': 'mail'})
     def notify(cls, alert, *args, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
 
         repeat = kwargs.get('repeat', 0)
         alert_def = alert['alert_def']
         per_entity = kwargs.get('per_entity', True)
 
+        current_span.set_tag('alert_id', alert_def['id'])
+
         if not cls._config.get('notifications.mail.on', True):
+            current_span.set_tag('mail_enabled', False)
             logger.info('Not sending email for alert: {}. Mail notification is not enabled.'.format(alert_def['id']))
             return repeat
 
-        is_changed = alert.get('alert_changed')
+        entity = alert.get('entity', {})
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity.get('id'))
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
         if not is_changed and not per_entity:
             return repeat
-
-        logger.info("Sending email for alert: {}".format(alert_def['id']))
 
         sender = cls._config.get('notifications.mail.sender')
         subject = cls._get_subject(alert, custom_message=kwargs.get('subject'))
@@ -69,10 +82,13 @@ class Mail(BaseNotification):
                                      include_entity=include_entity,
                                      alert_url=alert_url,
                                      **alert)
-        except Exception:
+        except Exception as e:
+            current_span.set_tag('error', True)
+            current_span.log_kv({'exception': str(e)})
             logger.exception('Error parsing email template for alert %s with id %s', alert_def['name'], alert_def['id'])
         else:
             if html:
+                current_span.set_tag('html', True)
                 msg = MIMEMultipart('alternative')
                 tmpl = jinja_env.get_template('alert.html')
                 body_html = tmpl.render(expanded_alert_name=expanded_alert_name,
@@ -107,7 +123,10 @@ class Mail(BaseNotification):
             try:
                 if mail_host != 'localhost':
                     if cls._config.get('notifications.mail.tls', False):
+
                         logger.info('Mail notification using TLS!')
+                        current_span.set_tag('tls', True)
+
                         s = smtplib.SMTP(mail_host, mail_port)
                         s.ehlo()
                         if not s.has_extn('STARTTLS'):
@@ -115,11 +134,13 @@ class Mail(BaseNotification):
                         s.starttls()
                         s.ehlo()
                     else:
+                        current_span.set_tag('tls', False)
                         s = smtplib.SMTP_SSL(mail_host, mail_port)
                 else:
                     s = smtplib.SMTP(mail_host, mail_port)
 
             except Exception:
+                current_span.set_tag('error', True)
                 logger.exception('Error connecting to SMTP server %s for alert %s with id %s',
                                  mail_host, alert_def['name'], alert_def['id'])
             else:
@@ -133,7 +154,9 @@ class Mail(BaseNotification):
                     logger.exception(
                         'Error sending email for alert %s with id %s: authentication failed for %s',
                         alert_def['name'], alert_def['id'], mail_user)
-                except Exception:
+                except Exception as e:
+                    current_span.set_tag('error', True)
+                    current_span.log_kv({'exception': str(e)})
                     logger.exception(
                         'Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
                 finally:

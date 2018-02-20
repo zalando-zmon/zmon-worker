@@ -2,6 +2,10 @@
 """
 Execution script
 """
+import logging
+from opentracing_utils import init_opentracing_tracer, trace_requests
+
+trace_requests()  # noqa
 
 import settings
 
@@ -20,6 +24,11 @@ def start_worker(**kwargs):
     :return:
     """
     _set_logging(settings.LOGGING)
+
+    logger = logging.getLogger(__name__)
+    logger.info('ZMON Worker running with {} OpenTracing tracer!'.format(kwargs.get('tracer', 'noop')))
+
+    init_opentracing_tracer(kwargs.pop('tracer', None))
 
     import workflow
 

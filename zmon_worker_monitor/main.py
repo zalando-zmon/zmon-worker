@@ -118,8 +118,14 @@ def main(args=None):
     queues = config['zmon.queues']
     for qn in queues.split(','):
         queue, N = (qn.rsplit('/', 1) + [DEFAULT_NUM_PROC])[:2]
-        main_proc.proc_control.spawn_many(int(N), kwargs={"queue": queue, "flow": "simple_queue_processor"},
-                                          flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
+        main_proc.proc_control.spawn_many(
+            int(N),
+            kwargs={
+                'queue': queue,
+                'flow': 'simple_queue_processor',
+                'tracer': config.get('opentracing.tracer'),
+            },
+            flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
     if not args.no_rpc:
         try:

@@ -10,17 +10,18 @@ ZMON Worker
    :target: https://codecov.io/gh/zalando-zmon/zmon-worker
    :alt: Coverage Status
 
-.. image:: https://img.shields.io/pypi/dw/zmon-worker.svg
-   :target: https://pypi.python.org/pypi/zmon-worker/
-   :alt: PyPI Downloads
-
 .. image:: https://img.shields.io/pypi/v/zmon-worker.svg
    :target: https://pypi.python.org/pypi/zmon-worker/
    :alt: Latest PyPI version
 
+.. image:: https://img.shields.io/badge/OpenTracing-enabled-blue.svg
+   :target: http://opentracing.io
+   :alt: OpenTracing enabled
+
 .. image:: https://img.shields.io/pypi/l/zmon-worker.svg
    :target: https://pypi.python.org/pypi/zmon-worker/
    :alt: License
+
 
 ZMON's Python worker is doing the heavy lifting of executing tasks against entities, and evaluating all alerts assigned to check.
 Tasks are picked up from Redis and the resulting check values plus alert state changes are written back to Redis.

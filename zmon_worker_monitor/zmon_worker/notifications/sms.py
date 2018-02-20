@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import requests
-from notification import BaseNotification
 import logging
+
+from opentracing_utils import trace, extract_span_from_kwargs
+
+from notification import BaseNotification
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,22 @@ class SmsException(Exception):
 
 class Sms(BaseNotification):
     @classmethod
+    @trace(operation_name='notification_sms', pass_span=True, tags={'notification': 'sms'})
     def notify(cls, alert, *args, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
+
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
+
+        entity = alert.get('entity')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
         provider_url = cls._config.get('notifications.sms.provider_url', SMS_PROVIDER_URL)
         phone_numbers = BaseNotification.resolve_group(args, phone=True)
         repeat = kwargs.get('repeat', 0)
@@ -38,9 +56,6 @@ class Sms(BaseNotification):
             'message_id': 1,
         }
 
-        # alert_id = alert.get('alert_def', {}).get('id', 0)
-        # entity = alert.get('entity', {}).get('id', 0)
-
         try:
             if cls._config.get('notifications.sms.on', True):
                 for phone in phone_numbers:
@@ -50,10 +65,10 @@ class Sms(BaseNotification):
                     logger.info('SMS sent: request to %s --> status: %s, response headers: %s, response body: %s',
                                 url_secured, r.status_code, r.headers, r.text)
                     r.raise_for_status()
-                    # eventlog.log(cls._EVENTS['SMS_SENT'].id, alertId=alert_id, entity=entity, phoneNumber=phone,
-                    #              httpStatus=r.status_code)
-        except Exception:
-            logger.exception('Failed to send sms for alert %s with id %s to: %s', alert['name'], alert['id'],
+        except Exception as e:
+            current_span.set_tag('error', True)
+            current_span.log_kv({'exception': str(e)})
+            logger.exception('Failed to send sms for alert %s with id %s to: %s', alert_def['name'], alert_def['id'],
                              list(phone_numbers))
         finally:
             return repeat

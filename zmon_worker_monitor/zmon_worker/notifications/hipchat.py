@@ -6,6 +6,8 @@ import requests
 
 from urllib2 import urlparse
 
+from opentracing_utils import trace, extract_span_from_kwargs
+
 from notification import BaseNotification
 
 logger = logging.getLogger(__name__)
@@ -13,11 +15,26 @@ logger = logging.getLogger(__name__)
 
 class NotifyHipchat(BaseNotification):
     @classmethod
+    @trace(operation_name='notification_hipchat', pass_span=True, tags={'notification': 'hipchat'})
     def notify(cls, alert, *args, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
+
         url = cls._config.get('notifications.hipchat.url')
         token = kwargs.get('token', cls._config.get('notifications.hipchat.token'))
         repeat = kwargs.get('repeat', 0)
         notify = kwargs.get('notify', False)
+        alert_def = alert['alert_def']
+
+        current_span.set_tag('alert_id', alert_def['id'])
+
+        entity = alert.get('entity')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
 
         color = 'green' if alert and not alert.get('is_alert') else kwargs.get('color', 'red')
 
@@ -44,7 +61,9 @@ class NotifyHipchat(BaseNotification):
                 '{}/v2/room/{}/notification'.format(url, urllib.quote(kwargs['room'])),
                 json=message, params={'auth_token': token}, headers={'Content-type': 'application/json'})
             r.raise_for_status()
-        except Exception:
+        except Exception as e:
+            current_span.set_tag('error', True)
+            current_span.log_kv({'exception': str(e)})
             logger.exception('Hipchat write failed!')
 
         return repeat

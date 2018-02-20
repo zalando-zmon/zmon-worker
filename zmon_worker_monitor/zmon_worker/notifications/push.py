@@ -1,8 +1,10 @@
-from notification import BaseNotification
-
 import json
 import requests
 import logging
+
+from opentracing_utils import trace, extract_span_from_kwargs
+
+from notification import BaseNotification
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +24,26 @@ def formatEntity(entity_id):
 
 class NotifyPush(BaseNotification):
     @classmethod
+    @trace(operation_name='notification_push', pass_span=True, tags={'notification': 'push'})
     def notify(cls, alert, *args, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
+
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
+
+        entity = alert.get('entity')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
         url = kwargs.get('url', cls._config.get('notifications.push.url'))
         key = kwargs.get('key', cls._config.get('notifications.push.key'))
 
-        if url is None or "" == url:
+        if url is None or not url:
             return 0
 
         repeat = kwargs.get('repeat', 0)
@@ -54,8 +71,9 @@ class NotifyPush(BaseNotification):
             r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type': 'application/json'},
                               data=json.dumps(message))
             r.raise_for_status()
-        except Exception:
-            pass
+        except Exception as e:
+            current_span.set_tag('error', True)
+            current_span.log_kv({'exception': str(e)})
 
         return repeat
 

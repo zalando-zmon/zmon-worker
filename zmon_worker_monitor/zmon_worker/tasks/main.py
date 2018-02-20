@@ -17,8 +17,6 @@ import urllib
 from urllib3.util import parse_url
 import math
 
-import eventlog
-from zmon_worker_monitor import eventloghttp
 
 from bisect import bisect_left
 from collections import Callable, Counter
@@ -30,8 +28,13 @@ import functional
 import jsonpath_rw
 import pytz
 import tokens
-from timeperiod import in_period, InvalidFormat
+import eventlog
+import opentracing
 
+from timeperiod import in_period, InvalidFormat
+from opentracing_utils import trace, extract_span_from_kwargs
+
+from zmon_worker_monitor import eventloghttp
 from zmon_worker_monitor import plugin_manager
 from zmon_worker_monitor.redis_context_manager import RedisConnHandler
 from zmon_worker_monitor.zmon_worker.common import mathfun
@@ -104,6 +107,8 @@ EVENTS = {
     'SMS_SENT': eventlog.Event(0x34007, ['alertId', 'entity', 'phoneNumber', 'httpStatus']),
     'ACCESS_DENIED': eventlog.Event(0x34008, ['userName', 'entity']),
 }
+
+OPENTRACING_DATASERVICE_CHECK_COUNT = 'worker_dataservice_check_count'
 
 get_value = itemgetter('value')
 
@@ -876,6 +881,12 @@ class MainTask(object):
 
     @classmethod
     def send_to_dataservice(cls, check_results, timeout=10):
+        """
+        Report all check results back to ZMON backend (data-service)
+
+        :param check_results: List of check results.
+        :type check_results: list
+        """
 
         headers = {'Content-Type': 'application/json', 'User-Agent': get_user_agent()}
 
@@ -895,37 +906,60 @@ class MainTask(object):
             # make separate posts per check_id
             for check_id, results in results_by_id.items():
 
-                url = '{url}/api/v2/data/{account}/{check_id}/{region}'.format(url=cls._dataservice_url,
-                                                                               account=urllib.quote(account),
-                                                                               check_id=check_id,
-                                                                               region=region)
-                worker_result = {
-                    'team': team,
-                    'account': account,
-                    'region': region,
-                    'results': results,
-                }
+                # Which span to pickup from all the results?! - we start a fresh span for this check results list!
+                current_span = opentracing.tracer.start_span(operation_name='send_to_dataservice')
 
-                # we can skip this data, this problem will never fix itself
-                serialized_data = None
-                try:
-                    serialized_data = json.dumps(worker_result, cls=JsonDataEncoder)
-                except Exception as ex:
-                    logger.exception('Failed to serialize data for check {} {}: {}'.format(check_id, ex, results))
+                with current_span:
 
-                if serialized_data is not None:
-                    r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
-                    r.raise_for_status()
+                    url = '{url}/api/v2/data/{account}/{check_id}/{region}'.format(url=cls._dataservice_url,
+                                                                                   account=urllib.quote(account),
+                                                                                   check_id=check_id,
+                                                                                   region=region)
+                    worker_result = {
+                        'team': team,
+                        'account': account,
+                        'region': region,
+                        'results': results,
+                    }
+
+                    (current_span.set_tag('team', team)
+                        .set_tag('account', account)
+                        .set_tag('region', region)
+                        .set_tag('check_id', check_id))
+
+                    # we can skip this data, this problem will never fix itself
+                    serialized_data = None
+                    try:
+                        serialized_data = json.dumps(worker_result, cls=JsonDataEncoder)
+                    except Exception as ex:
+                        logger.exception('Failed to serialize data for check {} {}: {}'.format(check_id, ex, results))
+                        current_span.set_tag('skip_check_result', True)
+                        current_span.log_kv({
+                            'serialization_exception': str(ex),
+                            'check_id': str(check_id),
+                        })
+
+                    if serialized_data is not None:
+                        r = requests.put(url, data=serialized_data, timeout=timeout, headers=headers)
+                        r.raise_for_status()
         except Exception as ex:
             logger.error('Error in data service send: url={} ex={}'.format(cls._dataservice_url, ex))
             raise
 
-    def check_and_notify(self, req, alerts, task_context=None):
+    @trace(pass_span=True)
+    def check_and_notify(self, req, alerts, task_context=None, **kwargs):
+        # Current OpenTracing span.
+        current_span = extract_span_from_kwargs(**kwargs)
+
         self.task_context = task_context
         start_time = time.time()
         # soft_time_limit = req['interval']
         check_id = req['check_id']
         entity_id = req['entity']['id']
+
+        current_span.set_tag('check_id', check_id)
+        current_span.set_tag('entity_id', entity_id)
+        current_span.log_kv({'alerts': [a['id'] for a in alerts]})
 
         try:
             val = self.check(req)
@@ -940,16 +974,19 @@ class MainTask(object):
         #     notify(check_and_notify, {'ts': start_time, 'td': soft_time_limit, 'value': str(e)}, req, alerts,
         #            force_alert=True)
         except CheckError, e:
-            # self.logger.warn(
-            #     'Check failed for request with id %s on entity %s. Output: %s', check_id, entity_id, str(e))
             self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
                          'exc': 1}, req, alerts,
                         force_alert=True)
         except SecurityError, e:
             self.logger.exception('Security exception in request with id %s on entity %s', check_id, entity_id)
-            self.notify({'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
-                         'exc': 1}, req, alerts,
-                        force_alert=True)
+            current_span.set_tag('security_exception', True)
+            current_span.log_kv({'exception': str(e)})
+            self.notify(
+                {
+                    'ts': start_time, 'td': time.time() - start_time, 'value': str(e), 'worker': self.worker_name,
+                    'exc': 1
+                },
+                req, alerts, force_alert=True)
         except Exception, e:
             # self.logger.exception('Check request with id %s on entity %s threw an exception', check_id, entity_id)
             # PF-3685 Disconnect on unknown exceptions: we don't know what actually happened, it might be that redis
@@ -963,11 +1000,17 @@ class MainTask(object):
         else:
             self.notify(val, req, alerts)
 
-    def trial_run(self, req, alerts, task_context=None):
+    @trace()
+    def trial_run(self, req, alerts, task_context=None, **kwargs):
+        # Current OpenTracing span.
+        current_span = extract_span_from_kwargs(**kwargs)
+
         self.task_context = task_context
         start_time = time.time()
         # soft_time_limit = req['interval']
         entity_id = req['entity']['id']
+
+        current_span.set_tag('entity_id', entity_id)
 
         try:
             val = self.check_for_trial_run(req)
@@ -979,7 +1022,6 @@ class MainTask(object):
         #                          force_alert=True)
         except InsufficientPermissionsError, e:
             self.logger.info('Access denied for user %s to run check on %s', req['created_by'], entity_id)
-            # eventlog.log(EVENTS['ACCESS_DENIED'].id, userName=req['created_by'], entity=entity_id)
             self.notify_for_trial_run({'ts': start_time, 'td': time.time() - start_time, 'value': str(e)}, req,
                                       alerts, force_alert=True)
         except CheckError, e:
@@ -994,6 +1036,7 @@ class MainTask(object):
         else:
             self.notify_for_trial_run(val, req, alerts)
 
+    @trace()
     def cleanup(self, *args, **kwargs):
         self.task_context = kwargs.get('task_context')
         p = self.con.pipeline()
@@ -1125,6 +1168,7 @@ class MainTask(object):
                 'Result size ({}KB) exceeded the maximum size: {}KB'.format(
                     size, self.max_result_size))
 
+    @trace()
     def check(self, req):
 
         self.logger.debug(req)
@@ -1421,7 +1465,8 @@ class MainTask(object):
                 self.con.hset('zmon:notifications:{}:{}'.format(context['alert_def']['id'], context['entity']['id']),
                               notification, time.time() + repeat)
 
-    def notify(self, val, req, alerts, force_alert=False):
+    @trace(pass_span=True)
+    def notify(self, val, req, alerts, force_alert=False, **kwargs):
         '''
         Process check result and evaluate all alerts. Returns list of active alert IDs
         Parameters
@@ -1440,6 +1485,8 @@ class MainTask(object):
         list
             A list of alert definitions matching given entity.
         '''
+        # OpenTracing current span!
+        current_span = extract_span_from_kwargs(**kwargs)
 
         def ts_serialize(ts):
             return datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
@@ -1593,19 +1640,11 @@ class MainTask(object):
                     # do not send notifications for downtimed alerts
                     if not downtimes:
                         if changed:
-                            if 'notifications' not in alert:
-                                alert['notifications'] = ['notify_push()']
-
-                            # do not overwrite custom push notification
-                            if not [n for n in alert['notifications'] if
-                                    n.startswith('send_push') or n.startswith('notify_push')]:
-                                alert['notifications'].append('notify_push()')
-
-                            for notification in alert['notifications']:
+                            for notification in alert.get('notifications', []):
                                 self.send_notification(notification, notification_context)
                         else:
                             previous_times = self.con.hgetall(notifications_key)
-                            for notification in alert['notifications']:
+                            for notification in alert.get('notifications', []):
                                 if notification in previous_times and time.time() > float(previous_times[notification]):
                                     self.send_notification(notification, notification_context)
 
@@ -1630,10 +1669,12 @@ class MainTask(object):
                         self.logger.info(
                             'Removed alert with id %s on entity %s from active alerts due to time period: %s',
                             alert_id, entity_id, alert.get('period', ''))
-
-                # add to alert report regardless alert up/down/out of period
-                # report['results']['alerts'][alert_id]['_alert_stored'] = alert_stored
-                # report['results']['alerts'][alert_id]['_notifications_stored'] = notifications_stored
+                        current_span.set_tag('downtime', True)
+                        current_span.log_kv({
+                            'alert_id': alert_id,
+                            'entity_id': entity_id,
+                            'time_period': alert['period'],
+                        })
 
                 check_result['alerts'][alert_id]['start_time'] = ts_serialize(
                     alert_stored['start_time']) if alert_stored else None
@@ -1644,7 +1685,6 @@ class MainTask(object):
 
             # enqueue report to be sent via http request
             if self._dataservice_poster:
-                # 'entity_id': req['entity']['id'],
                 check_result['entity'] = {'id': req['entity']['id']}
 
                 for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
@@ -1669,6 +1709,7 @@ class MainTask(object):
             self.con.connection_pool.disconnect()
             return None
 
+    @trace()
     def post_trial_run(self, id, entity, result):
         if self._dataservice_url is not None:
 
@@ -1689,6 +1730,7 @@ class MainTask(object):
             except Exception:
                 self.logger.exception('Posting trial run failed')
 
+    @trace()
     def notify_for_trial_run(self, val, req, alerts, force_alert=False):
         """Like notify(), but for trial runs!"""
 

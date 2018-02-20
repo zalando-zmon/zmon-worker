@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     try:
         setup(
-            name="zmon-worker",
+            name='zmon-worker',
             version=__import__('zmon_worker_monitor').__version__,
             description='ZMON Worker Monitor',
             url='https://github.com/zalando/zmon-worker',
@@ -25,6 +25,7 @@ if __name__ == '__main__':
             # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
             setup_requires=['numpy', 'flake8', 'pytest-runner'],
             install_requires=load_req('requirements.txt'),
+            dependency_links=['git+https://github.com/zalando-zmon/opentracing-utils.git#egg=opentracing_utils'],
             test_suite='tests',
             tests_require=load_req('test_requirements.txt'),
 
@@ -36,8 +37,8 @@ if __name__ == '__main__':
             include_package_data=True,  # needed to include templates (see MANIFEST.in)
 
             # more metadata for upload to PyPI
-            author="Henning Jacobs",
-            author_email="henning.jacobs@zalando.de",
+            author='Henning Jacobs',
+            author_email='henning.jacobs@zalando.de',
             keywords='zalando zmon zmon2 worker component monitoring infrastructure',
             long_description=open('README.rst').read(),
             classifiers=[

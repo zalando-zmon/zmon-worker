@@ -6,6 +6,8 @@ import requests
 
 from urllib2 import urlparse
 
+from opentracing_utils import trace, extract_span_from_kwargs
+
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
@@ -19,7 +21,11 @@ logger = logging.getLogger(__name__)
 
 class NotifyPagerduty(BaseNotification):
     @classmethod
+    @trace(operation_name='notification_pagerduty', pass_span=True, tags={'notification': 'pagerduty'})
     def notify(cls, alert, per_entity=False, include_alert=True, message='', repeat=0, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
+
         url = 'https://events.pagerduty.com/v2/enqueue'
 
         repeat = kwargs.get('repeat', 0)
@@ -29,11 +35,17 @@ class NotifyPagerduty(BaseNotification):
         zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
 
         if not routing_key:
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'Missing routing_key'})
             raise NotificationError('Service key is required!')
 
         entity = alert.get('entity')
         is_changed = alert.get('alert_changed')
         is_alert = alert.get('is_alert')
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
 
         if not is_changed and not per_entity:
             return repeat
@@ -75,6 +87,7 @@ class NotifyPagerduty(BaseNotification):
 
             r.raise_for_status()
         except Exception:
+            current_span.set_tag('error', True)
             logger.exception('Notifying Pagerduty failed')
 
         return repeat

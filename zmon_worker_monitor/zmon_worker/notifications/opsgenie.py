@@ -6,6 +6,8 @@ import requests
 
 from urllib2 import urlparse
 
+from opentracing_utils import trace, extract_span_from_kwargs
+
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 class NotifyOpsgenie(BaseNotification):
     @classmethod
+    @trace(operation_name='notification_opsgenie', pass_span=True, tags={'notification': 'opsgenie'})
     def notify(cls,
                alert,
                teams=None,
@@ -32,6 +35,8 @@ class NotifyOpsgenie(BaseNotification):
                description='',
                **kwargs):
 
+        current_span = extract_span_from_kwargs(**kwargs)
+
         url = 'https://api.opsgenie.com/v2/alerts'
 
         repeat = kwargs.get('repeat', 0)
@@ -41,13 +46,22 @@ class NotifyOpsgenie(BaseNotification):
         zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
 
         if not api_key:
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'API key is required!'})
             raise NotificationError('API key is required!')
 
         if not isinstance(teams, (list, basestring)):
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'Missing team!'})
             raise NotificationError('Missing "teams" parameter. Either a team name or list of team names is required.')
 
         if priority and priority not in PRIORITIES:
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'Invalid priorities'})
             raise NotificationError('Invalid priority. Valid values are: {}'.format(PRIORITIES))
+
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
 
         if teams and isinstance(teams, basestring):
             teams = [{'name': teams}]
@@ -55,8 +69,12 @@ class NotifyOpsgenie(BaseNotification):
             teams = [{'name': t} for t in teams]
 
         entity = alert.get('entity')
-        is_changed = alert.get('alert_changed')
-        is_alert = alert.get('is_alert')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
 
         if not is_changed and not per_entity:
             return repeat
@@ -129,8 +147,11 @@ class NotifyOpsgenie(BaseNotification):
 
             r.raise_for_status()
         except requests.HTTPError as e:
+            current_span.set_tag('error', True)
             logger.error('HTTP Error ({}) {}'.format(e.response.status_code, e.response.text))
-        except Exception:
+        except Exception as e:
+            current_span.set_tag('error', True)
+            current_span.log_kv({'exception': str(e)})
             logger.exception('Notifying Opsgenie failed')
 
         return repeat
