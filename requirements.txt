@@ -13,7 +13,7 @@ Jinja2
 jsonpath-rw
 MarkupSafe
 numpy
-opentracing==1.2.2
+opentracing>=1.2.2,<2
 opentracing_utils
 prometheus_client
 psycopg2
