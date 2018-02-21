@@ -36,6 +36,8 @@ class NotifyHipchat(BaseNotification):
         current_span.set_tag('alert_changed', bool(is_changed))
         current_span.set_tag('is_alert', is_alert)
 
+        current_span.log_kv({'room': kwargs.get('room')})
+
         color = 'green' if alert and not alert.get('is_alert') else kwargs.get('color', 'red')
 
         message_text = cls._get_subject(alert, custom_message=kwargs.get('message'))

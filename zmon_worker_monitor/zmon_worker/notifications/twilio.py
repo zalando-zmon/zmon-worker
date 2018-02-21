@@ -10,6 +10,8 @@ import json
 import requests
 import tokens
 
+from opentracing_utils import trace, extract_span_from_kwargs
+
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 
@@ -24,15 +26,31 @@ tokens.manage('uid', ['uid'])
 class NotifyTwilio(BaseNotification):
 
     @classmethod
+    @trace(operation_name='notification_http', pass_span=True, tags={'notification': 'twilio'})
     def notify(cls, alert, *args, **kwargs):
+
+        current_span = extract_span_from_kwargs(**kwargs)
 
         repeat = kwargs.get('repeat', 0)
         oauth2 = kwargs.get('oauth2', True)
         headers = {'Content-type': 'application/json'}
         timeout = 5
 
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
+
+        entity = alert.get('entity')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
         url = cls._config.get('notifications.service.url', None)
         if not url:
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'No notification service url set!'})
             logger.error('No notification service url set')
             return repeat
 

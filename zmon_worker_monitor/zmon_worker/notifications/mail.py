@@ -43,11 +43,6 @@ class Mail(BaseNotification):
 
         current_span.set_tag('alert_id', alert_def['id'])
 
-        if not cls._config.get('notifications.mail.on', True):
-            current_span.set_tag('mail_enabled', False)
-            logger.info('Not sending email for alert: {}. Mail notification is not enabled.'.format(alert_def['id']))
-            return repeat
-
         entity = alert.get('entity', {})
         is_changed = alert.get('alert_changed', False)
         is_alert = alert.get('is_alert', False)
@@ -55,6 +50,11 @@ class Mail(BaseNotification):
         current_span.set_tag('entity', entity.get('id'))
         current_span.set_tag('alert_changed', bool(is_changed))
         current_span.set_tag('is_alert', is_alert)
+
+        if not cls._config.get('notifications.mail.on', True):
+            current_span.set_tag('mail_enabled', False)
+            logger.info('Not sending email for alert: {}. Mail notification is not enabled.'.format(alert_def['id']))
+            return repeat
 
         if not is_changed and not per_entity:
             return repeat

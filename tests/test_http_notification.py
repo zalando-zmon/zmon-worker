@@ -24,7 +24,7 @@ def test_http_notification(monkeypatch):
 
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
 
     NotifyHttp._config = {'notifications.http.default.url': URL}
     r = NotifyHttp.notify(alert)
@@ -44,7 +44,7 @@ def test_http_notification_oauth2(monkeypatch):
     monkeypatch.setattr('requests.post', post)
     monkeypatch.setattr('tokens.get', get)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
 
     NotifyHttp._config = {'notifications.http.default.url': URL}
     r = NotifyHttp.notify(alert, oauth2=True)
@@ -66,7 +66,7 @@ def test_http_notification_check_allowed(monkeypatch, urls, result):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
 
     NotifyHttp._config = {'notifications.http.whitelist.urls': urls}
 
@@ -87,7 +87,7 @@ def test_http_notification_allow_all(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
 
     NotifyHttp._config = {
         'notifications.http.whitelist.urls': 'http://some-other-service, https://some-3rd-service',
@@ -106,7 +106,7 @@ def test_http_notification_url_error(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
 
     NotifyHttp._config = {}
     with pytest.raises(NotificationError):
@@ -118,7 +118,7 @@ def test_http_notification_args(monkeypatch, include_alert):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 1}}
     body = {'zmon': True}
     params = {'token': 123}
     headers = {'X-CSRFTOKEN': '1234'}

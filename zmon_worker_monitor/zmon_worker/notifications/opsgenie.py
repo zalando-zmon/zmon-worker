@@ -45,6 +45,17 @@ class NotifyOpsgenie(BaseNotification):
         api_key = kwargs.get('api_key', cls._config.get('notifications.opsgenie.apikey'))
         zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
 
+        entity = alert.get('entity')
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity['id'])
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
+
         if not api_key:
             current_span.set_tag('notification_invalid', True)
             current_span.log_kv({'reason': 'API key is required!'})
@@ -55,26 +66,17 @@ class NotifyOpsgenie(BaseNotification):
             current_span.log_kv({'reason': 'Missing team!'})
             raise NotificationError('Missing "teams" parameter. Either a team name or list of team names is required.')
 
+        current_span.log_kv({'teams': teams})
+
         if priority and priority not in PRIORITIES:
             current_span.set_tag('notification_invalid', True)
             current_span.log_kv({'reason': 'Invalid priorities'})
             raise NotificationError('Invalid priority. Valid values are: {}'.format(PRIORITIES))
 
-        alert_def = alert['alert_def']
-        current_span.set_tag('alert_id', alert_def['id'])
-
         if teams and isinstance(teams, basestring):
             teams = [{'name': teams}]
         else:
             teams = [{'name': t} for t in teams]
-
-        entity = alert.get('entity')
-        is_changed = alert.get('alert_changed', False)
-        is_alert = alert.get('is_alert', False)
-
-        current_span.set_tag('entity', entity['id'])
-        current_span.set_tag('alert_changed', bool(is_changed))
-        current_span.set_tag('is_alert', is_alert)
 
         if not is_changed and not per_entity:
             return repeat

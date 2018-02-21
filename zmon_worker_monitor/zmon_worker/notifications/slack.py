@@ -34,6 +34,8 @@ class NotifySlack(BaseNotification):
         url = kwargs.get('webhook', cls._config.get('notifications.slack.webhook'))
         repeat = kwargs.get('repeat', 0)
 
+        current_span.log_kv({'channel': kwargs.get('channel')})
+
         if not url:
             current_span.set_tag('notification_invalid', True)
             current_span.log_kv({'reason': 'Missing webhook!'})

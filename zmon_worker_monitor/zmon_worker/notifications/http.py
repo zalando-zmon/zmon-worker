@@ -31,6 +31,17 @@ class NotifyHttp(BaseNotification):
         allow_any = cls._config.get('notifications.http.allow.all', False)
         default_url = cls._config.get('notifications.http.default.url', None)
 
+        alert_def = alert['alert_def']
+        current_span.set_tag('alert_id', alert_def['id'])
+
+        entity = alert.get('entity', {})
+        is_changed = alert.get('alert_changed', False)
+        is_alert = alert.get('is_alert', False)
+
+        current_span.set_tag('entity', entity.get('id'))
+        current_span.set_tag('alert_changed', bool(is_changed))
+        current_span.set_tag('is_alert', is_alert)
+
         if isinstance(urls, basestring):
             urls = urls.replace(' ', '').split(',')
 
@@ -50,14 +61,6 @@ class NotifyHttp(BaseNotification):
             current_span.set_tag('notification_invalid', True)
             current_span.log_kv({'reason': 'Absolute URL required!'})
             raise NotificationError('Absolute URL is required!')
-
-        entity = alert.get('entity', {})
-        is_changed = alert.get('alert_changed', False)
-        is_alert = alert.get('is_alert', False)
-
-        current_span.set_tag('entity', entity.get('id'))
-        current_span.set_tag('alert_changed', bool(is_changed))
-        current_span.set_tag('is_alert', is_alert)
 
         # HTTP headers.
         if not headers:

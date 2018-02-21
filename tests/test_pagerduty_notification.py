@@ -71,8 +71,13 @@ def test_pagerduty_notification_no_change(monkeypatch):
 def test_pagerduty_notification_error_service_key(monkeypatch):
     NotifyPagerduty._config = {}
 
+    alert = {
+        'is_alert': True, 'alert_changed': False, 'alert_def': {'id': 123, 'priority': 1},
+        'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+    }
+
     with pytest.raises(NotificationError):
-        NotifyPagerduty.notify({}, message=MESSAGE)
+        NotifyPagerduty.notify(alert, message=MESSAGE)
 
 
 def test_pagerduty_notification_exception(monkeypatch):

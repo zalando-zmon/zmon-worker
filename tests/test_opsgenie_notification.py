@@ -182,18 +182,42 @@ def test_opsgenie_notification_no_change(monkeypatch):
 def test_opsgenie_notification_error_api_key(monkeypatch):
     NotifyOpsgenie._config = {}
 
+    alert = {
+        'alert_changed': True, 'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1,
+        }
+    }
+
     with pytest.raises(NotificationError):
-        NotifyOpsgenie.notify({}, message=MESSAGE)
+        NotifyOpsgenie.notify(alert, message=MESSAGE)
 
 
 def test_opsgenie_notification_error_teams(monkeypatch):
     NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
 
-    with pytest.raises(NotificationError):
-        NotifyOpsgenie.notify({}, message=MESSAGE)
+    alert = {
+        'alert_changed': True, 'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1,
+        }
+    }
 
     with pytest.raises(NotificationError):
-        NotifyOpsgenie.notify({}, teams='team-1', message=MESSAGE, priority='p1')
+        NotifyOpsgenie.notify(alert, message=MESSAGE)
+
+    with pytest.raises(NotificationError):
+        NotifyOpsgenie.notify(alert, teams='team-1', message=MESSAGE, priority='p1')
 
 
 def test_opsgenie_notification_exception(monkeypatch):

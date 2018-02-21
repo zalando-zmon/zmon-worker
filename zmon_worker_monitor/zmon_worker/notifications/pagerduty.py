@@ -34,10 +34,8 @@ class NotifyPagerduty(BaseNotification):
         routing_key = kwargs.get('routing_key', cls._config.get('notifications.pagerduty.servicekey'))
         zmon_host = kwargs.get('zmon_host', cls._config.get('zmon.host'))
 
-        if not routing_key:
-            current_span.set_tag('notification_invalid', True)
-            current_span.log_kv({'reason': 'Missing routing_key'})
-            raise NotificationError('Service key is required!')
+        alert_id = alert['alert_def']['id']
+        current_span.set_tag('alert_id', alert_id)
 
         entity = alert.get('entity')
         is_changed = alert.get('alert_changed')
@@ -47,12 +45,16 @@ class NotifyPagerduty(BaseNotification):
         current_span.set_tag('alert_changed', bool(is_changed))
         current_span.set_tag('is_alert', is_alert)
 
+        if not routing_key:
+            current_span.set_tag('notification_invalid', True)
+            current_span.log_kv({'reason': 'Missing routing_key'})
+            raise NotificationError('Service key is required!')
+
         if not is_changed and not per_entity:
             return repeat
 
         event_action = 'trigger' if is_alert else 'resolve'
 
-        alert_id = alert['alert_def']['id']
         key = 'ZMON-{}'.format(alert_id) if not per_entity else 'ZMON-{}-{}'.format(alert_id, entity['id'])
 
         description = message if message else cls._get_subject(alert, include_event=False)
