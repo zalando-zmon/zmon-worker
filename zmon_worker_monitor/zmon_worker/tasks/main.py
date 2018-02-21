@@ -1000,7 +1000,7 @@ class MainTask(object):
         else:
             self.notify(val, req, alerts)
 
-    @trace()
+    @trace(pass_span=True)
     def trial_run(self, req, alerts, task_context=None, **kwargs):
         # Current OpenTracing span.
         current_span = extract_span_from_kwargs(**kwargs)
