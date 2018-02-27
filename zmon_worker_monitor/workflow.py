@@ -139,7 +139,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
                 # OpenTracing: picking up trace from scheduler
                 trace = msg_obj.get('properties', {}).get('trace', {})
 
-                span = extract_tracing_span(OPENTRACING_QUEUE_OPERATION, trace)
+                span = extract_tracing_span(trace)
                 span.set_operation_name(OPENTRACING_QUEUE_OPERATION)
 
                 # Top span tags
