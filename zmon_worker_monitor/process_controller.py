@@ -424,7 +424,7 @@ class ProcessPlus(Process):
             interval = (tnow - self.stored_pings[0]['timestamp']) if self.stored_pings else 0
 
         agg_data = {'tasks_per_sec': -1, 'tasks_per_min': -1, 'percent_idle': -1, 'interval': interval,
-                    'tasks_done': -1, 'pings_received': -1, 'average_task_duration': -1}
+                    'tasks_done': -1, 'pings_received': -1, 'average_task_duration': 0}
 
         pings = [p for p in self.stored_pings if tnow - p['timestamp'] <= interval]
         if pings:
@@ -433,7 +433,7 @@ class ProcessPlus(Process):
             agg_data['tasks_per_min'] = round((float(agg_data['tasks_done']) / interval) * 60, FLOAT_DIGITS)
             agg_data['percent_idle'] = round(float(sum([p['percent_idle'] for p in pings])) / len(pings), FLOAT_DIGITS)
             agg_data['pings_received'] = len(pings)
-            if agg_data['tasks_done']:
+            if agg_data['tasks_done'] > 0:
                 agg_data['average_task_duration'] = sum([p['task_duration'] for p in pings]
                                                         ) / float(agg_data['tasks_done'])
 
