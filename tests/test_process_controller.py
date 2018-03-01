@@ -554,7 +554,7 @@ def test_process_plus_ping_aggregations(monkeypatch):
 
     # check ping aggretation with no ping data
     aggregated_pings_no_data = {'tasks_per_sec': -1, 'tasks_per_min': -1, 'percent_idle': -1, 'interval': 0,
-                                'tasks_done': -1, 'pings_received': -1, 'average_task_duration': -1}
+                                'tasks_done': -1, 'pings_received': -1, 'average_task_duration': 0}
 
     assert pp.aggregate_pings() == aggregated_pings_no_data
 
