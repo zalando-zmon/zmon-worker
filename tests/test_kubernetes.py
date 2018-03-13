@@ -633,6 +633,92 @@ def test_resourcequotas(monkeypatch, kwargs, filter_kwargs, res):
     resourcequota.objects.return_value.filter.assert_called_with(**filter_kwargs)
 
 
+@pytest.mark.parametrize(
+    'kwargs,filter_kwargs,res',
+    [
+        (
+            {}, {},
+            [
+                resource_mock({'metadata': {'name': 'job-1'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'job-2'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'job-3'}, 'spec': {}, 'status': {}}),
+            ]
+        ),
+        (
+            {'application': 'job-1', 'name': 'job-1'},
+            {'selector': {'application': 'job-1'}, 'field_selector': {'metadata.name': 'job-1'}},
+            [resource_mock({'metadata': {'name': 'job-1'}, 'spec': {}, 'status': {}})]
+        ),
+        (
+            {'name': 'job-2'}, {'field_selector': {'metadata.name': 'job-2'}},
+            [resource_mock({'metadata': {'name': 'job-2'}, 'spec': {}, 'status': {}}, ready=False)]
+        ),
+    ]
+)
+def test_jobs(monkeypatch, kwargs, filter_kwargs, res):
+    client_mock(monkeypatch)
+    get_resources = get_resources_mock(res)
+
+    job = MagicMock()
+    query = job.objects.return_value.filter.return_value
+
+    monkeypatch.setattr(
+        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
+    monkeypatch.setattr('pykube.Job', job)
+
+    k = KubernetesWrapper()
+
+    pods = k.jobs(**kwargs)
+
+    assert [r.obj for r in res] == pods
+
+    get_resources.assert_called_with(query)
+    job.objects.return_value.filter.assert_called_with(**filter_kwargs)
+
+
+@pytest.mark.parametrize(
+    'kwargs,filter_kwargs,res',
+    [
+        (
+            {}, {},
+            [
+                resource_mock({'metadata': {'name': 'cronjob-1'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'cronjob-2'}, 'spec': {}, 'status': {}}),
+                resource_mock({'metadata': {'name': 'cronjob-3'}, 'spec': {}, 'status': {}}),
+            ]
+        ),
+        (
+            {'application': 'cronjob-1', 'name': 'cronjob-1'},
+            {'selector': {'application': 'cronjob-1'}, 'field_selector': {'metadata.name': 'cronjob-1'}},
+            [resource_mock({'metadata': {'name': 'cronjob-1'}, 'spec': {}, 'status': {}})]
+        ),
+        (
+            {'name': 'cronjob-2'}, {'field_selector': {'metadata.name': 'cronjob-2'}},
+            [resource_mock({'metadata': {'name': 'cronjob-2'}, 'spec': {}, 'status': {}}, ready=False)]
+        ),
+    ]
+)
+def test_cronjobs(monkeypatch, kwargs, filter_kwargs, res):
+    client_mock(monkeypatch)
+    get_resources = get_resources_mock(res)
+
+    cronjob = MagicMock()
+    query = cronjob.objects.return_value.filter.return_value
+
+    monkeypatch.setattr(
+        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
+    monkeypatch.setattr('pykube.CronJob', cronjob)
+
+    k = KubernetesWrapper()
+
+    pods = k.cronjobs(**kwargs)
+
+    assert [r.obj for r in res] == pods
+
+    get_resources.assert_called_with(query)
+    cronjob.objects.return_value.filter.assert_called_with(**filter_kwargs)
+
+
 def test_metrics(monkeypatch):
     client = client_mock(monkeypatch)
 

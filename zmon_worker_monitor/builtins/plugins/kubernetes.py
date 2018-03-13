@@ -392,6 +392,48 @@ class KubernetesWrapper(object):
 
         return [vc.obj for vc in pvs if phase is None or vc.obj['status'].get('phase') == phase]
 
+    def jobs(self, name=None, **kwargs):
+        """
+        Return list of Jobs.
+
+        :param name: Job name.
+        :type name: str
+
+        :param **kwargs: Job labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of Jobs. Typical Job has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
+
+        query = pykube.Job.objects(self.__client).filter(**filter_kwargs)
+
+        jobs = self._get_resources(query)
+
+        return [job.obj for job in jobs]
+
+    def cronjobs(self, name=None, **kwargs):
+        """
+        Return list of CronJobs.
+
+        :param name: CronJob name.
+        :type name: str
+
+        :param **kwargs: CronJob labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of CronJobs. Typical CronJob has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
+
+        query = pykube.CronJob.objects(self.__client).filter(**filter_kwargs)
+
+        cronjobs = self._get_resources(query)
+
+        return [job.obj for job in cronjobs]
+
     def metrics(self):
         """
         Return API server metrics in prometheus format.
