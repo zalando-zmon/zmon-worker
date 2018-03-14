@@ -13,13 +13,13 @@ STMT = 'SELECT * FROM X'
 
 @pytest.fixture(params=[
     (
-        {'shards': {'shard-1': 'pg-host:5432/db'}, 'shard': 'shard-1'},
+        {'shards': {'shard-1': 'pg-host:5432/db'}, 'shard': 'shard-1', 'timeout': 180000},
         {'col1': 1, 'col2': 2, 'col3': 3},
         {'col1': 1, 'col2': 2, 'col3': 3},
         [{'col1': 1, 'col2': 2, 'col3': 3}] * RESULT_COUNT,
     ),
     (
-        {'shards': {'shard-1': 'pg-host:5432/db-2'}, 'shard': 'shard-1', 'created_by': 'zmon'},
+        {'shards': {'shard-1': 'pg-host:5432/db-2'}, 'shard': 'shard-1', 'created_by': 'zmon', 'timeout': 90000},
         {'col1': 1, 'col2': 2, 'col3': 3},
         {'col1': 1, 'col2': 2, 'col3': 3},
         [{'col1': 1, 'col2': 2, 'col3': 3}] * RESULT_COUNT,
@@ -92,12 +92,12 @@ def fx_sql_error(request):
     return request.param
 
 
-def get_connection_str(shard_def, user='zmon', password='', connect_timeout=5, timeout=60000,
+def get_connection_str(shard_def, user='zmon', password='', connect_timeout=5,
                        created_by=None, check_id=None, **kwargs):
     m = CONNECTION_RE.match(shard_def)
 
     connection_str = ("host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' "
-                      "connect_timeout='{connect_timeout}' options='-c statement_timeout={timeout}' "
+                      "connect_timeout='{connect_timeout}' "
                       "application_name='ZMON Check {check_id} (created by {created_by})' ").format(
         host=m.group('host'),
         port=int(m.group('port') or DEFAULT_PORT),
@@ -105,7 +105,6 @@ def get_connection_str(shard_def, user='zmon', password='', connect_timeout=5, t
         user=user,
         password=password,
         connect_timeout=connect_timeout,
-        timeout=timeout,
         check_id=check_id,
         created_by=make_safe(created_by),
     )
@@ -130,9 +129,14 @@ def assert_connect(connect, kwargs):
 
     connect.assert_has_calls(calls, any_order=True)
     connect.return_value.set_session.assert_called_with(readonly=True, autocommit=True)
+
+    cursor_calls = [
+        call("SET statement_timeout TO %s;", [kwargs.get('timeout', 60000)])
+    ]
     if 'created_by' in kwargs:
-        connect.return_value.cursor.return_value.execute.assert_called_with(
-            PERMISSIONS_STMT, [kwargs['created_by']])
+        cursor_calls.append(call(PERMISSIONS_STMT, [kwargs['created_by']]))
+
+    connect.return_value.cursor.return_value.execute.assert_has_calls(cursor_calls)
 
 
 def mock_connect(connect_error=False, fetch_error=False, no_login=False, no_group=False, results={}):

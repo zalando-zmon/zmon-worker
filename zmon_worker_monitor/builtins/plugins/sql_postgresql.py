@@ -129,7 +129,7 @@ class SqlWrapper(object):
             if not m:
                 raise CheckError('Invalid shard connection: {}'.format(shard_def))
             connection_str = ("host='{host}' port='{port}' dbname='{dbname}' user='{user}' password='{password}' "
-                              "connect_timeout='{connect_timeout}' options='-c statement_timeout={timeout}' "
+                              "connect_timeout='{connect_timeout}' "
                               "application_name='ZMON Check {check_id} (created by {created_by})' ").format(
                 host=m.group('host'),
                 port=int(m.group('port') or DEFAULT_PORT),
@@ -137,7 +137,6 @@ class SqlWrapper(object):
                 user=user,
                 password=password,
                 connect_timeout=connect_timeout,
-                timeout=timeout,
                 check_id=check_id,
                 created_by=make_safe(created_by),
             )
@@ -145,6 +144,7 @@ class SqlWrapper(object):
                 conn = psycopg2.connect(connection_str)
                 conn.set_session(readonly=True, autocommit=True)
                 cursor = conn.cursor(cursor_factory=NamedTupleCursor)
+                cursor.execute("SET statement_timeout TO %s;", [timeout])
                 self._cursors.append(cursor)
             except Exception, e:
                 raise DbError(str(e), operation='Connect to {}'.format(shard_def)), None, sys.exc_info()[2]
