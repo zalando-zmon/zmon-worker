@@ -53,6 +53,7 @@ class BaseNotification(object):
     @classmethod
     def _get_expanded_alert_name(cls, alert, custom_message=None):
         name = (alert['alert_def']['name'] if not custom_message else custom_message)
+        name = name.encode('utf8')
         try:
             replacements = {'entities': alert['entity']['id']}
             replacements.update(alert['captures'])
