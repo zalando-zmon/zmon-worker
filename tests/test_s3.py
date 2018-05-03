@@ -131,11 +131,42 @@ def test_listing_on_existing_prefix(monkeypatch):
 
     file_list = s3_wrapper.list_bucket('bucket', 'prefix')
 
+    client.get_paginator.return_value.paginate.assert_called_with(
+        Bucket='bucket',
+        Prefix='prefix',
+        PaginationConfig={'MaxItems': 100}
+    )
+
     assert file_list is not None
     assert len(file_list.files()) is 1
     assert file_list.files()[0]['file_name'] is 'some_file'
     assert file_list.files()[0]['size'] is 123
     assert file_list.files()[0]['last_modified'] == datetime(2015, 1, 15, 14, 34, 56)
+
+
+def test_listing_with_delimiter(monkeypatch):
+
+    client = MagicMock()
+
+    def writer_side_effect(*args, **kwargs):
+        return {}
+    client.get_paginator.return_value.paginate.return_value.build_full_result.side_effect = writer_side_effect
+    get = MagicMock()
+    get.return_value.json.return_value = {'region': 'eu-central-1'}
+    monkeypatch.setattr('requests.get', get)
+    monkeypatch.setattr('boto3.client', lambda x, region_name: client)
+    s3_wrapper = S3Wrapper()
+
+    file_list = s3_wrapper.list_bucket('bucket', 'prefix', recursive=False)
+
+    client.get_paginator.return_value.paginate.assert_called_with(
+        Bucket='bucket',
+        Prefix='prefix',
+        Delimiter='/',
+        PaginationConfig={'MaxItems': 100}
+    )
+
+    assert file_list is not None
 
 
 def test_listing_on_prefix_that_has_no_objects(monkeypatch):
