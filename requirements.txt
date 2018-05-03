@@ -16,7 +16,6 @@ numpy
 opentracing>=1.2.2,<2
 opentracing_utils
 prometheus_client
-psycopg2
 pykube
 pymemcache>=1.4.3
 pymongo==3.0.3
