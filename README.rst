@@ -41,7 +41,7 @@ Ubuntu/Debian:
 
 .. code-block:: bash
 
-    $ sudo apt-get install build-essential python2.7-dev libpq-dev libldap2-dev libsasl2-dev libsnappy-dev
+    $ sudo apt-get install build-essential python2.7-dev libpq-dev libldap2-dev libsasl2-dev libsnappy-dev libev4 libev-dev freetds-dev
     $ sudo pip2 install -r requirements.txt
 
 macOS:
