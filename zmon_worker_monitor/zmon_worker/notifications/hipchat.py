@@ -25,6 +25,7 @@ class NotifyHipchat(BaseNotification):
         repeat = kwargs.get('repeat', 0)
         notify = kwargs.get('notify', False)
         alert_def = alert['alert_def']
+        message_format = kwargs.get('message_format', 'html')
 
         current_span.set_tag('alert_id', alert_def['id'])
 
@@ -47,12 +48,16 @@ class NotifyHipchat(BaseNotification):
             alert_id = alert['alert_def']['id']
             alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
             link_text = kwargs.get('link_text', 'go to alert')
-            message_text += ' -- <a href="{}" target="_blank">{}</a>'.format(alert_url, link_text)
+            if message_format == 'html':
+                message_text += ' -- <a href="{}" target="_blank">{}</a>'.format(alert_url, link_text)
+            else:
+                message_text += ' -- {} - {}'.format(link_text, alert_url)
 
         message = {
             'message': message_text,
             'color': color,
-            'notify': notify
+            'notify': notify,
+            'message_format': message_format
         }
 
         try:
