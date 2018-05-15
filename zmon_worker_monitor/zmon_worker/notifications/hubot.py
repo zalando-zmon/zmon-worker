@@ -3,6 +3,7 @@
 
 import requests
 import logging
+import traceback
 
 from opentracing_utils import trace, extract_span_from_kwargs
 
@@ -52,9 +53,9 @@ class Hubot(BaseNotification):
             r.raise_for_status()
             logger.info('Notification sent: request to %s --> status: %s, response headers: %s, response body: %s',
                         hubot_url, r.status_code, r.headers, r.text)
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception(
                 'Failed to send notification for alert %s with id %s to: %s', alert_def['name'], alert_def['id'],
                 hubot_url)

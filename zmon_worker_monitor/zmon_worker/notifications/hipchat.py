@@ -1,6 +1,7 @@
 import logging
 import urllib
 import json
+import traceback
 
 import requests
 
@@ -68,9 +69,9 @@ class NotifyHipchat(BaseNotification):
                 '{}/v2/room/{}/notification'.format(url, urllib.quote(kwargs['room'])),
                 json=message, params={'auth_token': token}, headers={'Content-type': 'application/json'})
             r.raise_for_status()
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Hipchat write failed!')
 
         return repeat

@@ -5,6 +5,7 @@ import os
 import smtplib
 import logging
 import jinja2
+import traceback
 
 from urllib2 import urlparse
 
@@ -62,7 +63,11 @@ class Mail(BaseNotification):
         sender = cls._config.get('notifications.mail.sender')
         subject = cls._get_subject(alert, custom_message=kwargs.get('subject'))
         html = kwargs.get('html', False)
+
         cc = kwargs.get('cc', [])
+        if type(cc) is not list:
+            cc = [cc]
+
         hide_recipients = kwargs.get('hide_recipients', True)
         include_value = kwargs.get('include_value', True)
         include_definition = kwargs.get('include_definition', True)
@@ -82,9 +87,9 @@ class Mail(BaseNotification):
                                      include_entity=include_entity,
                                      alert_url=alert_url,
                                      **alert)
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Error parsing email template for alert %s with id %s', alert_def['name'], alert_def['id'])
         else:
             if html:
@@ -154,9 +159,9 @@ class Mail(BaseNotification):
                     logger.exception(
                         'Error sending email for alert %s with id %s: authentication failed for %s',
                         alert_def['name'], alert_def['id'], mail_user)
-                except Exception as e:
+                except Exception:
                     current_span.set_tag('error', True)
-                    current_span.log_kv({'exception': str(e)})
+                    current_span.log_kv({'exception': traceback.format_exc()})
                     logger.exception(
                         'Error sending email for alert %s with id %s', alert_def['name'], alert_def['id'])
                 finally:

@@ -151,6 +151,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
             'entity': alert['entity']['id'],
             'infrastructure_account': 'UNKNOWN',
             'alert_evaluation_ts': 1234,
+            'alert_url': 'https://zmon.example.org/#/alert-details/123',
         },
         'priority': 'P3',
         'tags': ['tag-1'],

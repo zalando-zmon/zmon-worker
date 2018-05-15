@@ -1,6 +1,7 @@
 import json
 import requests
 import logging
+import traceback
 
 from opentracing_utils import trace, extract_span_from_kwargs
 
@@ -71,9 +72,9 @@ class NotifyPush(BaseNotification):
             r = requests.post(url, headers={"Authorization": "PreShared " + key, 'Content-Type': 'application/json'},
                               data=json.dumps(message))
             r.raise_for_status()
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
 
         return repeat
 

@@ -222,6 +222,6 @@ def test_send_mail_no_change(monkeypatch):
         'alert_changed': False
     }
 
-    r = m.Mail.notify(alert, 'e-1@example.com', per_entity=False, repeat=5)
+    r = m.Mail.notify(alert, 'e-1@example.com', cc='some-email@example.org', per_entity=False, repeat=5)
 
     assert 5 == r

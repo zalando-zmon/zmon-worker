@@ -1,6 +1,7 @@
 import time
 import json
 import logging
+import traceback
 
 import requests
 
@@ -84,7 +85,7 @@ class NotifyOpsgenie(BaseNotification):
         alert_id = alert['alert_def']['id']
         alias = 'ZMON-{}'.format(alert_id) if not per_entity else 'ZMON-{}-{}'.format(alert_id, entity['id'])
 
-        note = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
+        note = alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
 
         if not priority:
             priority = 'P1' if int(alert['alert_def']['priority']) == 1 else 'P3'
@@ -104,6 +105,7 @@ class NotifyOpsgenie(BaseNotification):
             'responsible_team': alert['alert_def']['responsible_team'],
             'entity': entity['id'],
             'infrastructure_account': entity.get('infrastructure_account', 'UNKNOWN'),
+            'alert_url': alert_url,
         }
 
         params = {}
@@ -151,9 +153,9 @@ class NotifyOpsgenie(BaseNotification):
         except requests.HTTPError as e:
             current_span.set_tag('error', True)
             logger.error('HTTP Error ({}) {}'.format(e.response.status_code, e.response.text))
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Notifying Opsgenie failed')
 
         return repeat

@@ -1,6 +1,7 @@
 import time
 import json
 import logging
+import traceback
 
 import requests
 
@@ -62,12 +63,14 @@ class NotifyPagerduty(BaseNotification):
         alert_class = kwargs.get('alert_class', '')
         alert_group = kwargs.get('alert_group', '')
 
+        alert_url = urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else ''
+
         message = {
             'routing_key': routing_key,
             'event_action': event_action,
             'dedup_key': key,
             'client': 'ZMON',
-            'client_url': urlparse.urljoin(zmon_host, '/#/alert-details/{}'.format(alert_id)) if zmon_host else '',
+            'client_url': alert_url,
             'payload': {
                 'summary': description,
                 'source': alert.get('worker', ''),
@@ -90,6 +93,7 @@ class NotifyPagerduty(BaseNotification):
             r.raise_for_status()
         except Exception:
             current_span.set_tag('error', True)
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Notifying Pagerduty failed')
 
         return repeat

@@ -3,6 +3,7 @@
 
 import requests
 import logging
+import traceback
 
 from opentracing_utils import trace, extract_span_from_kwargs
 
@@ -65,9 +66,9 @@ class Sms(BaseNotification):
                     logger.info('SMS sent: request to %s --> status: %s, response headers: %s, response body: %s',
                                 url_secured, r.status_code, r.headers, r.text)
                     r.raise_for_status()
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Failed to send sms for alert %s with id %s to: %s', alert_def['name'], alert_def['id'],
                              list(phone_numbers))
         finally:

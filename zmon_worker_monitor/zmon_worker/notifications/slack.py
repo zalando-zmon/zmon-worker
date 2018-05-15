@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 import requests
 
@@ -57,9 +58,9 @@ class NotifySlack(BaseNotification):
             logger.info('Sending to %s %s', url, message)
             r = requests.post(url, json=message, headers=headers, timeout=5)
             r.raise_for_status()
-        except Exception as e:
+        except Exception:
             current_span.set_tag('error', True)
-            current_span.log_kv({'exception': str(e)})
+            current_span.log_kv({'exception': traceback.format_exc()})
             logger.exception('Slack notification failed!')
 
         return repeat
