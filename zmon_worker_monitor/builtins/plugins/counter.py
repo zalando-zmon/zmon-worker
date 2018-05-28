@@ -39,7 +39,7 @@ class CounterWrapper(object):
     '''Measure increasing counts (per second) by saving the last value in Redis'''
 
     def __init__(self, key, redis_host, redis_port=6379, key_prefix=''):
-        self.__con = redis.StrictRedis(redis_host, redis_port)
+        self.__con = redis.StrictRedis(redis_host, redis_port, socket_connect_timeout=1, socket_timeout=5)
         self.key_prefix = key_prefix
         self.key(key)
 

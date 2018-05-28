@@ -224,5 +224,6 @@ class RedisConnHandler(object):
             active_server = self.get_active_server()
             c = parse_redis_conn(active_server)
             logger.info('Opening new Redis connection to %s:%s/%s..', c.hostname, c.port, c.virtual_host)
-            self._conn = redis.StrictRedis(host=c.hostname, port=c.port, db=c.virtual_host)
+            self._conn = redis.StrictRedis(host=c.hostname, port=c.port, db=c.virtual_host,
+                                           socket_timeout=15, socket_connect_timeout=15)
             return self._conn

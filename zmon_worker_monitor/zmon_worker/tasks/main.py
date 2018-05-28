@@ -44,7 +44,7 @@ from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta
 from zmon_worker_monitor.zmon_worker.common.utils import flatten, PeriodicBufferedAction
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 from zmon_worker_monitor.zmon_worker.errors import (
-    CheckError, InsufficientPermissionsError, SecurityError, ResultSizeError)
+    CheckError, AlertError, InsufficientPermissionsError, SecurityError, ResultSizeError)
 from zmon_worker_monitor.zmon_worker.notifications.http import NotifyHttp
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
@@ -1436,7 +1436,10 @@ class MainTask(object):
             result = True
 
         try:
-            is_alert = bool((result() if isinstance(result, Callable) else result))
+            alert_result = result() if isinstance(result, Callable) else result
+            if alert_result is None:
+                raise AlertError('Alert result cannot be None. Please return either True or False')
+            is_alert = bool(alert_result)
         except Exception, e:
             captures['exception'] = str(e)
             is_alert = True
