@@ -1,5 +1,6 @@
 import pytest
 import requests
+import time
 
 from mock import MagicMock
 
@@ -255,16 +256,41 @@ def fx_timeseries(request):
     return request.param
 
 
+@pytest.fixture(params=[
+    (
+        {'filter': 'filter-query', 'function': 'count', 'minutes': 10, 'align': 30},
+        {
+            'results': [{
+                'values': [5, 4, 3, 2, 1]
+            }],
+            'status': 'success'
+        },
+        [50, 40, 30, 20, 10]
+    ),
+])
+def fx_timeseries_aligned(request):
+    return request.param
+
+
 def get_query(query_type, func, key, **kwargs):
+    start_time = str(kwargs.get('minutes', '5')) + 'm'
+    end_time = None
+    if kwargs.get('align', 0) != 0:
+        cur_time = int(time.time())
+        end_time = cur_time - (cur_time % kwargs.get('align'))
+        start_time = end_time - (kwargs.get('minutes', 5) * 60)
+
     q = {
         'token': key,
         'queryType': query_type,
         'filter': kwargs.get('query', '') or kwargs.get('filter', ''),
         'function': func,
-        'startTime': str(kwargs.get('minutes', '5')) + 'm',
+        'startTime': start_time,
         'priority': kwargs.get('prio', 'low'),
         'buckets': kwargs.get('buckets', 1)
     }
+    if end_time:
+        q['endTime'] = end_time
 
     if 'field' in kwargs:
         q['field'] = kwargs['field']
@@ -288,6 +314,7 @@ def test_scalyr_eu_region():
 
 def test_scalyr_count(monkeypatch, fx_count):
     kwargs, res, exp = fx_count
+    kwargs.update({'align': 30})
 
     read_key = '123'
 
@@ -423,6 +450,7 @@ def test_scalyr_facets(monkeypatch, fx_facets):
 
 def test_scalyr_timeseries(monkeypatch, fx_timeseries):
     kwargs, res, exp = fx_timeseries
+    kwargs.update({'align': 30})
 
     read_key = '123'
 
@@ -438,6 +466,34 @@ def test_scalyr_timeseries(monkeypatch, fx_timeseries):
 
     if 'minutes' not in kwargs:
         kwargs['minutes'] = 30
+    query = get_query('facet', kwargs.get('function', 'count'), read_key, **kwargs)
+
+    query.pop('queryType')
+
+    final_q = {
+        'token': query.pop('token'),
+        'queries': [query]
+    }
+
+    post.assert_called_with(
+        scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
+
+
+def test_scalyr_timeseries_aligned(monkeypatch, fx_timeseries_aligned):
+    kwargs, res, exp = fx_timeseries_aligned
+
+    read_key = '123'
+
+    post = MagicMock()
+    post.return_value.json.return_value = res
+
+    monkeypatch.setattr('requests.post', post)
+
+    scalyr = ScalyrWrapper(read_key)
+    result = scalyr.timeseries(**kwargs)
+
+    assert result == exp
+
     query = get_query('facet', kwargs.get('function', 'count'), read_key, **kwargs)
 
     query.pop('queryType')

@@ -3,6 +3,7 @@
 
 import requests
 import logging
+import time
 
 from zmon_worker_monitor.zmon_worker.errors import ConfigurationError
 from zmon_worker_monitor.zmon_worker.errors import CheckError
@@ -48,8 +49,8 @@ class ScalyrWrapper(object):
             raise ConfigurationError('Scalyr read key is not set.')
         self.__read_key = read_key
 
-    def count(self, query, minutes=5):
-        return self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low')
+    def count(self, query, minutes=5, align=30):
+        return self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low', align=align)
 
     def logs(self, query, max_count=100, minutes=5, continuation_token=None, columns=None):
 
@@ -127,7 +128,13 @@ class ScalyrWrapper(object):
         j = r.json()
         return j
 
-    def timeseries(self, filter, function='count', minutes=30, buckets=1, prio='low'):
+    def timeseries(self, filter, function='count', minutes=30, buckets=1, prio='low', align=30):
+        start_time = str(minutes) + 'm'
+        end_time = None
+        if align != 0:
+            cur_time = int(time.time())  # this assumes the worker is running with UTC time
+            end_time = cur_time - (cur_time % align)
+            start_time = end_time - (minutes * 60)
 
         val = {
             'token': self.__read_key,
@@ -135,12 +142,14 @@ class ScalyrWrapper(object):
                 {
                     'filter': filter,
                     'function': function,
-                    'startTime': str(minutes) + 'm',
+                    'startTime': start_time,
                     'buckets': buckets,
                     'priority': prio
                 }
             ]
         }
+        if end_time:
+            val['queries'][0]['endTime'] = end_time
 
         r = requests.post(self.__timeseries_url, json=val, headers={'Content-Type': 'application/json'})
 
