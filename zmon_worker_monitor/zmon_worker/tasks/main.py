@@ -1732,7 +1732,7 @@ class MainTask(object):
                              data=json.dumps(val, cls=JsonDataEncoder),
                              headers=headers)
             except Exception:
-                current_span.log_kv({'exception', traceback.format_exc()})
+                current_span.log_kv({'exception': traceback.format_exc()})
                 current_span.set_tag('error', True)
                 self.logger.exception('Posting trial run failed')
 
@@ -1766,7 +1766,7 @@ class MainTask(object):
                 }
                 result_json = json.dumps(result, cls=JsonDataEncoder)
             except TypeError, e:
-                current_span.log_kv({'exception', traceback.format_exc()})
+                current_span.log_kv({'exception': traceback.format_exc()})
                 current_span.set_tag('error', True)
                 result = {
                     'entity': req['entity'],
@@ -1786,7 +1786,7 @@ class MainTask(object):
 
         # TODO: except SoftTimeLimitExceeded:
         except Exception:
-            current_span.log_kv({'exception', traceback.format_exc()})
+            current_span.log_kv({'exception': traceback.format_exc()})
             current_span.set_tag('error', True)
             self.con.connection_pool.disconnect()
             return None
