@@ -215,8 +215,7 @@ def process_message(queue, known_tasks, reactor, msg_obj, current_span):
     timelimit = msg_body.get('timelimit')  # [90, 60]
     t_hard, t_soft = timelimit
 
-    if taskname == 'trial_run':
-        current_span.set_tag('trial_run', True)
+    current_span.set_tag('taskname', taskname)
 
     # we pass task metadata as a kwargs right now, later will be put in the function context by decorator
     task_context = {
