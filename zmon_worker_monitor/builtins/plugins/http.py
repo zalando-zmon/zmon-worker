@@ -298,10 +298,10 @@ class HttpWrapper(object):
         return samples_by_name
 
     def headers(self, raise_error=True):
-        return self.__request(raise_error=raise_error).headers
+        return dict(self.__request(raise_error=raise_error).headers)
 
     def cookies(self, raise_error=True):
-        return self.__request(raise_error=raise_error).cookies
+        return dict(self.__request(raise_error=raise_error).cookies)
 
     def content_size(self, raise_error=True):
         return len(self.__request(raise_error=raise_error).content)

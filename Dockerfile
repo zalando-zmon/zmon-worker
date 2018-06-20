@@ -8,8 +8,6 @@ RUN apt-get update && apt-get -y install python-pip python-dev libev4 libev-dev 
 # make requests library use the Debian CA bundle (includes Zalando CA)
 ENV REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
-RUN pip2 install -U -e git+https://github.com/zalando-zmon/opentracing-utils.git#egg=opentracing-utils
-
 ADD requirements.txt /app/requirements.txt
 
 RUN pip2 install --upgrade -r /app/requirements.txt
