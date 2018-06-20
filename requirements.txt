@@ -14,7 +14,7 @@ jsonpath-rw
 MarkupSafe
 numpy
 opentracing>=1.2.2,<2
-opentracing_utils
+opentracing-utils>=0.14
 prometheus_client
 pykube
 pymemcache>=1.4.3
