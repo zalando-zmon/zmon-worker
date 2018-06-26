@@ -25,7 +25,6 @@ if __name__ == '__main__':
             # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
             setup_requires=['numpy', 'flake8', 'pytest-runner'],
             install_requires=load_req('requirements.txt'),
-            dependency_links=['git+https://github.com/zalando-zmon/opentracing-utils.git#egg=opentracing_utils'],
             test_suite='tests',
             tests_require=load_req('test_requirements.txt'),
 
