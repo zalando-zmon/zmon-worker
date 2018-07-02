@@ -99,10 +99,7 @@ class NotifyOpsgenie(BaseNotification):
 
         alert_details = {
             'worker': alert['worker'],
-            'id': alert_id,
-            'name': alert['alert_def']['name'],
-            'team': alert['alert_def']['team'],
-            'responsible_team': alert['alert_def']['responsible_team'],
+            'zmon_team': alert['alert_def']['team'],
             'entity': entity['id'],
             'infrastructure_account': entity.get('infrastructure_account', 'UNKNOWN'),
             'alert_url': alert_url,
@@ -111,6 +108,8 @@ class NotifyOpsgenie(BaseNotification):
         params = {}
 
         if is_alert:
+            tags = alert['alert_def'].get('tags', [])
+            tags.append(alert['alert_def']['id'])
             data = {
                 'alias': alias,
                 'teams': teams,
@@ -120,7 +119,7 @@ class NotifyOpsgenie(BaseNotification):
                 'entity': entity['id'],
                 'note': note,
                 'priority': priority,
-                'tags': alert['alert_def'].get('tags', []),
+                'tags': tags,
                 'details': details,
             }
 

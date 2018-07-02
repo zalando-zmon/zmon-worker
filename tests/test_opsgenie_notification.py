@@ -83,7 +83,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             'description': '',
             'entity': 'e-1',
             'priority': priority,
-            'tags': [],
+            'tags': [123],
             'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
             'source': 'worker-1',
             'note': '',
@@ -121,8 +121,8 @@ def test_opsgenie_notification_per_entity(monkeypatch):
         'alert_def': {
             'name': 'Alert',
             'team': 'team-1',
-            'responsible_team': 'zmon',
             'id': 123,
+            'responsible_team': 'zmon',
             'priority': 3,
             'tags': ['tag-1'],
         },
@@ -144,17 +144,14 @@ def test_opsgenie_notification_per_entity(monkeypatch):
         'entity': 'e-1',
         'details': {
             'worker': alert['worker'],
-            'id': alert['alert_def']['id'],
-            'name': alert['alert_def']['name'],
-            'team': alert['alert_def']['team'],
-            'responsible_team': alert['alert_def']['responsible_team'],
+            'zmon_team': alert['alert_def']['team'],
             'entity': alert['entity']['id'],
             'infrastructure_account': 'UNKNOWN',
             'alert_evaluation_ts': 1234,
             'alert_url': 'https://zmon.example.org/#/alert-details/123',
         },
         'priority': 'P3',
-        'tags': ['tag-1'],
+        'tags': ['tag-1', 123],
         'teams': [{'name': 'team-1'}],
     }
 
