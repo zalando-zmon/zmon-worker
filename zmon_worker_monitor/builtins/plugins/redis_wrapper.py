@@ -13,10 +13,12 @@ STATISTIC_GAUGE_KEYS = frozenset([
     'connected_clients',
     'connected_slaves',
     'instantaneous_ops_per_sec',
+    'mem_fragmentation_ratio',
     'master_repl_offset',
     'role',
     'slave0',
     'used_memory',
+    'used_memory_peak',
     'used_memory_rss',
 ])
 STATISTIC_COUNTER_KEYS = frozenset([
