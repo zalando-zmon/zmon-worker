@@ -161,7 +161,7 @@ class CloudwatchWrapper(object):
             val = self.query_one(
                 metric['Dimensions'], metric['MetricName'], statistics, metric['Namespace'], period,
                 start=start, end=end)
-            if val:
+            if val is not None:
                 for [dim_name, dim_val] in metric_dimensions.items():
                     if dim_name not in data['dimensions']:
                         data['dimensions'][dim_name] = collections.defaultdict(int)
