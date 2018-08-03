@@ -16,7 +16,9 @@ import time
 import urllib
 from urllib3.util import parse_url
 import math
-
+from base64 import b64decode
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
 
 from bisect import bisect_left
 from collections import Callable, Counter
@@ -662,6 +664,12 @@ def jsonpath_flat_filter(obj, path):
     return dict([(str(m.full_path), m.value) for m in match])
 
 
+def parse_cert(s, base64=True):
+    if base64:
+        s = b64decode(s)
+    return x509.load_pem_x509_certificate(s, default_backend())
+
+
 def build_default_context():
     return {
         'abs': abs,
@@ -702,6 +710,7 @@ def build_default_context():
         'normalvariate': random.normalvariate,
         'oct': oct,
         'ord': ord,
+        'parse_cert': parse_cert,
         'percentile': mathfun.percentile,
         'pow': pow,
         'range': range,

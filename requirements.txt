@@ -1,6 +1,7 @@
 boto3>=1.4.3
 bs4
 cassandra-driver>=3.12.0
+cryptography
 dnspython
 dogpile.cache
 eventlog-writer==0.4.5
