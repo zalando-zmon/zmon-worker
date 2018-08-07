@@ -279,6 +279,8 @@ def get_query(query_type, func, key, **kwargs):
         cur_time = int(time.time())
         end_time = cur_time - (cur_time % kwargs.get('align'))
         start_time = end_time - (kwargs.get('minutes', 5) * 60)
+    elif kwargs.get('until', None) is not None:
+        end_time = str(kwargs.get('until')) + 'm'
 
     q = {
         'token': key,
@@ -526,3 +528,30 @@ def test_scalyr_http_error(monkeypatch, method):
     f = getattr(scalyr, m)
     with pytest.raises(requests.exceptions.HTTPError):
         f(*args)
+
+
+@pytest.mark.parametrize(
+        'until', [(2880, None), (2880, 0), (2880, 1440), (1439, 0)])
+def test_scalyr_timeseries_until(monkeypatch, until):
+    start, end = until
+
+    read_key = '123'
+
+    post = MagicMock()
+    post.return_value.json.return_value = dict({'status': 'success', 'results': [{'values': [1]}]})
+
+    monkeypatch.setattr('requests.post', post)
+
+    scalyr = ScalyrWrapper(read_key)
+    scalyr.timeseries('', minutes=start, until=end, align=0)
+
+    query = get_query('facet', 'count', read_key, **{'minutes': start, 'until': end, 'align': 0})
+    query.pop('queryType')
+
+    final_q = {
+        'token': query.pop('token'),
+        'queries': [query]
+    }
+
+    post.assert_called_with(
+        scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
