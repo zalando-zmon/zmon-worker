@@ -49,11 +49,11 @@ class ScalyrWrapper(object):
             raise ConfigurationError('Scalyr read key is not set.')
         self.__read_key = read_key
 
-    def count(self, query, minutes=5, align=30, until=None):
+    def count(self, query, minutes=5, align=30, end=0):
         return self.timeseries(query, function='count', minutes=minutes, buckets=1, prio='low',
-                               align=align, until=until)
+                               align=align, end=end)
 
-    def logs(self, query, max_count=100, minutes=5, continuation_token=None, columns=None, until=None):
+    def logs(self, query, max_count=100, minutes=5, continuation_token=None, columns=None, end=0):
 
         if not query or not query.strip():
             raise CheckError('query "{}" is not allowed to be blank'.format(query))
@@ -66,8 +66,8 @@ class ScalyrWrapper(object):
             'startTime': str(minutes) + 'm',
             'priority': 'low'
         }
-        if until is not None:
-            val['endTime'] = str(until) + 'm'
+        if end is not None:
+            val['endTime'] = str(end) + 'm'
 
         if columns:
             val['columns'] = ','.join(columns) if type(columns) is list else str(columns)
@@ -90,7 +90,7 @@ class ScalyrWrapper(object):
         else:
             raise CheckError('No logs or error message was returned from scalyr')
 
-    def function(self, function, query, minutes=5, until=None):
+    def function(self, function, query, minutes=5, end=0):
 
         val = {
             'token': self.__read_key,
@@ -101,8 +101,8 @@ class ScalyrWrapper(object):
             'priority': 'low',
             'buckets': 1
         }
-        if until is not None:
-            val['endTime'] = str(until) + 'm'
+        if end is not None:
+            val['endTime'] = str(end) + 'm'
 
         r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
 
@@ -114,7 +114,7 @@ class ScalyrWrapper(object):
         else:
             return j
 
-    def facets(self, filter, field, max_count=5, minutes=30, prio='low', until=None):
+    def facets(self, filter, field, max_count=5, minutes=30, prio='low', end=0):
 
         val = {
             'token': self.__read_key,
@@ -125,8 +125,8 @@ class ScalyrWrapper(object):
             'startTime': str(minutes) + 'm',
             'priority': prio
         }
-        if until is not None:
-            val['endTime'] = str(until) + 'm'
+        if end is not None:
+            val['endTime'] = str(end) + 'm'
 
         r = requests.post(self.__facet_url, json=val, headers={'Content-Type': 'application/json'})
 
@@ -135,17 +135,17 @@ class ScalyrWrapper(object):
         j = r.json()
         return j
 
-    def timeseries(self, filter, function='count', minutes=30, buckets=1, prio='low', align=30, until=None):
+    def timeseries(self, filter, function='count', minutes=30, buckets=1, prio='low', align=30, end=0):
         start_time = str(minutes) + 'm'
         end_time = None
         if align != 0:
             cur_time = int(time.time())  # this assumes the worker is running with UTC time
-            if until is not None:
-                cur_time = int(time.time()) - 60 * until
+            if end is not None:
+                cur_time = int(time.time()) - 60 * end
             end_time = cur_time - (cur_time % align)
             start_time = end_time - (minutes * 60)
-        elif until is not None:
-            end_time = str(until) + 'm'
+        elif end is not None:
+            end_time = str(end) + 'm'
 
         val = {
             'token': self.__read_key,
