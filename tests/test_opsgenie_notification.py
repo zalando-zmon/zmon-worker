@@ -24,14 +24,14 @@ HEADERS = {
 }
 
 
-@pytest.mark.parametrize('is_alert,priority,override_description,set_customfileds',
+@pytest.mark.parametrize('is_alert,priority,override_description,set_custom_fileds',
                          ((True, None, None, None),
                           (True, 'P4', None, None),
                           (False, None, None, None),
                           (True, None, "override description", None),
-                          (True, None, None, {'customfield': 'values'}))
+                          (True, None, None, {'custom_field': 'values'}))
                          )
-def test_opsgenie_notification(monkeypatch, is_alert, priority, override_description, set_customfileds):
+def test_opsgenie_notification(monkeypatch, is_alert, priority, override_description, set_custom_fileds):
     post = MagicMock()
 
     monkeypatch.setattr('requests.post', post)
@@ -63,7 +63,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             include_alert=False,
             teams=['team-1', 'team-2'],
             description=override_description,
-            customfields=set_customfileds,
+            custom_fields=set_custom_fileds,
             **kwargs
         )
     else:
@@ -72,7 +72,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             message=MESSAGE,
             include_alert=False,
             teams=['team-1', 'team-2'],
-            customfields=set_customfileds,
+            custom_fields=set_custom_fileds,
             **kwargs
         )
 
@@ -81,8 +81,8 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
     if is_alert:
         details = {'alert_evaluation_ts': 1234}
 
-        if set_customfileds:
-            details.update(set_customfileds)
+        if set_custom_fileds:
+            details.update(set_custom_fileds)
 
         data = {
             'alias': 'ZMON-123',

@@ -32,7 +32,7 @@ class NotifyOpsgenie(BaseNotification):
                priority=None,
                message='',
                description='',
-               customfields=None,
+               custom_fields=None,
                **kwargs):
 
         current_span = extract_span_from_kwargs(**kwargs)
@@ -122,8 +122,8 @@ class NotifyOpsgenie(BaseNotification):
                 'details': details,
             }
 
-            if isinstance(customfields, dict):
-                data['details'].update(customfields)
+            if isinstance(custom_fields, dict):
+                data['details'].update(custom_fields)
 
             if include_alert:
                 data['details'].update(alert_details)
