@@ -16,9 +16,7 @@ from zmon_worker_monitor.zmon_worker.errors import NotificationError
 
 from notification import BaseNotification
 
-
 PRIORITIES = ('P1', 'P2', 'P3', 'P4', 'P5')
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +32,7 @@ class NotifyOpsgenie(BaseNotification):
                priority=None,
                message='',
                description='',
+               customfields=None,
                **kwargs):
 
         current_span = extract_span_from_kwargs(**kwargs)
@@ -122,6 +121,9 @@ class NotifyOpsgenie(BaseNotification):
                 'tags': tags,
                 'details': details,
             }
+
+            if isinstance(customfields, dict):
+                data['details'].update(customfields)
 
             if include_alert:
                 data['details'].update(alert_details)

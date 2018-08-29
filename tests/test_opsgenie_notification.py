@@ -11,7 +11,6 @@ from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
 from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie, NotificationError, get_user_agent
 
-
 URL_CREATE = 'https://api.opsgenie.com/v2/alerts'
 URL_CLOSE = 'https://api.opsgenie.com/v2/alerts/{}/close'
 API_KEY = '123'
@@ -25,13 +24,14 @@ HEADERS = {
 }
 
 
-@pytest.mark.parametrize('is_alert,priority,override_description',
-                         ((True, None, None),
-                          (True, 'P4', None),
-                          (False, None, None),
-                          (True, None, "override description"))
+@pytest.mark.parametrize('is_alert,priority,override_description,set_customfileds',
+                         ((True, None, None, None),
+                          (True, 'P4', None, None),
+                          (False, None, None, None),
+                          (True, None, "override description", None),
+                          (True, None, None, {'customfield': 'values'}))
                          )
-def test_opsgenie_notification(monkeypatch, is_alert, priority, override_description):
+def test_opsgenie_notification(monkeypatch, is_alert, priority, override_description, set_customfileds):
     post = MagicMock()
 
     monkeypatch.setattr('requests.post', post)
@@ -63,6 +63,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             include_alert=False,
             teams=['team-1', 'team-2'],
             description=override_description,
+            customfields=set_customfileds,
             **kwargs
         )
     else:
@@ -71,12 +72,18 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             message=MESSAGE,
             include_alert=False,
             teams=['team-1', 'team-2'],
+            customfields=set_customfileds,
             **kwargs
         )
 
     params = {}
 
     if is_alert:
+        details = {'alert_evaluation_ts': 1234}
+
+        if set_customfileds:
+            details.update(set_customfileds)
+
         data = {
             'alias': 'ZMON-123',
             'message': '[zmon] - {}'.format(MESSAGE),
@@ -87,7 +94,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
             'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
             'source': 'worker-1',
             'note': '',
-            'details': {'alert_evaluation_ts': 1234},
+            'details': details,
         }
 
         if override_description:
