@@ -69,9 +69,25 @@ def parse_datetime(s):
 
     >>> parse_datetime('2014-05-05 17:40:44.100313+01:00').isoformat(' ')
     '2014-05-05 16:40:44.100313'
+
+    >>> parse_datetime('2014-05-05 17:40:44.100313-05:00').isoformat(' ')
+    '2014-05-05 22:40:44.100313'
+
+    >>> parse_datetime('2014-05-05 17:40:44.100313Z').isoformat(' ')
+    '2014-05-05 17:40:44.100313'
+
+    >>> parse_datetime('2014-05-05 17:40:44+01:00').isoformat(' ')
+    '2014-05-05 16:40:44'
+
+    >>> parse_datetime('2014-05-05 17:40:44-05:00').isoformat(' ')
+    '2014-05-05 22:40:44'
+
+    >>> parse_datetime('2014-05-05 17:40:44Z').isoformat(' ')
+    '2014-05-05 17:40:44'
     '''
 
     s = s.replace('T', ' ')
+    s = s.rstrip('Z')
 
     # calculate timezone data from date string, we'll parse it ourselves
     # ('%z' is not supported on all platforms for strptime)
