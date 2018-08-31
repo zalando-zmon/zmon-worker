@@ -49,6 +49,7 @@ from zmon_worker_monitor.zmon_worker.errors import (
     CheckError, AlertError, InsufficientPermissionsError, SecurityError, ResultSizeError)
 from zmon_worker_monitor.zmon_worker.notifications.http import NotifyHttp
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
+from zmon_worker_monitor.zmon_worker.notifications.google_hangouts_chat NotifyGoogleHangoutsChat
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
