@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 class NotifyGoogleHangoutsChat(BaseNotification):
     @classmethod
-    @trace(operation_name='notification_google_hangouts_chat', 
-           pass_span=True, 
+    @trace(operation_name='notification_google_hangouts_chat',
+           pass_span=True,
            tags={'notification': 'google_hangouts_chat'})
     def notify(cls, alert, *args, **kwargs):
 
