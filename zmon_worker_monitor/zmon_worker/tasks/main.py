@@ -520,6 +520,7 @@ def _build_notify_context(alert):
         'notify_sms': functools.partial(Sms.notify, alert),
         'notify_hubot': functools.partial(Hubot.notify, alert),
         'send_hipchat': functools.partial(NotifyHipchat.notify, alert),
+        'send_google_hangouts_chat': functools.partial(NotifyGoogleHangoutsChat.notify, alert),
         'notify_hipchat': functools.partial(NotifyHipchat.notify, alert),
         'send_slack': functools.partial(NotifySlack.notify, alert),
         'notify_slack': functools.partial(NotifySlack.notify, alert),
