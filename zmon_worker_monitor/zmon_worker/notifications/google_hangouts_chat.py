@@ -1,5 +1,4 @@
 import logging
-import urllib
 import json
 import traceback
 
@@ -16,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 class NotifyGoogleHangoutsChat(BaseNotification):
     @classmethod
-    @trace(operation_name='notification_google_hangouts_chat', pass_span=True, tags={'notification': 'google_hangouts_chat'})
+    @trace(operation_name='notification_google_hangouts_chat', 
+           pass_span=True, 
+           tags={'notification': 'google_hangouts_chat'})
     def notify(cls, alert, *args, **kwargs):
 
         current_span = extract_span_from_kwargs(**kwargs)
@@ -25,10 +26,10 @@ class NotifyGoogleHangoutsChat(BaseNotification):
         webhook_link_split = webhook_link.split('?')
         alert_id = alert['alert_def']['id']
         webhook_link = webhook_link_split[0] + '?threadKey={}&'.format(alert_id) + webhook_link_split[1]
-        
+
         repeat = kwargs.get('repeat', 0)
         alert_def = alert['alert_def']
-        
+
         current_span.set_tag('alert_id', alert_def['id'])
 
         entity = alert.get('entity')
@@ -79,7 +80,7 @@ class NotifyGoogleHangoutsChat(BaseNotification):
                 'Sending to: ' + '{}'.format(webhook_link) + ' ' + json.dumps(message))
             r = requests.post(
                 '{}'.format(webhook_link),
-                json=message, 
+                json=message,
                 headers={'Content-type': 'application/json'})
             r.raise_for_status()
         except Exception:
