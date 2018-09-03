@@ -17,7 +17,7 @@ def test_google_hangouts_chat_notification(monkeypatch):
 
     alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'name': 'alert'}, 'entity': {'id': 'e-1'}}
 
-    r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT', webhook_link='https://chat.googleapis.com/v1/spaces/XYZ/messages?key=123&token=ABC')
+    r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT', webhook_link='http://chat.example.org/v1/spaces/XYZ/messages?key=123&token=ABC')
 
     data = {
         "cards": [{
@@ -40,6 +40,6 @@ def test_google_hangouts_chat_notification(monkeypatch):
 
     assert r == 0
 
-    URL = 'https://chat.googleapis.com/v1/spaces/XYZ/messages?threadKey=123&key=123&token=ABC'
+    URL = 'http://chat.example.org/v1/spaces/XYZ/messages?threadKey=123&key=123&token=ABC'
 
     post.assert_called_with(URL, json=data, headers=HEADERS, timeout=5)
