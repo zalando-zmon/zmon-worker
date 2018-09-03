@@ -1,6 +1,5 @@
 from mock import MagicMock
 
-from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 from zmon_worker_monitor.zmon_worker.notifications.google_hangouts_chat import NotifyGoogleHangoutsChat
 
 
