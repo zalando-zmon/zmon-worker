@@ -16,7 +16,9 @@ def test_google_hangouts_chat_notification(monkeypatch):
 
     alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'name': 'alert'}, 'entity': {'id': 'e-1'}}
 
-    r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT', webhook_link='http://chat.example.org/v1/spaces/XYZ/messages?key=123&token=ABC')
+    r = NotifyGoogleHangoutsChat.notify(alert, 
+                                        message='ALERT', 
+                                        webhook_link='http://chat.example.org/v1/spaces/XYZ/messages?key=123&token=ABC')
 
     data = {
         "cards": [{
