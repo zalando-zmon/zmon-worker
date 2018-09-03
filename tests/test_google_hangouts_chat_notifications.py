@@ -5,7 +5,6 @@ from zmon_worker_monitor.zmon_worker.notifications.google_hangouts_chat import N
 
 
 HEADERS = {
-    'User-agent': get_user_agent(),
     'Content-type': 'application/json',
 }
 
