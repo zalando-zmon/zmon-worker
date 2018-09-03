@@ -9,15 +9,16 @@ HEADERS = {
     'Content-type': 'application/json',
 }
 
+NotifyGoogleHangoutsChat._config = {'zmon.host': 'https://zmon.example.org'}
 
-def test_slack_notification(monkeypatch):
+
+def test_google_hangouts_chat_notification(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
 
-    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'name': 'alert'}, 'entity': {'id': 'e-1'},
-             'webhook_link': 'https://chat.googleapis.com/v1/spaces/XYZ/messages?&key=123&token=ABC'}
+    alert = {'changed': True, 'is_alert': True, 'alert_def': {'id': 123, 'name': 'alert'}, 'entity': {'id': 'e-1'}}
 
-    r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT')
+    r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT', webhook_link: 'https://chat.googleapis.com/v1/spaces/XYZ/messages?&key=123&token=ABC')
 
     data = {
         "cards": [
@@ -27,11 +28,11 @@ def test_slack_notification(monkeypatch):
                         "widgets": [
                             {
                                 "keyValue": {
-                                    "content": "<font color=\"#FF0000\">ALERT</font>",
-                                    "contentMultiline": "true",
+                                    "content": "<font color=\"#FF0000\">NEW ALERT: ALERT!</font>",
+                                    "contentMultiline": "false",
                                     "onClick": {
                                          "openLink": {
-                                            "url": "https://example.com/"
+                                            "url": 'https://zmon.example.org/#/alert-details/123'
                                          }
                                      },
                                     "icon": "FLIGHT_DEPARTURE"
