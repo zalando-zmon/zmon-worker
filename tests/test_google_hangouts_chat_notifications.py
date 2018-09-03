@@ -20,28 +20,22 @@ def test_google_hangouts_chat_notification(monkeypatch):
     r = NotifyGoogleHangoutsChat.notify(alert, message='ALERT', webhook_link='https://chat.googleapis.com/v1/spaces/XYZ/messages?&key=123&token=ABC')
 
     data = {
-        "cards": [
-            {
-                "sections": [
-                    {
-                        "widgets": [
-                            {
-                                "keyValue": {
-                                    "content": "<font color=\"#FF0000\">NEW ALERT: ALERT!</font>",
-                                    "contentMultiline": "false",
-                                    "onClick": {
-                                         "openLink": {
-                                            "url": 'https://zmon.example.org/#/alert-details/123'
-                                         }
-                                     },
-                                    "icon": "FLIGHT_DEPARTURE"
-                                 }
+        "cards": [{
+            "sections": [{
+                "widgets": [{
+                    "keyValue": {
+                        "onClick": {
+                            "openLink": {
+                                "url": "https://zmon.example.org/#/alert-details/123"
                             }
-                        ]
+                        },
+                        "icon": "FLIGHT_DEPARTURE",
+                        "contentMultiline": "false",
+                        "content": "<font color=\"#FF0000\">NEW ALERT: ALERT!</font>"
                     }
-                ]
-            }
-        ]
+                }]
+            }]
+        }]
     }
 
     assert r == 0
