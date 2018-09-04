@@ -81,7 +81,8 @@ class NotifyGoogleHangoutsChat(BaseNotification):
             r = requests.post(
                 '{}'.format(webhook_link),
                 json=message,
-                headers={'Content-type': 'application/json'})
+                headers={'Content-type': 'application/json'},
+                timeout=5)
             r.raise_for_status()
         except Exception:
             current_span.set_tag('error', True)
