@@ -49,6 +49,7 @@ from zmon_worker_monitor.zmon_worker.errors import (
     CheckError, AlertError, InsufficientPermissionsError, SecurityError, ResultSizeError)
 from zmon_worker_monitor.zmon_worker.notifications.http import NotifyHttp
 from zmon_worker_monitor.zmon_worker.notifications.hipchat import NotifyHipchat
+from zmon_worker_monitor.zmon_worker.notifications.google_hangouts_chat import NotifyGoogleHangoutsChat
 from zmon_worker_monitor.zmon_worker.notifications.hubot import Hubot
 from zmon_worker_monitor.zmon_worker.notifications.mail import Mail
 from zmon_worker_monitor.zmon_worker.notifications.notification import BaseNotification
@@ -520,6 +521,7 @@ def _build_notify_context(alert):
         'notify_sms': functools.partial(Sms.notify, alert),
         'notify_hubot': functools.partial(Hubot.notify, alert),
         'send_hipchat': functools.partial(NotifyHipchat.notify, alert),
+        'send_google_hangouts_chat': functools.partial(NotifyGoogleHangoutsChat.notify, alert),
         'notify_hipchat': functools.partial(NotifyHipchat.notify, alert),
         'send_slack': functools.partial(NotifySlack.notify, alert),
         'notify_slack': functools.partial(NotifySlack.notify, alert),
