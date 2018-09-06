@@ -34,5 +34,5 @@ setproctitle
 stups-tokens>=1.0.14
 subprocess32
 timeperiod2==0.1
-Yapsy>=1.11.223
+Yapsy==1.11.223
 
