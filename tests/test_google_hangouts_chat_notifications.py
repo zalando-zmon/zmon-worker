@@ -31,7 +31,7 @@ def test_google_hangouts_chat_notification(monkeypatch):
                             }
                         },
                         "icon": "FLIGHT_DEPARTURE",
-                        "contentMultiline": "false",
+                        "contentMultiline": True,
                         "content": "<font color=\"#FF0000\">NEW ALERT: ALERT!</font>"
                     }
                 }]

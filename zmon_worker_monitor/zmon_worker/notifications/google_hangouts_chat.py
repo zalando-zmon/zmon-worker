@@ -23,6 +23,7 @@ class NotifyGoogleHangoutsChat(BaseNotification):
         current_span = extract_span_from_kwargs(**kwargs)
 
         webhook_link = kwargs.get('webhook_link', 'http://no.webhook.link?wrong')
+        multiline = kwargs.get('multiline', True)
         webhook_link_split = webhook_link.split('?')
         alert_id = alert['alert_def']['id']
         webhook_link = webhook_link_split[0] + '?threadKey={}&'.format(alert_id) + webhook_link_split[1]
@@ -59,7 +60,7 @@ class NotifyGoogleHangoutsChat(BaseNotification):
                                 {
                                     "keyValue": {
                                         "content": '<font color="{}">{}!</font>'.format(color, message_text),
-                                        "contentMultiline": "false",
+                                        "contentMultiline": multiline,
                                         "onClick": {
                                              "openLink": {
                                                 "url": "{}".format(alert_url)
