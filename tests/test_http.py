@@ -302,7 +302,17 @@ def test_http_jolokia(monkeypatch):
     with pytest.raises(HttpError) as ex:
         http = HttpWrapper('http://example.org/foo')
         http.jolokia([])
-    assert 'URL needs to end in jolokia/ and not contain ? and &' == ex.value.message
+    assert 'URL needs to end in /jolokia/ and not contain ? and &' == ex.value.message
+
+    with pytest.raises(HttpError) as ex:
+        http = HttpWrapper('http://example.org/foo#/jolokia/')
+        http.jolokia([])
+    assert 'URL needs to end in /jolokia/ and not contain ? and &' == ex.value.message
+
+    with pytest.raises(CheckError) as ex:
+        http = HttpWrapper('http://example.org/jolokia/')
+        http.jolokia([{'foo': 'bar'}])
+    assert 'missing "mbean" key in read request' == ex.value.message
 
     http = HttpWrapper('http://example.org/jolokia/')
     assert {'foo': 'bar'} == http.jolokia([{

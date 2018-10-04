@@ -255,10 +255,14 @@ class HttpWrapper(object):
             x['type'] = 'read'
 
         # hack quick verify
-        if (not self.url.endswith('jolokia/')) or ('?' in self.url) or ('&' in self.url):
-            raise HttpError("URL needs to end in jolokia/ and not contain ? and &", self.url)
+        parsed_url = urlparse.urlsplit(self.url)
+        if (not parsed_url.path.endswith('/jolokia/')) or ('?' in self.url) or ('&' in self.url):
+            raise HttpError("URL needs to end in /jolokia/ and not contain ? and &", self.url)
 
         map(set_read_type, read_requests)
+        for rr in read_requests:
+            if 'mbean' not in rr:
+                raise CheckError('missing "mbean" key in read request')
 
         r = self.__request(post_data=read_requests, raise_error=raise_error)
 
