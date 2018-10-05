@@ -28,7 +28,7 @@ def start_worker(**kwargs):
     logger = logging.getLogger(__name__)
     logger.info('ZMON Worker running with {} OpenTracing tracer!'.format(kwargs.get('tracer', 'noop')))
 
-    init_opentracing_tracer(kwargs.pop('tracer', None))
+    init_opentracing_tracer(kwargs.pop('tracer', None), tags=kwargs.pop('tracer_tags', {}))
 
     import workflow
 

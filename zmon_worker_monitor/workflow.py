@@ -142,11 +142,6 @@ def flow_simple_queue_processor(queue='', **execution_context):
                 span = extract_tracing_span(trace)
                 span.set_operation_name(OPENTRACING_QUEUE_OPERATION)
 
-                # Top span tags
-                (span.set_tag('team', config.get('team', 'UNKNOWN'))
-                    .set_tag('account', config.get('account', 'UNKNOWN'))
-                    .set_tag('region', config.get('region', 'UNKNOWN')))
-
                 with span:
                     try:
                         is_processed = process_message(queue, known_tasks, reactor, msg_obj, current_span=span)

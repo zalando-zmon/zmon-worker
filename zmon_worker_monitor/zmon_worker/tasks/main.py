@@ -933,10 +933,7 @@ class MainTask(object):
                         'results': results,
                     }
 
-                    (current_span.set_tag('team', team)
-                        .set_tag('account', account)
-                        .set_tag('region', region)
-                        .set_tag('check_id', check_id))
+                    current_span.set_tag('check_id', check_id)
 
                     # we can skip this data, this problem will never fix itself
                     serialized_data = None

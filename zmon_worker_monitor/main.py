@@ -124,6 +124,11 @@ def main(args=None):
                 'queue': queue,
                 'flow': 'simple_queue_processor',
                 'tracer': config.get('opentracing.tracer'),
+                'tracer_tags': {
+                    'team': config.get('team', 'UNKNOWN'),
+                    'account': config.get('account', 'UNKNOWN'),
+                    'region': config.get('region', 'UNKNOWN'),
+                },
             },
             flags=MONITOR_RESTART | MONITOR_KILL_REQ | MONITOR_PING)
 
