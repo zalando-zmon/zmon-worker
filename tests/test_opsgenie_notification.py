@@ -118,6 +118,100 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
                             params=params)
 
 
+@pytest.mark.parametrize('include_captures, is_alert,priority,override_description',
+                         ((True, True, None, None),
+                          (True, True, 'P4', None),
+                          (False, False, None, None),
+                          (False, True, None, "override description"))
+                         )
+def test_opsgenie_notification_captures(monkeypatch, include_captures, is_alert, priority, override_description):
+    post = MagicMock()
+
+    monkeypatch.setattr('requests.post', post)
+
+    alert = {
+        'alert_changed': True, 'changed': True, 'is_alert': is_alert, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
+        'captures': {'foo': 'bar'},
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1,
+        }
+    }
+
+    NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
+
+    kwargs = {}
+    if priority:
+        kwargs['priority'] = priority
+    else:
+        priority = 'P1'
+
+    if override_description:
+        r = NotifyOpsgenie.notify(
+            alert,
+            message=MESSAGE,
+            include_alert=False,
+            include_captures=include_captures,
+            teams=['team-1', 'team-2'],
+            description=override_description,
+            **kwargs
+        )
+    else:
+        r = NotifyOpsgenie.notify(
+            alert,
+            message=MESSAGE,
+            include_alert=False,
+            include_captures=include_captures,
+            teams=['team-1', 'team-2'],
+            **kwargs
+        )
+
+    params = {}
+
+    if include_captures:
+        details = {'alert_evaluation_ts': 1234, 'foo': 'bar'}
+    else:
+        details = {'alert_evaluation_ts': 1234}
+
+    if is_alert:
+        data = {
+            'alias': 'ZMON-123',
+            'message': '[zmon] - {}'.format(MESSAGE),
+            'description': '',
+            'entity': 'e-1',
+            'priority': priority,
+            'tags': [123],
+            'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
+            'source': 'worker-1',
+            'note': '',
+            'details': details,
+        }
+
+        if override_description:
+            data['description'] = override_description
+
+    else:
+        data = {
+            'user': 'ZMON',
+            'source': 'worker-1',
+            'note': '',
+
+        }
+
+        params = {'identifierType': 'alias'}
+
+    assert r == 0
+
+    URL = URL_CREATE if is_alert else URL_CLOSE.format('ZMON-123')
+
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5,
+                            params=params)
+
+
 def test_opsgenie_notification_per_entity(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)

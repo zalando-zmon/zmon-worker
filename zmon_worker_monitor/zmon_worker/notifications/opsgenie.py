@@ -29,6 +29,7 @@ class NotifyOpsgenie(BaseNotification):
                teams=None,
                per_entity=False,
                include_alert=True,
+               include_captures=False,
                priority=None,
                message='',
                description='',
@@ -127,6 +128,8 @@ class NotifyOpsgenie(BaseNotification):
 
             if include_alert:
                 data['details'].update(alert_details)
+            if include_captures:
+                data['details'].update(alert.get('captures'))
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
