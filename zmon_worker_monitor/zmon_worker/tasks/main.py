@@ -839,6 +839,8 @@ class MainTask(object):
         # store function factories from plugins in a dict by name
         cls._function_factories = {p.name: p.plugin_object for p in cls._plugins}
 
+        cls._entity_tags = set(config.get('zmon.entity.tags', '').replace(' ', '').split(','))
+
     def __init__(self):
         self.task_context = None
         self._cmds_first_accessed = False
@@ -1698,9 +1700,7 @@ class MainTask(object):
             if self._dataservice_poster:
                 check_result['entity'] = {'id': req['entity']['id']}
 
-                for k in ['application_id', 'application_version', 'stack_name', 'stack_version', 'team',
-                          'account_alias', 'application', 'version', 'account_alias', 'cluster_alias', 'alias',
-                          'spilo_role', 'namespace']:
+                for k in self._entity_tags:
                     if k in req['entity']:
                         check_result['entity'][k] = req['entity'][k]
 

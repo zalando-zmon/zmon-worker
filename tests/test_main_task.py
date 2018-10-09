@@ -282,3 +282,19 @@ def test_store_kairosdb(monkeypatch, result, expected):
     # decode JSON again to make the test stable (to not rely on dict key order)
     assert expected == json.loads(args[1])
     assert kwargs == {'timeout': 2}
+
+
+@pytest.mark.parametrize('tags,result', (
+    ('a,b,c', {'a', 'b', 'c'}),
+    (' a, b, c ', {'a', 'b', 'c'}),
+    ('', {''}),
+    (',', {''})
+))
+def test_main_task_configure_tags(monkeypatch, tags, result):
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+
+    MainTask.configure({'zmon.entity.tags': tags})
+    task = MainTask()
+
+    assert task._entity_tags == result
