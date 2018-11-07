@@ -265,7 +265,7 @@ class SnmpWrapper(object):
     def disk_pgxlog(self):
         result = {}
         output = str(self._get_mib('public', 'NET-SNMP-EXTEND-MIB', 'disk_pgxlog'))
-        output = [i for i in re.split('\s{1,}|\t|\n', output) if i.isdigit() or i.startswith('/')]
+        output = [i for i in re.split(r'\s{1,}|\t|\n', output) if i.isdigit() or i.startswith('/')]
         output = [output[i:i + 7] for i in range(0, len(output), 7)]
         output = [[i[1], int(int(i[0]) / 1024),
                    i[2],

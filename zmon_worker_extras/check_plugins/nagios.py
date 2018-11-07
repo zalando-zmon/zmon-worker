@@ -287,7 +287,7 @@ class NagiosWrapper(object):
                                           'query': 'creation lt -1h'}},
             'CheckLogFile': {'args': '-a file="{logfile}" column-split="{seperator}" "filter={query}"',
                              'parser': self._to_dict_win_log,
-                             'parameters': {'logfile': 'c:\Temp\log\maxflow_portal.log', 'seperator': ' ',
+                             'parameters': {'logfile': r'c:\Temp\log\maxflow_portal.log', 'seperator': ' ',
                                             'query': 'column4 = \'ERROR\' OR column4 = \'FATAL\''}},
             'CheckMEM': {'args': '-a MaxWarn=15G MaxCrit=15G ShowAll perf-unit=M type=physical type=page type=virtual',
                          'parser': self._to_dict_win},
@@ -296,7 +296,7 @@ class NagiosWrapper(object):
             'CheckServiceState': {'args': '-a ShowAll {service}', 'parser': self._to_dict_win_text,
                                   'parameters': {'service': 'ENAIO_server'}},
             'CheckUpTime': {'args': '-a MinWarn=1000d MinCrit=1000d', 'parser': partial(self._to_dict_win, func=int)},
-        }
+        }  # noqa
 
     def nrpe(self, check, timeout=60, **kwargs):
         config = self.__nrpe_config[check]
@@ -385,7 +385,7 @@ class NagiosWrapper(object):
 
     @staticmethod
     def _check_path_chars(config):
-        return re.match("^[a-zA-Z0-9\/_\-]+$", config['path'])
+        return re.match(r"^[a-zA-Z0-9\/_\-]+$", config['path'])
 
     @staticmethod
     @error_wrapped
@@ -444,7 +444,7 @@ class NagiosWrapper(object):
     def _to_dict_win_log(output):
         '''try to parse this output:
         c:\Temp\log\maxflow_portal.log2014.04.29: 1 (2014-04-29 15:44:00,741 [5] WARN  BeckIT.MPO.... )
-        '''
+        '''  # noqa
 
         if 'Nothing matched' in output:
             return {'count': 0}
