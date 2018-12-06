@@ -350,6 +350,131 @@ http_request_count{method="post",code="400"}    3 1395066363000
     assert expected == http.prometheus()
 
 
+def test_http_prometheus_flat(monkeypatch):
+    resp = MagicMock()
+    resp.text = '''
+# HELP http_server_requests_seconds
+# TYPE http_server_requests_seconds summary
+http_server_requests_seconds{exception="None",method="GET",status="200",uri="/api/hello",quantile="0.95",} 0.003080192
+http_server_requests_seconds{exception="None",method="GET",status="200",uri="/api/hello",quantile="0.99",} 0.071237632
+http_server_requests_seconds_count{exception="None",method="GET",status="200",uri="/api/hello",} 20.0
+http_server_requests_seconds_sum{exception="None",method="GET",status="200",uri="/api/hello",} 0.103182669
+# HELP http_server_requests_seconds_max
+# TYPE http_server_requests_seconds_max gauge
+http_server_requests_seconds_max{exception="None",method="GET",status="200",uri="/api/hello",} 0.067652582
+# HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for  the Java virtual machine to use
+# TYPE jvm_memory_committed_bytes gauge
+jvm_memory_committed_bytes{area="nonheap",id="Code Cache",} 1.9070976E7
+jvm_memory_committed_bytes{area="nonheap",id="Metaspace",} 5.5574528E7
+jvm_memory_committed_bytes{area="nonheap",id="Compressed Class Space",} 7340032.0
+jvm_memory_committed_bytes{area="heap",id="PS Eden Space",} 2.84688384E8
+jvm_memory_committed_bytes{area="heap",id="PS Survivor Space",} 1.6252928E7
+jvm_memory_committed_bytes{area="heap",id="PS Old Gen",} 2.3855104E8
+# HELP httpsessions_max httpsessions_max
+# TYPE httpsessions_max gauge
+httpsessions_max -1.0
+# HELP httpsessions_active httpsessions_active
+# TYPE httpsessions_active gauge
+httpsessions_active 0.0
+# HELP mem mem
+# TYPE mem gauge
+mem 370583.0
+# HELP mem_free mem_free
+# TYPE mem_free gauge
+mem_free 176263.0
+# HELP processors processors
+# TYPE processors gauge
+processors 8.0
+
+'''
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+    http = HttpWrapper('http://example.org/prometheus/')
+    expected = {
+        u'jvm_memory_committed_bytes': {
+            u'area.nonheap.id.Code Cache': 1.9070976E7,
+            u'area.nonheap.id.Metaspace': 5.5574528E7,
+            u'area.nonheap.id.Compressed Class Space': 7340032.0,
+            u'area.heap.id.PS Eden Space': 2.84688384E8,
+            u'area.heap.id.PS Survivor Space': 1.6252928E7,
+            u'area.heap.id.PS Old Gen': 2.3855104E8
+        },
+        u'httpsessions_max': -1.0,
+        u'httpsessions_active': 0.0,
+        u'mem': 370583.0,
+        u'mem_free': 176263.0,
+        u'processors': 8.0,
+        u'http_server_requests_seconds': {
+            u'exception.None.method.GET.quantile.0.95.status.200.uri./api/hello': 0.003080192,
+            u'exception.None.method.GET.quantile.0.99.status.200.uri./api/hello': 0.071237632,
+        },
+        u'http_server_requests_seconds_count': {
+            u'exception.None.method.GET.status.200.uri./api/hello': 20.0
+        },
+        u'http_server_requests_seconds_max': {
+            u'exception.None.method.GET.status.200.uri./api/hello': 0.067652582
+        },
+        u'http_server_requests_seconds_sum': {
+            u'exception.None.method.GET.status.200.uri./api/hello': 0.103182669
+        }
+    }
+    assert expected == http.prometheus_flat()
+
+
+def test_http_prometheus_flat_with_filtering(monkeypatch):
+    resp = MagicMock()
+    resp.text = '''
+# HELP http_server_requests_seconds
+# TYPE http_server_requests_seconds summary
+http_server_requests_seconds{exception="None",method="GET",status="200",uri="/api/hello",quantile="0.95",} 0.003080192
+http_server_requests_seconds{exception="None",method="GET",status="200",uri="/api/hello",quantile="0.99",} 0.071237632
+http_server_requests_seconds_count{exception="None",method="GET",status="200",uri="/api/hello",} 20.0
+http_server_requests_seconds_sum{exception="None",method="GET",status="200",uri="/api/hello",} 0.103182669
+# HELP http_server_requests_seconds_max
+# TYPE http_server_requests_seconds_max gauge
+http_server_requests_seconds_max{exception="None",method="GET",status="200",uri="/api/hello",} 0.067652582
+# HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for  the Java virtual machine to use
+# TYPE jvm_memory_committed_bytes gauge
+jvm_memory_committed_bytes{area="nonheap",id="Code Cache",} 1.9070976E7
+jvm_memory_committed_bytes{area="nonheap",id="Metaspace",} 5.5574528E7
+jvm_memory_committed_bytes{area="nonheap",id="Compressed Class Space",} 7340032.0
+jvm_memory_committed_bytes{area="heap",id="PS Eden Space",} 2.84688384E8
+jvm_memory_committed_bytes{area="heap",id="PS Survivor Space",} 1.6252928E7
+jvm_memory_committed_bytes{area="heap",id="PS Old Gen",} 2.3855104E8
+# HELP httpsessions_max httpsessions_max
+# TYPE httpsessions_max gauge
+httpsessions_max -1.0
+# HELP httpsessions_active httpsessions_active
+# TYPE httpsessions_active gauge
+httpsessions_active 0.0
+# HELP mem mem
+# TYPE mem gauge
+mem 370583.0
+# HELP mem_free mem_free
+# TYPE mem_free gauge
+mem_free 176263.0
+# HELP processors processors
+# TYPE processors gauge
+processors 8.0
+
+'''
+    get = MagicMock()
+    get.return_value = resp
+    monkeypatch.setattr('requests.get', get)
+    http = HttpWrapper('http://example.org/prometheus/')
+    expected = {
+        u'httpsessions_max': -1.0,
+        u'http_server_requests_seconds_sum': {
+            u'exception.None.method.GET.status.200.uri./api/hello': 0.103182669
+        }
+    }
+    assert expected == http.prometheus_flat([
+        u'httpsessions_max',
+        u'http_server_requests_seconds_sum.exception.None.method.GET.status.200.uri./api/hello'
+    ])
+
+
 @pytest.mark.parametrize('url,port,err', (
     ('https://zmon', 443, None), ('http://zmon', 80, CheckError), ('https://zmon:4443', 4443, None)
 ))
