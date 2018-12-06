@@ -16,6 +16,7 @@ import time
 import urllib
 from urllib3.util import parse_url
 import math
+import numpy
 from base64 import b64decode
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -65,6 +66,9 @@ logger = logging.getLogger(__name__)
 
 # interval in seconds for storing metrics in Redis
 METRICS_INTERVAL = 15
+
+# Any check interval below this threshold is eligible for sampling. Above this threshold check will be always sampled.
+SAMPLING_INTERVAL_THRESHOLD = 300
 
 DEFAULT_CHECK_RESULTS_HISTORY_LENGTH = 20
 
@@ -956,10 +960,48 @@ class MainTask(object):
             logger.error('Error in data service send: url={} ex={}'.format(cls._dataservice_url, ex))
             raise
 
+    def is_sampled(self, sampling_config, check_id, interval, is_alert, alert_changed, current_span):
+        """
+        Return sampling bool flag. Sampling flag is computed via random non-uniform sampling.
+
+        We always return True if:
+            - interval is above the SAMPLING_INTERVAL_THRESHOLD
+            - check_id is critical (exists in smapling_config['critical_checks'] list).
+            - is_alert or alert_changed is True.
+            - No sampling_config specified.
+
+        If our self._account exists in smapling_config['worker_sampling'], then we always take this value.
+        """
+        if not sampling_config or is_alert or alert_changed or int(interval) >= SAMPLING_INTERVAL_THRESHOLD:
+            current_span.set_tag('interval', interval)
+            current_span.set_tag('is_alert', is_alert)
+            current_span.set_tag('alert_changed', alert_changed)
+            current_span.set_tag('sampling_ignored', True)
+            return True
+
+        # check if we have a specific sampling for this worker (account)
+        worker_sampling = sampling_config.get('worker_sampling', {}).get(self._account, None)
+        default_sampling = sampling_config.get('default_sampling', 100)
+        critical_checks = sampling_config.get('critical_checks', [])
+
+        if str(check_id) in critical_checks or check_id in critical_checks:
+            current_span.set_tag('sampling_ignored', True)
+            current_span.set_tag('critical_check', True)
+            return True
+
+        sampling_rate = default_sampling if worker_sampling is None else int(worker_sampling)
+        sampling = min(sampling_rate, 100) / 100.
+
+        current_span.log_kv({'sampling_rate': sampling_rate})
+
+        return bool(numpy.random.choice([False, True], 1, p=(1 - sampling, sampling)))
+
     @trace(pass_span=True)
     def check_and_notify(self, req, alerts, task_context=None, **kwargs):
         # Current OpenTracing span.
         current_span = extract_span_from_kwargs(**kwargs)
+
+        sampling_config = kwargs.get('sampling_config', {})
 
         self.task_context = task_context
         start_time = time.time()
@@ -1008,7 +1050,7 @@ class MainTask(object):
                          'exc': 1}, req, alerts,
                         force_alert=True)
         else:
-            self.notify(val, req, alerts)
+            self.notify(val, req, alerts, sampling_config=sampling_config)
 
     @trace(pass_span=True)
     def trial_run(self, req, alerts, task_context=None, **kwargs):
@@ -1501,6 +1543,8 @@ class MainTask(object):
         # OpenTracing current span!
         current_span = extract_span_from_kwargs(**kwargs)
 
+        sampling_config = kwargs.get('sampling_config', {})
+
         def ts_serialize(ts):
             return datetime.fromtimestamp(ts, tz=self._timezone).isoformat(' ') if ts else None
 
@@ -1517,10 +1561,13 @@ class MainTask(object):
             'check_result': val,
             'exception': True if isinstance(val, dict) and val.get('exc') else False,
             'alerts': {},
+            'is_sampled': True,  # By default we consider a check result sampled!
         }
 
         try:
             setp(req['check_id'], entity_id, 'notify loop')
+            all_alerts_state = []
+            all_alerts_changed_state = []
             for alert in alerts:
                 alert_id = alert['id']
                 alert_entities_key = 'zmon:alerts:{}'.format(alert_id)
@@ -1534,6 +1581,10 @@ class MainTask(object):
                 alert_changed = False
                 func = getattr(self.con, ('sadd' if is_alert else 'srem'))
                 changed = bool(func(alert_entities_key, entity_id))
+
+                # Used later in sampling evaluation
+                all_alerts_state.append(is_alert)
+                all_alerts_changed_state.append(changed)
 
                 if is_alert:
                     # bubble up: also update global set of alerts
@@ -1549,7 +1600,7 @@ class MainTask(object):
                         if alert_changed:
                             _log_event('ALERT_ENDED', alert, val)
 
-                # PF-3318 If an alert has malformed time period, we should evaluate it anyway and continue with
+                # If an alert has malformed time period, we should evaluate it anyway and continue with
                 # the remaining alert definitions.
                 try:
                     is_in_period = in_period(alert.get('period', ''))
@@ -1572,6 +1623,7 @@ class MainTask(object):
                     capt_json = json.dumps(captures, cls=JsonDataEncoder)
                 except Exception, e:
                     self.logger.exception('failed to serialize captures')
+                    current_span.log_kv({'exception': traceback.format_exc()})
                     captures = {'exception': str(e)}
                     capt_json = json.dumps(captures, cls=JsonDataEncoder)
                     # FIXME - set is_alert = True?
@@ -1699,6 +1751,15 @@ class MainTask(object):
             # enqueue report to be sent via http request
             if self._dataservice_poster:
                 check_result['entity'] = {'id': req['entity']['id']}
+
+                # Get sampling flag
+                check_result['is_sampled'] = self.is_sampled(
+                    sampling_config, req['check_id'], req['interval'], any(all_alerts_state),
+                    any(all_alerts_changed_state), current_span)
+
+                current_span.log_kv({'alerts_state': all_alerts_state})
+                current_span.log_kv({'changed_state': all_alerts_changed_state})
+                current_span.set_tag('is_sampled', check_result['is_sampled'])
 
                 for k in self._entity_tags:
                     if k in req['entity']:

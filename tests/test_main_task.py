@@ -298,3 +298,50 @@ def test_main_task_configure_tags(monkeypatch, tags, result):
     task = MainTask()
 
     assert task._entity_tags == result
+
+
+@pytest.mark.parametrize('sampling_config,check_id,interval,is_alert,is_changed,is_sampled', (
+    ({'default_sampling': 100, 'critical_checks': []}, 11, '60', False, False, True),
+    ({'default_sampling': 0, 'critical_checks': []}, 11, '300', False, False, True),
+    ({'default_sampling': 0, 'critical_checks': []}, 11, 60, True, False, True),
+    ({'default_sampling': 0, 'critical_checks': []}, 11, 60, False, True, True),
+    ({'default_sampling': 100, 'critical_checks': ['11']}, 11, 60, False, False, True),
+    ({'default_sampling': 0, 'critical_checks': []}, 11, 60, False, False, False),
+    ({'default_sampling': 0, 'critical_checks': ['11']}, 11, 60, False, False, True),
+    ({'default_sampling': 100, 'critical_checks': [], 'worker_sampling': {}}, 11, 60, False, False, True),
+    ({'default_sampling': 100, 'critical_checks': [], 'worker_sampling': {'123': 0}}, 11, 60, False, False, False),
+    ({'default_sampling': 100, 'critical_checks': [], 'worker_sampling': {'123': 0}}, 11, 360, False, False, True),
+    ({'default_sampling': 100, 'critical_checks': [11], 'worker_sampling': {'123': '0'}}, 11, 60, False, False, True),
+    ({'default_sampling': 0, 'critical_checks': [], 'worker_sampling': {'123': 100}}, 11, 60, False, False, True),
+))
+def test_main_task_sampling(monkeypatch, sampling_config, check_id, interval, is_alert, is_changed, is_sampled):
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+
+    span = MagicMock()
+
+    MainTask.configure({'account': '123'})
+    task = MainTask()
+
+    assert task.is_sampled(sampling_config, check_id, interval, is_alert, is_changed, span) is is_sampled
+
+
+@pytest.mark.parametrize('sampling_config,check_id,is_alert,is_changed', (
+    ({'default_sampling': 10, 'critical_checks': []}, 11, False, False),
+    ({'default_sampling': 100, 'critical_checks': [], 'worker_sampling': {'123': 10}}, 11, False, False),
+    ({'default_sampling': 0, 'critical_checks': [], 'worker_sampling': {'123': 10}}, 11, False, False),
+))
+def test_main_task_sampling_rate(monkeypatch, sampling_config, check_id, is_alert, is_changed):
+    reload(plugin_manager)
+    plugin_manager.init_plugin_manager()  # init plugin manager
+
+    span = MagicMock()
+
+    MainTask.configure({'account': '123'})
+    task = MainTask()
+
+    results = [task.is_sampled(sampling_config, check_id, 60, is_alert, is_changed, span) for _ in range(100)]
+    sampled = len([s for s in results if s])
+
+    # We give some margin of error due to probabilistic non-uniform sampling
+    assert sampled >= 5 and sampled <= 20

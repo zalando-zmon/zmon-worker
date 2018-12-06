@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 import json
 import snappy
 import opentracing
+import requests
+import tokens
 
 import settings
 
@@ -38,8 +40,63 @@ OPENTRACING_TAG_QUEUE_RESULT = 'worker_task_result'
 OPENTRACING_QUEUE_OPERATION = 'worker_task_processing'
 OPENTRACING_TASK_EXPIRATION = 'worker_task_expire_time'
 
+SAMPLING_RATE_UPDATE_DURATION = 60
+SAMPLING_RATE_ENTITY_ID = 'zmon-sampling-rate'
+
 
 __config = None
+
+
+def get_sampling_rate_config(config, current_span):
+    """
+    Get sampling rate config from a ZMON entity or config vars.
+    Entity:
+        {
+            "id": "zmon-sampling-rate",
+            "type": "zmon_config",
+            "default_sampling": 100,
+            "critical_checks": [13, 14, 19],
+            "worker_sampling": {
+                "account-1": 50,
+                "account-2": 60,
+                "account-3": 0
+            }
+        }
+    """
+    default_sampling = int(config.get('zmon.sampling.rate', 100))
+    critical_checks = config.get('zmon.critical.checks')
+    if type(critical_checks) is not list:
+        critical_checks = critical_checks.replace(' ', '').split(',')
+
+    sampling_config = {
+        'default_sampling': default_sampling,
+        'critical_checks': critical_checks
+    }
+
+    # We try to get sampling rate entity!
+    zmon_url = config.get('zmon.url')
+    if not zmon_url:
+        current_span.set_tag('sampling_entity_used', False)
+    else:
+        current_span.set_tag('sampling_entity_used', True)
+
+        try:
+            tokens.configure()
+            tokens.manage('uid', ['uid'])
+
+            url = '{}/api/v1/entities/{}'.format(zmon_url, SAMPLING_RATE_ENTITY_ID)
+            headers = {'Authorization': 'Bearer {}'.format(tokens.get('uid'))}
+            resp = requests.get(url, headers=headers, timeout=2)
+
+            resp.raise_for_status()
+
+            entity = resp.json()
+            sampling_config.update(entity)
+        except Exception:
+            current_span.set_tag('sampling_entity_used', False)
+            current_span.log_kv({'exception': format_exc()})
+
+    return sampling_config
 
 
 def get_config():
@@ -117,6 +174,9 @@ def flow_simple_queue_processor(queue='', **execution_context):
     expired_count = 0
     count = 0
 
+    sampling_rate_last_updated = datetime.utcnow()
+    sampling_config = None
+
     while True:
         try:
 
@@ -131,7 +191,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
                 queue, msg = encoded_task
 
-                if not msg[:1] == '{':
+                if msg[:1] != '{':
                     msg = snappy.decompress(msg)
 
                 msg_obj = json.loads(msg)
@@ -142,9 +202,21 @@ def flow_simple_queue_processor(queue='', **execution_context):
                 span = extract_tracing_span(trace)
                 span.set_operation_name(OPENTRACING_QUEUE_OPERATION)
 
+                # Get sampling rates. We update every minute.
+                if sampling_config is None or (
+                        (datetime.utcnow() - sampling_rate_last_updated).seconds > SAMPLING_RATE_UPDATE_DURATION):
+                    try:
+                        sampling_config = get_sampling_rate_config(config, span)
+                        span.log_kv({'sampling_config': sampling_config})
+                        span.set_tag('sampling_rate_updated', True)
+                    except Exception:
+                        span.set_tag('sampling_rate_updated', False)
+                        span.log_kv({'exception': format_exc()})
+
                 with span:
                     try:
-                        is_processed = process_message(queue, known_tasks, reactor, msg_obj, current_span=span)
+                        is_processed = process_message(
+                            queue, known_tasks, reactor, msg_obj, current_span=span, sampling_config=sampling_config)
                         if is_processed:
                             span.set_tag(OPENTRACING_TAG_QUEUE_RESULT, 'success')
                         else:
@@ -173,7 +245,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
             # TODO: some exit condition on failure: maybe when number of consecutive failures > n ?
 
 
-def process_message(queue, known_tasks, reactor, msg_obj, current_span):
+def process_message(queue, known_tasks, reactor, msg_obj, current_span, sampling_config=None):
     """
     Proccess and execute a task.
 
@@ -191,6 +263,9 @@ def process_message(queue, known_tasks, reactor, msg_obj, current_span):
 
     :param current_span: Current OpenTracing span.
     :type current_span: opentracing.Span
+
+    :param sampling_config: Dict holding all sampling rate info.
+    :type sampling_config: dict
 
     :return: Return True if the message was processed successfully
     :rtype: bool
@@ -247,7 +322,7 @@ def process_message(queue, known_tasks, reactor, msg_obj, current_span):
         return False
 
     with reactor.enter_task_context(taskname, t_hard, t_soft):
-        known_tasks[taskname](*func_args, task_context=task_context, **func_kwargs)
+        known_tasks[taskname](*func_args, task_context=task_context, sampling_config=sampling_config, **func_kwargs)
     return True
 
 

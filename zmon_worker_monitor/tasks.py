@@ -24,14 +24,14 @@ zmontask = MainTask()
 def check_and_notify(req, alerts, task_context=None, **kwargs):
     logger.debug('check_and_notify received req=%s, alerts=%s, task_context=%s, ', req, alerts, task_context)
 
-    zmontask.check_and_notify(req, alerts, task_context=task_context)
+    zmontask.check_and_notify(req, alerts, task_context=task_context, **kwargs)
 
 
 def trial_run(req, alerts, task_context=None, **kwargs):
     logger.info('trial_run received <== check_id=%s', req['check_id'])
     logger.debug('trial_run received req=%s, alerts=%s, task_context=%s, ', req, alerts, task_context)
 
-    zmontask.trial_run(req, alerts, task_context=task_context)
+    zmontask.trial_run(req, alerts, task_context=task_context, **kwargs)
 
 
 def cleanup(*args, **kwargs):
