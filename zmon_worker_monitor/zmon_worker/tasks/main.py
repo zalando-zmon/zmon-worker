@@ -173,16 +173,21 @@ def _get_entity_url(entity):
 
     >>> _get_entity_url({'url': 'https://example.org'})
     'https://example.org'
+
+    >>> _get_entity_url({'url': 1})
     '''
 
-    if 'url' in entity:
-        if entity['url'].startswith('http://') or entity['url'].startswith('https://'):
-            return entity['url']
+    try:
+        if 'url' in entity:
+            if entity['url'].startswith('http://') or entity['url'].startswith('https://'):
+                return entity['url']
 
-        return 'http://' + entity['url']
+            return 'http://' + entity['url']
 
-    if 'host' in entity:
-        return 'http://' + entity['host']
+        if 'host' in entity:
+            return 'http://' + entity['host']
+    except Exception:
+        pass
 
     return None
 
@@ -191,10 +196,15 @@ def _get_jmx_port(entity):
     '''
     >>> _get_jmx_port({'instance': '9620'})
     49620
-    '''
 
-    if 'instance' in entity:
-        return int('4' + entity['instance'])
+    >>> _get_jmx_port({'instance': 'some-nan'})
+    '''
+    try:
+        if 'instance' in entity:
+            return int('4' + entity['instance'])
+    except Exception:
+        pass
+
     return None
 
 
@@ -220,14 +230,17 @@ def _get_shards(entity):
 
     >>> _get_shards({'project': 'shop'})
     '''
+    try:
+        if 'shards' in entity:
+            return entity['shards']
+        if 'service_name' in entity:
+            if 'port' in entity and not entity['service_name'].endswith(':{}'.format(entity['port'])):
+                return {entity['service_name']: '{service_name}:{port}/postgres'.format(**entity)}
+            else:
+                return {entity['service_name']: '{}/postgres'.format(entity['service_name'])}
+    except Exception:
+        pass
 
-    if 'shards' in entity:
-        return entity['shards']
-    if 'service_name' in entity:
-        if 'port' in entity and not entity['service_name'].endswith(':{}'.format(entity['port'])):
-            return {entity['service_name']: '{service_name}:{port}/postgres'.format(**entity)}
-        else:
-            return {entity['service_name']: '{}/postgres'.format(entity['service_name'])}
     return None
 
 
