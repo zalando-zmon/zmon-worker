@@ -47,6 +47,10 @@ SAMPLING_RATE_ENTITY_ID = 'zmon-sampling-rate'
 __config = None
 
 
+# We manage uid tokens once when we import
+tokens.manage('uid', ['uid'])
+
+
 def get_sampling_rate_config(config, current_span):
     """
     Get sampling rate config from a ZMON entity or config vars.
@@ -81,9 +85,6 @@ def get_sampling_rate_config(config, current_span):
         current_span.set_tag('sampling_entity_used', True)
 
         try:
-            tokens.configure()
-            tokens.manage('uid', ['uid'])
-
             url = '{}/api/v1/entities/{}'.format(zmon_url, SAMPLING_RATE_ENTITY_ID)
             headers = {'Authorization': 'Bearer {}'.format(tokens.get('uid'))}
             resp = requests.get(url, headers=headers, timeout=2)
@@ -176,6 +177,7 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
     sampling_rate_last_updated = datetime.utcnow()
     sampling_config = None
+    sampling_update_rate = int(config.get('zmon.sampling.update.rate', SAMPLING_RATE_UPDATE_DURATION))
 
     while True:
         try:
@@ -204,8 +206,9 @@ def flow_simple_queue_processor(queue='', **execution_context):
 
                 # Get sampling rates. We update every minute.
                 if sampling_config is None or (
-                        (datetime.utcnow() - sampling_rate_last_updated).seconds > SAMPLING_RATE_UPDATE_DURATION):
+                        (datetime.utcnow() - sampling_rate_last_updated).seconds > sampling_update_rate):
                     try:
+                        sampling_rate_last_updated = datetime.utcnow()
                         sampling_config = get_sampling_rate_config(config, span)
                         span.log_kv({'sampling_config': sampling_config})
                         span.set_tag('sampling_rate_updated', True)

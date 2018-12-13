@@ -63,5 +63,6 @@ plugin.openam.url: 'https://auth.zalando.com/z'
 
 
 # sampling
+zmon.sampling.update.rate: 120
 zmon.sampling.rate: 100
 zmon.critical.checks: []
