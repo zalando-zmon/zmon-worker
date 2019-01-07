@@ -27,7 +27,7 @@ python-ldap==2.4.19
 python-snappy==0.5.3
 pythonwhois==2.4.3
 pytz==2018.5
-PyYAML==3.13
+PyYAML>=4.2b1,<5
 redis==2.10.6
 requests>=2.7.0,<3
 setproctitle==1.1.10
