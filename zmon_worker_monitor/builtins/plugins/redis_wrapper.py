@@ -42,6 +42,9 @@ class RedisFactory(IFunctionFactoryPlugin):
         Called after plugin is loaded to pass the [configuration] section in their plugin info file
         :param conf: configuration dictionary
         """
+
+        self.__password = conf.get('password')
+
         return
 
     def create(self, factory_ctx):
@@ -54,19 +57,30 @@ class RedisFactory(IFunctionFactoryPlugin):
         if not self.counter_factory:
             self.counter_factory = plugin_manager.get_plugin_obj_by_name('counter', 'Function')
 
-        return propartial(RedisWrapper, counter=self.counter_factory.create(factory_ctx), host=factory_ctx['host'])
+        return propartial(
+            RedisWrapper,
+            counter=self.counter_factory.create(factory_ctx),
+            host=factory_ctx['host'],
+            password=self.__password
+        )
 
 
 class RedisWrapper(object):
     '''Class to allow only readonly access to underlying redis connection'''
 
-    def __init__(self, counter, host, port=6379, db=0, socket_connect_timeout=1, socket_timeout=5):
+    def __init__(self, counter, host, port=6379, db=0, password=None, socket_connect_timeout=1, socket_timeout=5):
         if not host:
             raise ConfigurationError('Redis wrapper improperly configured. Valid redis host is required!')
 
         self._counter = counter('')
         self.__con = redis.StrictRedis(
-            host, port, db, socket_connect_timeout=socket_connect_timeout, socket_timeout=socket_timeout)
+            host,
+            port,
+            db,
+            password,
+            socket_connect_timeout=socket_connect_timeout,
+            socket_timeout=socket_timeout
+        )
 
     def llen(self, key):
         return self.__con.llen(key)
