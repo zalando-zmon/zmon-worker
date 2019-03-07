@@ -318,8 +318,8 @@ def test_cloudwatch_paging(monkeypatch):
                             'NetworkOut', 'Average',
                             namespace='AWS/EC2')
 
-    assert call_count['list_metrics'] is 2
-    assert call_count['get_metric_statistics'] is 1
+    assert call_count['list_metrics'] == 2
+    assert call_count['get_metric_statistics'] == 1
 
     assert {'NetworkOut': 42.0, 'dimensions': {'AutoScalingGroupName': {'tailor-1': 42.0}}} == data
 

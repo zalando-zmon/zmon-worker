@@ -31,24 +31,24 @@ def test_memcached_config_error():
 
 
 def test_memcached_stats(monkeypatch):
-        mc = MemcachedWrapper(CounterMock().wrapper(), 'localhost')
-        stats = MagicMock()
-        stats.return_value = {
-            'total_connections': 10,
-            'cmd_get': 200,
-            'get_hits': 145,
-            'get_misses': 55,
-            'bytes': 123456,
-            'version': 'pymemcache test',
-        }
+    mc = MemcachedWrapper(CounterMock().wrapper(), 'localhost')
+    stats = MagicMock()
+    stats.return_value = {
+        'total_connections': 10,
+        'cmd_get': 200,
+        'get_hits': 145,
+        'get_misses': 55,
+        'bytes': 123456,
+        'version': 'pymemcache test',
+    }
 
-        monkeypatch.setattr('pymemcache.client.base.Client.stats', stats)
-        ret = mc.stats(extra_keys=['version', 'uptime'])
-        assert 'connections_per_sec' in ret
-        assert 'cmd_get_per_sec' in ret
-        assert 'bytes_per_sec' not in ret
-        assert 'version' in ret
-        assert 'uptime' not in ret
+    monkeypatch.setattr('pymemcache.client.base.Client.stats', stats)
+    ret = mc.stats(extra_keys=['version', 'uptime'])
+    assert 'connections_per_sec' in ret
+    assert 'cmd_get_per_sec' in ret
+    assert 'bytes_per_sec' not in ret
+    assert 'version' in ret
+    assert 'uptime' not in ret
 
 
 def test_memcached_json(monkeypatch):

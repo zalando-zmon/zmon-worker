@@ -26,7 +26,7 @@ def test_metadata_on_existing_object(monkeypatch):
 
     assert meta_data is not None
     assert meta_data.exists() is True
-    assert meta_data.size() is 75
+    assert meta_data.size() == 75
 
 
 def test_metadata_on_non_existent_object(monkeypatch):
@@ -46,7 +46,7 @@ def test_metadata_on_non_existent_object(monkeypatch):
 
     assert meta_data is not None
     assert meta_data.exists() is False
-    assert meta_data.size() is -1
+    assert meta_data.size() == -1
 
 
 def test_object_should_not_be_found_and_text_not_returned(monkeypatch):
@@ -67,7 +67,7 @@ def test_object_should_not_be_found_and_text_not_returned(monkeypatch):
     client.download_fileobj.assert_called_with('bucket', 'key', ANY)
     assert raw_object is None
     assert s3_object.exists() is False
-    assert s3_object.size() is -1
+    assert s3_object.size() == -1
 
 
 def test_object_should_be_found_and_text_returned(monkeypatch):
@@ -90,7 +90,7 @@ def test_object_should_be_found_and_text_returned(monkeypatch):
     assert raw_object is not None
     assert 'some random content' == raw_object
     assert s3_object.exists() is True
-    assert s3_object.size() is 19
+    assert s3_object.size() == 19
 
 
 def test_object_should_be_found_and_json_returned(monkeypatch):
@@ -113,7 +113,7 @@ def test_object_should_be_found_and_json_returned(monkeypatch):
     assert json_object is not None
     assert {'content': 'is here', 'some': 'random'} == json_object
     assert s3_object.exists() is True
-    assert s3_object.size() is 40
+    assert s3_object.size() == 40
 
 
 def test_listing_on_existing_prefix(monkeypatch):
@@ -138,9 +138,9 @@ def test_listing_on_existing_prefix(monkeypatch):
     )
 
     assert file_list is not None
-    assert len(file_list.files()) is 1
-    assert file_list.files()[0]['file_name'] is 'some_file'
-    assert file_list.files()[0]['size'] is 123
+    assert len(file_list.files()) == 1
+    assert file_list.files()[0]['file_name'] == 'some_file'
+    assert file_list.files()[0]['size'] == 123
     assert file_list.files()[0]['last_modified'] == datetime(2015, 1, 15, 14, 34, 56)
 
 
@@ -188,7 +188,7 @@ def test_listing_on_prefix_that_has_no_objects(monkeypatch):
     file_list = s3_wrapper.list_bucket('bucket', 'prefix')
 
     assert file_list is not None
-    assert len(file_list.files()) is 0
+    assert len(file_list.files()) == 0
 
 
 def test_listing_bubbles_client_error_up(monkeypatch):

@@ -219,7 +219,7 @@ def test_oauth2(monkeypatch):
     get = MagicMock()
     get.return_value = resp
     monkeypatch.setattr('requests.get', get)
-    monkeypatch.setattr('tokens.get', lambda x: 'mytok' if x is 'uid' else 'myothertok')
+    monkeypatch.setattr('tokens.get', lambda x: 'mytok' if x == 'uid' else 'myothertok')
     http = HttpWrapper('http://example.org', oauth2=True, timeout=2)
     assert 218 == http.code()
     assert 'OK' == http.text()
