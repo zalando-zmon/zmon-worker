@@ -5,7 +5,7 @@ Query Exasol
 """
 
 import tempfile
-import subprocess
+import subprocess32
 import os
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -35,13 +35,14 @@ class ExaplusFactory(IFunctionFactoryPlugin):
         :return: an object that implements a check function
         """
         return propartial(ExaplusWrapper, cluster=self._exacrm_cluster, password=self._exacrm_pass,
-                          user=self._exacrm_user)
+                          user=self._exacrm_user, timeout=factory_ctx.get('soft_time_limit', 58))
 
 
 class ExaplusWrapper(object):
-    def __init__(self, cluster, user='ZALANDO_NAGIOS', password='', schema=False):
-        self._err = None
-        self._out = None
+    def __init__(self, cluster, user='ZALANDO_NAGIOS', password='', schema=False, timeout=58):
+        self._err = ''
+        self._out = ''
+        self.__timeout = timeout
         self.user = user
         self.__password = password
         self.cluster = cluster
@@ -79,13 +80,17 @@ class ExaplusWrapper(object):
             if self.schema:
                 cmd.extend(['-s', self.schema])
             cmd.extend(['-f', name])
-            # print "EXAPLUS="+" ".join(cmd)
-            sub = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-            d_out, d_err = sub.communicate()
-            self._out = d_out
-            self._err = d_err
+
+            self._out = subprocess32.check_output(
+                cmd, shell=False, stderr=subprocess32.STDOUT, close_fds=True,
+                timeout=self._timeout)
+        except subprocess32.CalledProcessError as e:
+            self._err = str(e.output)
+        except subprocess32.TimeoutExpired as e:
+            self._err = str(e)
         finally:
             os.unlink(name)
+
         return self
 
     def result(self):
