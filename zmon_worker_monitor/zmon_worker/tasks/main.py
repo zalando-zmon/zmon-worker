@@ -1101,8 +1101,9 @@ class MainTask(object):
         else:
             self.notify_for_trial_run(val, req, alerts)
 
-    @trace()
+    @trace(pass_span=True)
     def cleanup(self, *args, **kwargs):
+        current_span = extract_span_from_kwargs(**kwargs)
         self.task_context = kwargs.get('task_context')
         p = self.con.pipeline()
         p.smembers('zmon:checks')
@@ -1157,6 +1158,23 @@ class MainTask(object):
                         p.delete('zmon:notifications:{}:{}'.format(alert_id, entity))
             else:
                 self._cleanup_alert(p, alert_id)
+
+        current_span.log_kv({'cleanup_entities': kwargs.get('cleanup_entities', [])})
+        for entity_id in kwargs.get('cleanup_entities', []):
+            alert_ids = [a.replace('zmon:alerts:', '').replace(':{}'.format(entity_id), '')
+                         for a in self.con.keys('zmon:alerts:*:{}'.format(entity_id))]
+            for alert_id in alert_ids:
+                self._cleanup_common(p, 'alerts', alert_id, set(entity_id))
+                # All entities matching given alert definition.
+                self.logger.info('Removing entity %s from hash %s', entity_id,
+                                 'zmon:alerts:{}:entities'.format(alert_id))
+                p.hdel('zmon:alerts:{}:entities'.format(alert_id), entity_id)
+                p.delete('zmon:notifications:{}:{}'.format(alert_id, entity_id))
+
+            check_ids = [c.replace('zmon:checks:', '').replace(':{}'.format(entity_id), '')
+                         for c in self.con.keys('zmon:checks:*:{}'.format(entity_id))]
+            for check_id in check_ids:
+                self._cleanup_common(p, 'checks', check_id, set(entity_id))
 
         p.execute()
 
