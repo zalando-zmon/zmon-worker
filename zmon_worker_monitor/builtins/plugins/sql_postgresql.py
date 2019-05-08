@@ -207,8 +207,9 @@ class SqlWrapper(object):
                         rows = cur.fetchmany(max_results + 1)
                         if len(rows) > max_results:
                             raise DbError(
-                                ('Too many results, result set was limited to {}. '
-                                 'Try setting max_results to a higher value.').format(max_results),
+                                ('Too many results, result set was limited to {} for performance reasons. '
+                                 'Consider modifying query to limit number of rows returns. '
+                                 'If all else fails, try setting max_results to a higher value.').format(max_results),
                                 operation=self._stmt)
                     else:
                         rows = cur.fetchmany(max_results)
