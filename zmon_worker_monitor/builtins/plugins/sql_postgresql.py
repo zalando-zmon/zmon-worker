@@ -121,6 +121,7 @@ class SqlWrapper(object):
             raise CheckError('SqlWrapper: Shard {} not found in shards definition'.format(shard))
 
         self._cursors = []
+        self._conns = []
         self._stmt = None
         permissions = {}
 
@@ -146,6 +147,7 @@ class SqlWrapper(object):
                 cursor = conn.cursor(cursor_factory=NamedTupleCursor)
                 cursor.execute("SET statement_timeout TO %s;", [timeout])
                 self._cursors.append(cursor)
+                self._conns.append(conn)
             except Exception, e:
                 raise DbError(str(e), operation='Connect to {}'.format(shard_def)), None, sys.exc_info()[2]
             try:
@@ -159,6 +161,19 @@ class SqlWrapper(object):
         for resource, permitted in permissions.iteritems():
             if not permitted:
                 raise InsufficientPermissionsError(created_by, resource)
+
+    def __del__(self):
+        for cur in self._cursors:
+            try:
+                if not cur.closed:
+                    cur.close()
+            except Exception:
+                pass
+        for conn in self._conns:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def execute(self, stmt):
         self._stmt = stmt
