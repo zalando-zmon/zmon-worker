@@ -125,6 +125,7 @@ class Mail(BaseNotification):
             mail_host = cls._config.get('notifications.mail.host', 'localhost')
             mail_port = cls._config.get('notifications.mail.port', '25')
 
+            is_protected = False
             try:
                 if mail_host != 'localhost':
                     if cls._config.get('notifications.mail.tls', False):
@@ -135,13 +136,17 @@ class Mail(BaseNotification):
                         s = smtplib.SMTP(mail_host, mail_port)
                         s.ehlo()
                         if not s.has_extn('STARTTLS'):
-                            raise NotificationError('Mail server ({}) does not support TLS!'.format(mail_host))
-                        s.starttls()
-                        s.ehlo()
+                            is_protected = False
+                        else:
+                            s.starttls()
+                            s.ehlo()
+                            is_protected = True
                     else:
                         current_span.set_tag('tls', False)
                         s = smtplib.SMTP_SSL(mail_host, mail_port)
+                        is_protected = True
                 else:
+                    is_protected = True  # localhost is fine
                     s = smtplib.SMTP(mail_host, mail_port)
 
             except Exception:
@@ -152,6 +157,9 @@ class Mail(BaseNotification):
                 try:
                     mail_user = cls._config.get('notifications.mail.user', None)
                     if mail_user is not None:
+                        if not is_protected:
+                            raise NotificationError(
+                                    'Mail server ({}) does not support TLS / STARTTLS!'.format(mail_host))
                         s.login(mail_user, cls._config.get('notifications.mail.password'))
 
                     s.sendmail(sender, list(args) + cc, msg.as_string())
