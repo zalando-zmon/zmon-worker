@@ -156,7 +156,7 @@ class Mail(BaseNotification):
             else:
                 try:
                     mail_user = cls._config.get('notifications.mail.user', None)
-                    if mail_user is not None:
+                    if mail_user:
                         if not is_protected:
                             raise NotificationError(
                                     'Mail server ({}) does not support TLS / STARTTLS!'.format(mail_host))
