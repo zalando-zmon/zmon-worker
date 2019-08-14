@@ -217,7 +217,8 @@ def test_opsgenie_notification_per_entity(monkeypatch):
     monkeypatch.setattr('requests.post', post)
 
     alert = {
-        'changed': True, 'is_alert': True, 'entity': {'id': 'e-1', 'application': 'app_id'}, 'worker': 'worker-1', 'time': datetime.now(),
+        'changed': True, 'is_alert': True, 'entity': {'id': 'e-1', 'application': 'app_id'}, 'worker': 'worker-1',
+        'time': datetime.now(),
         'alert_evaluation_ts': 1234,
         'alert_def': {
             'name': 'Alert',
