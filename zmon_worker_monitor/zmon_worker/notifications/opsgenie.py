@@ -103,6 +103,8 @@ class NotifyOpsgenie(BaseNotification):
             'entity': entity['id'],
             'infrastructure_account': entity.get('infrastructure_account', 'UNKNOWN'),
             'alert_url': alert_url,
+            'owning_team': responsible_team,
+            'application': entity.get('application', 'UNKNOWN')
         }
 
         params = {}
