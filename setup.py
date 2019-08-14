@@ -23,7 +23,7 @@ if __name__ == '__main__':
             license='Apache License 2.0',
             packages=find_packages(exclude=['tests', 'tests.*']),
             # workaround for bug in numpy+setuptools: https://github.com/numpy/numpy/issues/2434
-            setup_requires=['numpy', 'flake8', 'pytest-runner'],
+            setup_requires=['numpy==1.16.4', 'flake8', 'pytest-runner'],
             install_requires=load_req('requirements.txt'),
             test_suite='tests',
             tests_require=load_req('test_requirements.txt'),
