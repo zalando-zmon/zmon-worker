@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libsnappy-dev libev4 libev-dev python-dev freetds-dev
 install:
-  - pip install tox
+  - pip install tox numpy==1.15.1
 script:
   - tox
 after_success:
