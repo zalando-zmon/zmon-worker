@@ -19,7 +19,7 @@ notifications.sms.maxlength: 2048
 zmon.queues: "zmon:queue:default/16,zmon:queue:internal/2"
 safe_repositories: []
 
-zmon.entity.tags: application_id,application_version,stack_name,stack_version,team,account_alias,application,version,account_alias,cluster_alias,alias,spilo_role,namespace
+zmon.entity.tags: hostname,application_id,application_version,stack_name,stack_version,team,account_alias,application,version,account_alias,cluster_alias,alias,spilo_role,namespace
 
 kairosdb.enabled: True
 kairosdb.host: 'localhost'
