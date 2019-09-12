@@ -44,6 +44,7 @@ class ScalyrWrapper(object):
         self.__numeric_url = '{}/numericQuery'.format(scalyr_prefix)
         self.__timeseries_url = '{}/timeseriesQuery'.format(scalyr_prefix)
         self.__facet_url = '{}/facetQuery'.format(scalyr_prefix)
+        self.__power_query_url = '{}/powerQuery'.format(scalyr_prefix)
 
         if not read_key:
             raise ConfigurationError('Scalyr read key is not set.')
@@ -172,6 +173,30 @@ class ScalyrWrapper(object):
                 return j['results'][0]['values'][0]
             return [x * minutes / buckets for x in j['results'][0]['values']]
         return j
+
+    def power_query(self, query, minutes=5, end=0):
+        if not query or not query.strip():
+            raise CheckError('query "{}" is not allowed to be blank'.format(query))
+
+        value = {
+            'token': self.__read_key,
+            'query': query,
+            'startTime': str(minutes) + 'm',
+            'priority': 'low',
+        }
+        if end is not None:
+            value['endTime'] = str(end) + 'm'
+
+        response = requests.post(self.__power_query_url,
+                                 json=value,
+                                 headers={'Content-Type': 'application/json', 'errorStatus': 'always200'})
+
+        json_response = response.json()
+
+        if json_response.get('status', '').startswith('error'):
+            raise CheckError(json_response.get('message', 'Unexpected error message was returned from scalyr'))
+
+        return json_response
 
 
 if __name__ == '__main__':
