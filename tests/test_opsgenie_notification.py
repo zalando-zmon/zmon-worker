@@ -79,14 +79,14 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
     params = {}
 
     if is_alert:
-        details = {'alert_evaluation_ts': 1234}
+        details = {'alert_evaluation_ts': 1234, 'owning_team': 'zmon'}
 
         if set_custom_fileds:
             details.update(set_custom_fileds)
 
         data = {
             'alias': 'ZMON-123',
-            'message': '[zmon] - {}'.format(MESSAGE),
+            'message': MESSAGE,
             'description': '',
             'entity': 'e-1',
             'priority': priority,
@@ -175,12 +175,12 @@ def test_opsgenie_notification_captures(monkeypatch, include_captures, is_alert,
     if include_captures:
         details = {'alert_evaluation_ts': 1234, 'foo': 'bar'}
     else:
-        details = {'alert_evaluation_ts': 1234}
+        details = {'alert_evaluation_ts': 1234, 'owning_team': 'zmon'}
 
     if is_alert:
         data = {
             'alias': 'ZMON-123',
-            'message': '[zmon] - {}'.format(MESSAGE),
+            'message': MESSAGE,
             'description': '',
             'entity': 'e-1',
             'priority': priority,
@@ -239,7 +239,7 @@ def test_opsgenie_notification_per_entity(monkeypatch):
 
     data = {
         'alias': 'ZMON-123-e-1',
-        'message': '[zmon] - {}'.format(MESSAGE),
+        'message': MESSAGE,
         'description': '',
         'source': 'worker-1',
         'note': 'https://zmon.example.org/#/alert-details/123',
