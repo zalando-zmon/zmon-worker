@@ -79,7 +79,7 @@ def test_opsgenie_notification(monkeypatch, is_alert, priority, override_descrip
     params = {}
 
     if is_alert:
-        details = {'alert_evaluation_ts': 1234, 'owning_team': 'zmon'}
+        details = {'alert_evaluation_ts': 1234}
 
         if set_custom_fileds:
             details.update(set_custom_fileds)
@@ -175,7 +175,7 @@ def test_opsgenie_notification_captures(monkeypatch, include_captures, is_alert,
     if include_captures:
         details = {'alert_evaluation_ts': 1234, 'foo': 'bar'}
     else:
-        details = {'alert_evaluation_ts': 1234, 'owning_team': 'zmon'}
+        details = {'alert_evaluation_ts': 1234}
 
     if is_alert:
         data = {
