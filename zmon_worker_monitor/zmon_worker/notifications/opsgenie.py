@@ -115,7 +115,7 @@ class NotifyOpsgenie(BaseNotification):
             data = {
                 'alias': alias,
                 'teams': teams,
-                'message': '[{}] - {}'.format(responsible_team, msg),  # TODO: remove when it is no longer needed!
+                'message': msg,
                 'source': alert.get('worker', ''),
                 'description': description,
                 'entity': entity['id'],
