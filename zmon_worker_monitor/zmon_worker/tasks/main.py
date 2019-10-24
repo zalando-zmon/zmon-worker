@@ -1793,7 +1793,8 @@ class MainTask(object):
                 # check if this is a job related pod
                 check_result['job_metric'] = False
                 check_result['store_job_metric'] = True
-                if req['entity'].get("type", "") in ["kube_pod", "kube_pod_container"] and req['entity'].get('job-name', None):
+                if req['entity'].get("type", "") in ["kube_pod", "kube_pod_container"] \
+                   and req['entity'].get('job-name', None):
                     check_result['job_metric'] = True
                     check_result['store_job_metric'] = JOB_METRIC_STORED_ANNOTATION in req['entity']
 
