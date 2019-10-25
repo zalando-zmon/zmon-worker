@@ -1799,8 +1799,8 @@ class MainTask(object):
                     check_result['store_job_metric'] = JOB_METRIC_STORED_ANNOTATION in req['entity']
 
                 current_span.log_kv({'alerts_state': all_alerts_state})
-                current_span.log_kv({'job_metric': check_result['job_metrics'],
-                                     'store_job_metric': check_result['store_job_metrics']})
+                current_span.log_kv({'job_metric': check_result['job_metric'],
+                                     'store_job_metric': check_result['store_job_metric']})
                 current_span.log_kv({'changed_state': all_alerts_changed_state})
                 current_span.set_tag('is_sampled', check_result['is_sampled'])
 
