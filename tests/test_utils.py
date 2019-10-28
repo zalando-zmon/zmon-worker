@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
 import Queue
 
 from mock import MagicMock
 
-from zmon_worker_monitor.zmon_worker.common.utils import PeriodicBufferedAction
+from zmon_worker_monitor.zmon_worker.common.utils import flatten, PeriodicBufferedAction
 
 
 def test_periodic_buffered_action(monkeypatch):
@@ -81,3 +82,9 @@ def test_periodic_buffered_action_loop_sleep(monkeypatch):
     pba.start()
     pba._loop()
     assert handle['slept']
+
+
+def test_flatten_unicode():
+    assert flatten({'a': {'b': 'c'}, 'd': 'e'}) == {'d': 'e', 'a.b': 'c'}
+    assert flatten({'a': {'ü': 'c'}, 'd': 'e'}) == {'d': 'e', 'a.ü': 'c'}
+    assert flatten({'a': {'ü'.decode("utf-8"): 'c'}, 'd': 'e'}) == {'d': 'e', 'a.ü': 'c'}

@@ -14,8 +14,8 @@ def flatten(structure, key='', path='', flattened=None):
     >>> sorted(flatten({'a': {'b': 'c'}, 'd': 'e'}).items())
     [('a.b', 'c'), ('d', 'e')]
     '''
-    path = str(path)
-    key = str(key)
+    path = path.encode("utf-8") if isinstance(path, unicode) else str(path)
+    key = key.encode("utf-8") if isinstance(key, unicode) else str(key)
 
     if flattened is None:
         flattened = {}
