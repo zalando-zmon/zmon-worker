@@ -117,6 +117,8 @@ EVENTS = {
 
 OPENTRACING_DATASERVICE_CHECK_COUNT = 'worker_dataservice_check_count'
 
+JOB_METRIC_STORED_ANNOTATION = 'zalando.org/zmon-job-metric-stored'
+
 get_value = itemgetter('value')
 
 
@@ -1788,7 +1790,17 @@ class MainTask(object):
                     sampling_config, req['check_id'], req['interval'], any(all_alerts_state),
                     any(all_alerts_changed_state), current_span)
 
+                # check if this is a job related pod
+                check_result['job_metric'] = False
+                check_result['store_job_metric'] = True
+                if req['entity'].get("type", "") in ["kube_pod", "kube_pod_container"] \
+                   and req['entity'].get('job-name', None):
+                    check_result['job_metric'] = True
+                    check_result['store_job_metric'] = JOB_METRIC_STORED_ANNOTATION in req['entity']
+
                 current_span.log_kv({'alerts_state': all_alerts_state})
+                current_span.log_kv({'job_metric': check_result['job_metric'],
+                                     'store_job_metric': check_result['store_job_metric']})
                 current_span.log_kv({'changed_state': all_alerts_changed_state})
                 current_span.set_tag('is_sampled', check_result['is_sampled'])
 
