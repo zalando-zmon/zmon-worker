@@ -17,7 +17,9 @@ STATISTIC_GAUGE_KEYS = frozenset([
     'master_repl_offset',
     'role',
     'slave0',
+    'maxmemory',
     'used_memory',
+    'used_memory_lua',
     'used_memory_peak',
     'used_memory_rss',
 ])
