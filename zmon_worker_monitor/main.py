@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import argparse
-import yaml
 import logging
 import logging.config
+import os
 import warnings
 
 import requests
+import yaml
 from requests.packages.urllib3.exceptions import SubjectAltNameWarning
 
-import settings
 import plugin_manager
 import rpc_server
-from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING
-from .web_server.start import start_web
+import settings
 
+from .flags import MONITOR_KILL_REQ, MONITOR_PING, MONITOR_RESTART
+from .web_server.start import start_web
 
 warnings.filterwarnings('ignore', category=SubjectAltNameWarning)
 
