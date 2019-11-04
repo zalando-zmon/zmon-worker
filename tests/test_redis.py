@@ -81,5 +81,7 @@ def test_redis_parametrized(monkeypatch, kwargs):
         kwargs.get('db', 0),
         kwargs.get('password'),
         socket_connect_timeout=kwargs.get('socket_connect_timeout', 1),
-        socket_timeout=kwargs.get('socket_timeout', 5)
+        socket_timeout=kwargs.get('socket_timeout', 5),
+        ssl=False,
+        ssl_cert_reqs='required'
     )
