@@ -881,8 +881,9 @@ class ProcessGroup(IterableUserDict):
                     desc = psutil.Process(proc.pid).cmdline()[0]
                 except: # noqa
                     desc = 'N/A'
-                proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION',
-                                        'Kill request received for {} ({})'.format(name, desc))
+                message = 'Kill request received for {} ({})'.format(name, desc)
+                proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION', message)
+                self.logger.warn(message)
                 self.respawn_process(name)
 
     @register('action', wait_sec=2)
