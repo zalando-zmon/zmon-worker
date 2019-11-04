@@ -1,37 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import base64
+import json
+import logging
 import os
 import sys
-import base64
-import logging
-import time
 import threading
-import setproctitle
-
+import time
+from contextlib import contextmanager
 from copy import deepcopy
+from datetime import datetime, timedelta
 from operator import itemgetter
 from random import random
-from contextlib import contextmanager
 from traceback import format_exc
 
-from datetime import datetime, timedelta
-import json
-import snappy
 import opentracing
 import requests
+import setproctitle
+import snappy
 import tokens
 
 import settings
-
+from redis_context_manager import RedisConnHandler
 from rpc_client import get_rpc_client
+from tasks import check_and_notify, cleanup, configure_tasks, trial_run
 from zmon_worker_monitor import eventloghttp
 from zmon_worker_monitor.zmon_worker.common.tracing import extract_tracing_span
-
-from redis_context_manager import RedisConnHandler
-from tasks import configure_tasks
-from tasks import check_and_notify, trial_run, cleanup
-
 
 logger = logging.getLogger(__name__)
 
@@ -319,9 +314,9 @@ def process_message(queue, known_tasks, reactor, msg_obj, current_span, sampling
     if cur_time >= expire_time:
         current_span.set_tag(OPENTRACING_TASK_EXPIRATION, str(expire_time))
         logger.warn(
-            'Discarding task due to time expiration. cur_time: %s , expire_time: %s, '
+            'Discarding task due to time expiration. cur_time: %s , expire_time: %s, check_id: %s'
             'msg_body["expires"]=%s  ----  msg_body=%s',
-            cur_time, expire_time, msg_body.get('expires'), msg_body)
+            cur_time, expire_time, check_id, msg_body.get('expires'), msg_body)
         return False
 
     with reactor.enter_task_context(taskname, t_hard, t_soft):
