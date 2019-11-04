@@ -70,7 +70,7 @@ class RedisFactory(IFunctionFactoryPlugin):
 class RedisWrapper(object):
     '''Class to allow only readonly access to underlying redis connection'''
 
-    def __init__(self, counter, host, port=6379, db=0, password=None, socket_connect_timeout=1, socket_timeout=5):
+    def __init__(self, counter, host, port=6379, db=0, password=None, socket_connect_timeout=1, socket_timeout=5, ssl=False, ssl_cert_reqs='required'):
         if not host:
             raise ConfigurationError('Redis wrapper improperly configured. Valid redis host is required!')
 
@@ -81,7 +81,9 @@ class RedisWrapper(object):
             db,
             password,
             socket_connect_timeout=socket_connect_timeout,
-            socket_timeout=socket_timeout
+            socket_timeout=socket_timeout,
+            ssl=ssl,
+            ssl_cert_reqs=ssl_cert_reqs
         )
 
     def llen(self, key):
