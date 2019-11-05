@@ -1,6 +1,6 @@
+import pykube
 import pytest
-
-from mock import MagicMock, call
+from mock import MagicMock
 
 from zmon_worker_monitor.builtins.plugins.kubernetes import KubernetesWrapper, CheckError
 
@@ -36,37 +36,28 @@ def client_mock(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    'kwargs,ns,q,res',
+    'kwargs,q,res',
     (
-        ({}, [], [1, 2, 3], [1, 2, 3]),
-        ({'namespace': 'default'}, [], [1, 2, 3], [1, 2, 3]),
-        (
-            {'namespace': None}, [{'metadata': {'name': 'n1'}}, {'metadata': {'name': 'n2'}}],
-            [1, 2, 3], [1, 2, 3, 1, 2, 3]
-        ),
+        ({}, [1, 2, 3], [1, 2, 3]),
+        ({'namespace': 'default'}, [1, 2, 3], [1, 2, 3]),
+        ({'namespace': None}, [1, 2, 3], [1, 2, 3]),
     )
 )
-def test_get_resources(monkeypatch, kwargs, ns, q, res):
+def test_get_resources(monkeypatch, kwargs, q, res):
     client_mock(monkeypatch)
 
     query = MagicMock()
     query.filter.return_value = q
-
-    namespaces = MagicMock()
-    namespaces.return_value = ns
-
-    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper.namespaces', namespaces)
 
     k = KubernetesWrapper(**kwargs)
     result = k._get_resources(query)
 
     assert res == result
 
-    if 'namespace' in kwargs and kwargs['namespace'] is None:
-        calls = [call(namespace=n['metadata']['name']) for n in ns]
-        query.filter.assert_has_calls(calls, any_order=True)
-    else:
-        query.filter.assert_called_with(namespace='default')
+    namespace = kwargs.get('namespace', 'default')
+    if namespace is None:
+        namespace = pykube.all
+    query.filter.assert_called_with(namespace=namespace)
 
 
 @pytest.mark.parametrize(

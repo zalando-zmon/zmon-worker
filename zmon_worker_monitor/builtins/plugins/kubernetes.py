@@ -79,19 +79,9 @@ class KubernetesWrapper(object):
         :return: List of pykube resources.
         :rtype: list
         """
-        resources = []
 
-        # check if we need resources for all namespaces.
-        if self.__namespace is None:
-            namespaces = self.namespaces()
-
-            for namespace in namespaces:
-                ns = namespace['metadata']['name']
-                resources += list(query.filter(namespace=ns))
-        else:
-            resources = list(query.filter(namespace=self.__namespace))
-
-        return resources
+        namespace = pykube.all if self.__namespace is None else self.__namespace
+        return list(query.filter(namespace=namespace))
 
     def namespaces(self):
         """
