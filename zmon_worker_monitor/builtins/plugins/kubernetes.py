@@ -13,7 +13,6 @@ from zmon_worker_monitor.zmon_worker.errors import CheckError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
 
-
 VALID_PHASE = ('Pending', 'Running', 'Failed', 'Succeeded', 'Unknown')
 
 logger = logging.getLogger('zmon-worker.kubernetes-function')
@@ -39,9 +38,32 @@ class KubernetesFactory(IFunctionFactoryPlugin):
         return propartial(KubernetesWrapper)
 
 
+def _get_resources(object_manager, name=None, phase=None, **kwargs):
+    if name is not None:
+        if phase is not None or kwargs:
+            raise CheckError("name= query doesn't support additional filters")
+
+        try:
+            return [object_manager.get_by_name(name)]
+        except pykube.exceptions.ObjectDoesNotExist:
+            return []
+
+    filter_kwargs = {}
+
+    # phase filter
+    if phase:
+        filter_kwargs['field_selector'] = {'status.phase': phase}
+
+    # labelSelector
+    if kwargs:
+        filter_kwargs['selector'] = kwargs
+
+    return list(object_manager.filter(**filter_kwargs))
+
+
 class KubernetesWrapper(object):
     def __init__(self, namespace='default'):
-        self.__namespace = namespace
+        self.__namespace = pykube.all if namespace is None else namespace
 
     @property
     def __client(self):
@@ -49,39 +71,6 @@ class KubernetesWrapper(object):
         client = pykube.HTTPClient(config)
         client.session.trust_env = False
         return client
-
-    def _get_filter_kwargs(self, name=None, phase=None, **kwargs):
-        filter_kwargs = {}
-        field_selector = {}
-
-        if phase:
-            field_selector['status.phase'] = phase
-
-        if name:
-            field_selector['metadata.name'] = name
-
-        if field_selector:
-            filter_kwargs['field_selector'] = field_selector
-
-        # labelSelector
-        if kwargs:
-            filter_kwargs['selector'] = kwargs
-
-        return filter_kwargs
-
-    def _get_resources(self, query):
-        """
-        Return the resource query after filtering with desired namespace(s).
-
-        :param query: Pykube resource query.
-        :type query: pykube.query.Query
-
-        :return: List of pykube resources.
-        :rtype: list
-        """
-
-        namespace = pykube.all if self.__namespace is None else self.__namespace
-        return list(query.filter(namespace=namespace))
 
     def namespaces(self):
         """
@@ -122,11 +111,8 @@ class KubernetesWrapper(object):
         if phase and phase not in VALID_PHASE:
             raise CheckError('Invalid phase. Valid phase values are {}'.format(VALID_PHASE))
 
-        filter_kwargs = self._get_filter_kwargs(name, phase, **kwargs)
-
-        query = pykube.Pod.objects(self.__client).filter(**filter_kwargs)
-
-        pods = self._get_resources(query)
+        pods = _get_resources(pykube.Pod.objects(self.__client, self.__namespace),
+                              name=name, phase=phase, **kwargs)
 
         return [pod.obj for pod in pods if ready is None or pod.ready == ready]
 
@@ -143,9 +129,9 @@ class KubernetesWrapper(object):
         :return: List of nodes. Typical pod has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
+        nodes = _get_resources(pykube.Node.objects(self.__client), name=name, **kwargs)
 
-        return [n.obj for n in pykube.Node.objects(self.__client).filter(**filter_kwargs)]
+        return [n.obj for n in nodes]
 
     def services(self, name=None, **kwargs):
         """
@@ -160,11 +146,7 @@ class KubernetesWrapper(object):
         :return: List of services. Typical service has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.Service.objects(self.__client).filter(**filter_kwargs)
-
-        services = self._get_resources(query)
+        services = _get_resources(pykube.Service.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [service.obj for service in services]
 
@@ -181,11 +163,7 @@ class KubernetesWrapper(object):
         :return: List of Endpoints. Typical Endpoint has "metadata", and "subsets".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.Endpoint.objects(self.__client).filter(**filter_kwargs)
-
-        endpoints = self._get_resources(query)
+        endpoints = _get_resources(pykube.Endpoint.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [endpoint.obj for endpoint in endpoints]
 
@@ -202,11 +180,7 @@ class KubernetesWrapper(object):
         :return: List of Ingresses. Typical Ingress has "metadata", "spec" and "status".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.Ingress.objects(self.__client).filter(**filter_kwargs)
-
-        ingresses = self._get_resources(query)
+        ingresses = _get_resources(pykube.Ingress.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [ingress.obj for ingress in ingresses]
 
@@ -226,11 +200,8 @@ class KubernetesWrapper(object):
         :return: List of Statefulsets. Typical Statefulset has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.StatefulSet.objects(self.__client).filter(**filter_kwargs)
-
-        statfulsets = self._get_resources(query)
+        statfulsets = _get_resources(pykube.StatefulSet.objects(self.__client, namespace=self.__namespace),
+                                     name=name, **kwargs)
 
         return [statfulset.obj for statfulset in statfulsets if replicas is None or statfulset.replicas == replicas]
 
@@ -247,11 +218,7 @@ class KubernetesWrapper(object):
         :return: List of Daemonsets. Typical Daemonset has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.DaemonSet.objects(self.__client).filter(**filter_kwargs)
-
-        daemonsets = self._get_resources(query)
+        daemonsets = _get_resources(pykube.DaemonSet.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [daemonset.obj for daemonset in daemonsets]
 
@@ -271,11 +238,7 @@ class KubernetesWrapper(object):
         :return: List of ReplicaSets. Typical ReplicaSet has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.ReplicaSet.objects(self.__client).filter(**filter_kwargs)
-
-        replicasets = self._get_resources(query)
+        replicasets = _get_resources(pykube.ReplicaSet.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [replicaset.obj for replicaset in replicasets if replicas is None or replicaset.replicas == replicas]
 
@@ -301,11 +264,7 @@ class KubernetesWrapper(object):
         if ready is not None and type(ready) is not bool:
             raise CheckError('Invalid ready value.')
 
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.Deployment.objects(self.__client).filter(**filter_kwargs)
-
-        deployments = self._get_resources(query)
+        deployments = _get_resources(pykube.Deployment.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [
             deployment.obj for deployment in deployments
@@ -325,11 +284,7 @@ class KubernetesWrapper(object):
         :return: List of ConfigMaps. Typical ConfigMap has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.ConfigMap.objects(self.__client).filter(**filter_kwargs)
-
-        configmaps = self._get_resources(query)
+        configmaps = _get_resources(pykube.ConfigMap.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [configmap.obj for configmap in configmaps]
 
@@ -349,11 +304,8 @@ class KubernetesWrapper(object):
         :return: List of PersistentVolumeClaims. Typical PersistentVolumeClaim has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.PersistentVolumeClaim.objects(self.__client).filter(**filter_kwargs)
-
-        pvcs = self._get_resources(query)
+        pvcs = _get_resources(pykube.PersistentVolumeClaim.objects(self.__client, self.__namespace),
+                              name=name, phase=phase, **kwargs)
 
         return [pvc.obj for pvc in pvcs if phase is None or pvc.obj['status'].get('phase') == phase]
 
@@ -373,12 +325,7 @@ class KubernetesWrapper(object):
         :return: List of PersistentVolumes. Typical PersistentVolume has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.PersistentVolume.objects(self.__client).filter(**filter_kwargs)
-
-        # PersistentVolume does not belong to a "namespace". Calling with **default** will fail with 404.
-        pvs = query.all()
+        pvs = _get_resources(pykube.PersistentVolume.objects(self.__client), name=name, phase=phase, **kwargs)
 
         return [vc.obj for vc in pvs if phase is None or vc.obj['status'].get('phase') == phase]
 
@@ -395,11 +342,7 @@ class KubernetesWrapper(object):
         :return: List of Jobs. Typical Job has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.Job.objects(self.__client).filter(**filter_kwargs)
-
-        jobs = self._get_resources(query)
+        jobs = _get_resources(pykube.Job.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [job.obj for job in jobs]
 
@@ -416,11 +359,7 @@ class KubernetesWrapper(object):
         :return: List of CronJobs. Typical CronJob has "metadata", "status" and "spec".
         :rtype: list
         """
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-
-        query = pykube.CronJob.objects(self.__client).filter(**filter_kwargs)
-
-        cronjobs = self._get_resources(query)
+        cronjobs = _get_resources(pykube.CronJob.objects(self.__client, self.__namespace), name=name, **kwargs)
 
         return [job.obj for job in cronjobs]
 
@@ -457,8 +396,6 @@ class KubernetesWrapper(object):
         :return: List of resourceQuota. Typical resourceQuota has "metadata", "status" and "spec".
         :rtype: list
         """
+        qs = _get_resources(pykube.ResourceQuota.objects(self.__client, self.__namespace), name=name, **kwargs)
 
-        filter_kwargs = self._get_filter_kwargs(name=name, **kwargs)
-        query = pykube.ResourceQuota.objects(self.__client).filter(**filter_kwargs)
-        qs = self._get_resources(query)
         return [q.obj for q in qs]
