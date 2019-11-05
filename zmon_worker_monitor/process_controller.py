@@ -878,7 +878,8 @@ class ProcessGroup(IterableUserDict):
         for name, proc in self.items():
             if not self.stop_action and proc.should_terminate() and proc.has_flag(MONITOR_KILL_REQ):
                 try:
-                    desc = str(psutil.Process(proc.pid).cmdline())
+                    # Some OSes report cmdline differently - join for 'zmon-worker check 999'...
+                    desc = ' '.join(filter(bool, psutil.Process(proc.pid).cmdline()))
                 except: # noqa
                     desc = 'N/A'
                 message = 'Kill request received for {} ({})'.format(name, desc)
