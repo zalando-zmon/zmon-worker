@@ -17,7 +17,7 @@ from multiprocessing import Process
 from threading import Thread
 from UserDict import IterableUserDict
 
-import psutil
+from zmon_worker_monitor.zmon_worker.common.utils import get_process_cmdline
 
 from .flags import (MONITOR_KILL_REQ, MONITOR_NONE, MONITOR_PING,
                     MONITOR_RESTART, flags2num, has_flag)
@@ -877,12 +877,7 @@ class ProcessGroup(IterableUserDict):
         """
         for name, proc in self.items():
             if not self.stop_action and proc.should_terminate() and proc.has_flag(MONITOR_KILL_REQ):
-                try:
-                    # Some OSes report cmdline differently - join for 'zmon-worker check 999'...
-                    desc = ' '.join(filter(bool, psutil.Process(proc.pid).cmdline()))
-                except: # noqa
-                    desc = 'N/A'
-                message = 'Kill request received for {} ({})'.format(name, desc)
+                message = 'Kill request received for {} ({})'.format(name, get_process_cmdline(proc.pid))
                 proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION', message)
                 self.logger.warn(message)
                 self.respawn_process(name)

@@ -27,6 +27,7 @@ from rpc_client import get_rpc_client
 from tasks import check_and_notify, cleanup, configure_tasks, trial_run
 from zmon_worker_monitor import eventloghttp
 from zmon_worker_monitor.zmon_worker.common.tracing import extract_tracing_span
+from zmon_worker_monitor.zmon_worker.common.utils import get_process_cmdline
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +315,7 @@ def process_message(queue, known_tasks, reactor, msg_obj, current_span, sampling
     if cur_time >= expire_time:
         current_span.set_tag(OPENTRACING_TASK_EXPIRATION, str(expire_time))
         logger.warn(
-            'Discarding task due to time expiration. cur_time: %s , expire_time: %s, check_id: %s'
+            'Discarding task due to time expiration. cur_time: %s , expire_time: %s, check_id: %s, '
             'msg_body["expires"]=%s  ----  msg_body=%s',
             cur_time, expire_time, check_id, msg_body.get('expires'), msg_body)
         return False
@@ -407,7 +408,9 @@ class FlowControlReactor(object):
         """ hard kill logic """
         for th_name, (taskname, t_hard, t_soft, ts) in self._current_task_by_thread.copy().items():
             if time.time() > ts + t_hard:
-                msg = 'Hard Kill request started for worker pid=%s, task: %s, t_hard=%d' % (self._pid, taskname, t_hard)
+                msg = 'Hard kill request received for worker pid={}, task={}, t_hard={}, cmdline={}'.format(
+                    self._pid, taskname, t_hard, get_process_cmdline(self._pid)
+                )
                 logger.warn(msg)
                 self.add_event('FlowControlReactor.action_hard_kill', 'ACTION', msg)
                 self._rpc_client.mark_for_termination(self._pid)  # rpc call to parent asking for a kill
