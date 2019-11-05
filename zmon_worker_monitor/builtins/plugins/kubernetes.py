@@ -40,6 +40,9 @@ class KubernetesFactory(IFunctionFactoryPlugin):
 
 def _get_resources(object_manager, name=None, phase=None, **kwargs):
     if name is not None:
+        if object_manager.namespace == pykube.all:
+            raise CheckError("namespace is required for name= queries")
+
         if phase is not None or kwargs:
             raise CheckError("name= query doesn't support additional filters")
 
