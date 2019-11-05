@@ -9,6 +9,8 @@ from collections import defaultdict
 
 from prometheus_client.parser import text_string_to_metric_families
 
+from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
+
 from zmon_worker_monitor.zmon_worker.errors import CheckError
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -72,6 +74,7 @@ class KubernetesWrapper(object):
     def __client(self):
         config = pykube.KubeConfig.from_service_account()
         client = pykube.HTTPClient(config)
+        client.session.headers['User-Agent'] = get_user_agent()
         client.session.trust_env = False
         return client
 
