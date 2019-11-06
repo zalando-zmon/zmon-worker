@@ -40,12 +40,12 @@ class KubernetesFactory(IFunctionFactoryPlugin):
         return propartial(KubernetesWrapper)
 
 
-def _get_resources(object_manager, name=None, phase=None, **kwargs):
+def _get_resources(object_manager, name=None, field_selector=None, **kwargs):
     if name is not None:
         if object_manager.namespace == pykube.all:
             raise CheckError("namespace is required for name= queries")
 
-        if phase is not None or kwargs:
+        if field_selector is not None or kwargs:
             raise CheckError("name= query doesn't support additional filters")
 
         try:
@@ -55,9 +55,8 @@ def _get_resources(object_manager, name=None, phase=None, **kwargs):
 
     filter_kwargs = {}
 
-    # phase filter
-    if phase:
-        filter_kwargs['field_selector'] = {'status.phase': phase}
+    if field_selector:
+        filter_kwargs['field_selector'] = field_selector
 
     # labelSelector
     if kwargs:
@@ -117,8 +116,10 @@ class KubernetesWrapper(object):
         if phase and phase not in VALID_PHASE:
             raise CheckError('Invalid phase. Valid phase values are {}'.format(VALID_PHASE))
 
+        field_selector = None if phase is None else {'status.phase': phase}
+
         pods = _get_resources(pykube.Pod.objects(self.__client, self.__namespace),
-                              name=name, phase=phase, **kwargs)
+                              name=name, field_selector=field_selector, **kwargs)
 
         return [pod.obj for pod in pods if ready is None or pod.ready == ready]
 
@@ -311,7 +312,7 @@ class KubernetesWrapper(object):
         :rtype: list
         """
         pvcs = _get_resources(pykube.PersistentVolumeClaim.objects(self.__client, self.__namespace),
-                              name=name, phase=phase, **kwargs)
+                              name=name, **kwargs)
 
         return [pvc.obj for pvc in pvcs if phase is None or pvc.obj['status'].get('phase') == phase]
 
@@ -331,7 +332,7 @@ class KubernetesWrapper(object):
         :return: List of PersistentVolumes. Typical PersistentVolume has "metadata", "status" and "spec".
         :rtype: list
         """
-        pvs = _get_resources(pykube.PersistentVolume.objects(self.__client), name=name, phase=phase, **kwargs)
+        pvs = _get_resources(pykube.PersistentVolume.objects(self.__client), name=name, **kwargs)
 
         return [vc.obj for vc in pvs if phase is None or vc.obj['status'].get('phase') == phase]
 

@@ -103,13 +103,17 @@ def test_get_resources_unsupported(namespace, phase, kwargs):
 
 
 @pytest.mark.parametrize(
-    "phase,kwargs,query",
+    "field_selector,kwargs,query",
     [
         (None, {}, {}),
-        ("Pending", {}, {"field_selector": {"status.phase": "Pending"}}),
+        (
+            {"status.phase": "Pending"},
+            {},
+            {"field_selector": {"status.phase": "Pending"}},
+        ),
         (None, {"application": "foo"}, {"selector": {"application": "foo"}}),
         (
-            "Pending",
+            {"status.phase": "Pending"},
             {"application": "foo"},
             {
                 "field_selector": {"status.phase": "Pending"},
@@ -118,81 +122,103 @@ def test_get_resources_unsupported(namespace, phase, kwargs):
         ),
     ],
 )
-def test_get_resources_filter(phase, kwargs, query):
+def test_get_resources_filter(field_selector, kwargs, query):
     manager = MagicMock()
     manager.filter.return_value = [1, 2, 3]
 
-    assert [1, 2, 3] == _get_resources(manager, name=None, phase=phase, **kwargs)
+    assert [1, 2, 3] == _get_resources(
+        manager, name=None, field_selector=field_selector, **kwargs
+    )
     manager.filter.assert_called_once_with(**query)
 
 
 @pytest.mark.parametrize(
-    "kwargs,filter_kwargs,res",
+    "namespace,expected_namespace,phase,ready,name,kwargs,expected_query,objects,expected_objects",
     [
         (
+            None,
+            pykube.all,
+            None,
+            None,
+            "foo",
             {},
-            {},
-            [
-                resource_mock(
-                    {"metadata": {"name": "pod-1"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "pod-2"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "pod-3"}, "spec": {}, "status": {}}
-                ),
-            ],
+            {"name": "foo", "field_selector": None},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
         ),
         (
-            {"application": "pod-1", "phase": "Running", "ready": True},
+            "default",
+            "default",
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo", "field_selector": None},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "field_selector": None, "application": "foo"},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "field_selector": None, "application": "foo"},
+            [
+                resource_mock(name="pod-1", phase="Pending", ready=True),
+                resource_mock(name="pod-2", phase="Pending", ready=True),
+            ],
+            {"pod-1", "pod-2"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            "Running",
+            False,
+            None,
+            {"application": "foo"},
             {
-                "selector": {"application": "pod-1"},
+                "name": None,
                 "field_selector": {"status.phase": "Running"},
+                "application": "foo",
             },
             [
-                resource_mock(
-                    {
-                        "metadata": {"name": "pod-1"},
-                        "spec": {},
-                        "status": {"phase": "Running"},
-                    }
-                )
+                resource_mock(name="pod-2", phase="Running", ready=False),
+                resource_mock(name="pod-3", phase="Running", ready=True),
             ],
-        ),
-        (
-            {"name": "pod-2", "ready": False},
-            {"field_selector": {"metadata.name": "pod-2"}},
-            [
-                resource_mock(
-                    {"metadata": {"name": "pod-2"}, "spec": {}, "status": {}},
-                    ready=False,
-                )
-            ],
+            {"pod-2"},
         ),
     ],
 )
-def test_pods(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    pod = MagicMock()
-    query = pod.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        "zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources",
-        get_resources,
-    )
-    monkeypatch.setattr("pykube.Pod", pod)
-
-    k = KubernetesWrapper()
-
-    pods = k.pods(**kwargs)
-
-    assert [r.obj for r in res] == pods
-
-    get_resources.assert_called_with(query)
-    pod.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_pods(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    phase,
+    ready,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "Pod", namespace, objects)
+    pods = mock.wrapper.pods(name=name, phase=phase, ready=ready, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == pods
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}, {"phase": "WRONG"}))
@@ -636,7 +662,7 @@ def test_replicasets(
                 resource_mock(name="dep-1", replicas=1, ready=True),
                 resource_mock(name="dep-2", replicas=2, ready=False),
                 resource_mock(name="dep-3", replicas=2, ready=True),
-                resource_mock(name="dep-3", replicas=3, ready=False),
+                resource_mock(name="dep-4", replicas=3, ready=False),
             ],
             {"dep-2"},
         ),
@@ -655,14 +681,16 @@ def test_deployments(
     expected_objects,
 ):
     mock = MockWrapper(monkeypatch, "Deployment", namespace, objects)
-    deployments = mock.wrapper.deployments(name=name, replicas=replicas, ready=ready, **kwargs)
+    deployments = mock.wrapper.deployments(
+        name=name, replicas=replicas, ready=ready, **kwargs
+    )
     assert [r.obj for r in objects if r.name in expected_objects] == deployments
     mock.assert_objects_called(expected_namespace=expected_namespace)
     mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}))
-def test_deployments_error(monkeypatch, kwargs):
+def test_deployments_error(kwargs):
     k = KubernetesWrapper()
 
     with pytest.raises(CheckError):
@@ -718,7 +746,7 @@ def test_configmaps(
             None,
             "foo",
             {},
-            {"name": "foo", "phase": None},
+            {"name": "foo"},
             [resource_mock(name="pvc-1", phase="Pending")],
             {"pvc-1"},
         ),
@@ -728,7 +756,7 @@ def test_configmaps(
             None,
             "foo",
             {},
-            {"name": "foo", "phase": None},
+            {"name": "foo"},
             [resource_mock(name="pvc-1", phase="Pending")],
             {"pvc-1"},
         ),
@@ -738,7 +766,7 @@ def test_configmaps(
             None,
             None,
             {"application": "foo"},
-            {"name": None, "phase": None, "application": "foo"},
+            {"name": None, "application": "foo"},
             [resource_mock(name="pvc-1", phase="Pending")],
             {"pvc-1"},
         ),
@@ -748,7 +776,7 @@ def test_configmaps(
             None,
             None,
             {"application": "foo"},
-            {"name": None, "phase": None, "application": "foo"},
+            {"name": None, "application": "foo"},
             [
                 resource_mock(name="pvc-1", phase="Pending"),
                 resource_mock(name="pvc-2", phase="Ready"),
@@ -761,7 +789,7 @@ def test_configmaps(
             "Ready",
             None,
             {"application": "foo"},
-            {"name": None, "phase": "Ready", "application": "foo"},
+            {"name": None, "application": "foo"},
             [
                 resource_mock(name="pvc-1", phase="Pending"),
                 resource_mock(name="pvc-2", phase="Ready"),
@@ -801,7 +829,7 @@ def test_persistentvolumeclaims(
             None,
             "foo",
             {},
-            {"name": "foo", "phase": None},
+            {"name": "foo"},
             [resource_mock(name="pv-1", phase="Pending")],
             {"pv-1"},
         ),
@@ -810,7 +838,7 @@ def test_persistentvolumeclaims(
             None,
             "foo",
             {},
-            {"name": "foo", "phase": None},
+            {"name": "foo"},
             [resource_mock(name="pv-1", phase="Pending")],
             {"pv-1"},
         ),
@@ -819,7 +847,7 @@ def test_persistentvolumeclaims(
             None,
             None,
             {"application": "foo"},
-            {"name": None, "phase": None, "application": "foo"},
+            {"name": None, "application": "foo"},
             [resource_mock(name="pv-1", phase="Pending")],
             {"pv-1"},
         ),
@@ -828,7 +856,7 @@ def test_persistentvolumeclaims(
             None,
             None,
             {"application": "foo"},
-            {"name": None, "phase": None, "application": "foo"},
+            {"name": None, "application": "foo"},
             [
                 resource_mock(name="pv-1", phase="Pending"),
                 resource_mock(name="pv-2", phase="Ready"),
@@ -840,7 +868,7 @@ def test_persistentvolumeclaims(
             "Ready",
             None,
             {"application": "foo"},
-            {"name": None, "phase": "Ready", "application": "foo"},
+            {"name": None, "application": "foo"},
             [
                 resource_mock(name="pv-1", phase="Pending"),
                 resource_mock(name="pv-2", phase="Ready"),
@@ -861,12 +889,8 @@ def test_persistentvolumes(
     expected_objects,
 ):
     mock = MockWrapper(monkeypatch, "PersistentVolume", namespace, objects)
-    persistentvolumes = mock.wrapper.persistentvolumes(
-        name=name, phase=phase, **kwargs
-    )
-    assert [
-        r.obj for r in objects if r.name in expected_objects
-    ] == persistentvolumes
+    persistentvolumes = mock.wrapper.persistentvolumes(name=name, phase=phase, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == persistentvolumes
     mock.assert_objects_called(expected_namespace=None)
     mock.assert_get_resources_called(expected_query)
 
