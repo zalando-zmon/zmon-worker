@@ -206,7 +206,7 @@ class KubernetesWrapper(object):
         :return: List of Statefulsets. Typical Statefulset has "metadata", "status" and "spec".
         :rtype: list
         """
-        statfulsets = _get_resources(pykube.StatefulSet.objects(self.__client, namespace=self.__namespace),
+        statfulsets = _get_resources(pykube.StatefulSet.objects(self.__client, self.__namespace),
                                      name=name, **kwargs)
 
         return [statfulset.obj for statfulset in statfulsets if replicas is None or statfulset.replicas == replicas]
