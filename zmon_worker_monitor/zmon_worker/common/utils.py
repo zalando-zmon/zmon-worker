@@ -1,8 +1,10 @@
-import Queue
 import logging
+import Queue
 import random
 import threading
 import time
+
+import psutil
 
 
 def flatten(structure, key='', path='', flattened=None):
@@ -101,3 +103,11 @@ class PeriodicBufferedAction(object):
             else:
                 # so loop is responsive to stop commands
                 time.sleep(0.2)
+
+
+def get_process_cmdline(pid):
+    try:
+        # Some OSes report cmdline differently - join for 'zmon-worker check 999'...
+        return ' '.join(filter(bool, psutil.Process(pid).cmdline()))
+    except: # noqa
+        return 'N/A'

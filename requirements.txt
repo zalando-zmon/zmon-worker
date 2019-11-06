@@ -18,6 +18,7 @@ opentracing-utils>=0.14,<1
 opentracing>=1.2.2,<2
 prometheus-client==0.3.1
 psycopg2==2.8.3
+psutil==5.6.3
 pykube==0.15.0
 pymemcache>=1.4.3
 pymongo==3.0.3

@@ -3,24 +3,24 @@
 Logic for controlling worker processes
 """
 
-import os
-import signal
-import time
 import copy
 import json
-import pickle
 import logging
-
+import os
+import pickle
+import signal
+import time
+from collections import Iterable, defaultdict
+from datetime import timedelta
+from functools import wraps
 from multiprocessing import Process
 from threading import Thread
 from UserDict import IterableUserDict
-from collections import defaultdict, Iterable
-from functools import wraps
-from datetime import timedelta
 
-from .flags import has_flag, flags2num
-from .flags import MONITOR_RESTART, MONITOR_KILL_REQ, MONITOR_PING, MONITOR_NONE
+from zmon_worker_monitor.zmon_worker.common.utils import get_process_cmdline
 
+from .flags import (MONITOR_KILL_REQ, MONITOR_NONE, MONITOR_PING,
+                    MONITOR_RESTART, flags2num, has_flag)
 
 FLOAT_DIGITS = 5
 
@@ -877,8 +877,9 @@ class ProcessGroup(IterableUserDict):
         """
         for name, proc in self.items():
             if not self.stop_action and proc.should_terminate() and proc.has_flag(MONITOR_KILL_REQ):
-                proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION',
-                                        'Kill request received for %s' % name)
+                message = 'Kill request received for {} ({})'.format(name, get_process_cmdline(proc.pid))
+                proc.add_event_explicit('ProcessGroup(%s)._action_kill_req' % self.group_name, 'ACTION', message)
+                self.logger.warn(message)
                 self.respawn_process(name)
 
     @register('action', wait_sec=2)
@@ -888,7 +889,7 @@ class ProcessGroup(IterableUserDict):
         """
         for name, proc in self.items():
             if not self.stop_action and not proc.is_alive() and proc.has_flag(MONITOR_RESTART):
-                msg = 'Detected abnormal termination of pid: %s ... Restarting' % proc.pid
+                msg = 'Detected abnormal termination of "{}" (pid: {}); restarting...'.format(proc.name, proc.pid)
                 self.logger.warn(msg)
                 proc.add_event_explicit('ProcessGroup(%s)._action_restart_dead' % self.group_name, 'ACTION', msg)
                 self.respawn_process(name)
