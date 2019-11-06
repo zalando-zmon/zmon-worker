@@ -59,6 +59,7 @@ class MockWrapper:
 def client_mock(monkeypatch):
     monkeypatch.setattr("pykube.KubeConfig", MagicMock())
     client = MagicMock(name="client")
+    client.config.cluster = {'server': CLUSTER_URL}
     monkeypatch.setattr("pykube.HTTPClient", lambda *args, **kwargs: client)
     return client
 
@@ -1028,7 +1029,7 @@ def test_metrics(monkeypatch):
     resp = MagicMock()
     resp.text = "metrics"
 
-    client.return_value.session.get.return_value = resp
+    client.session.get.return_value = resp
 
     parsed = MagicMock()
     parsed.samples = [
@@ -1056,4 +1057,4 @@ def test_metrics(monkeypatch):
     assert metrics == expected
 
     parser.assert_called_with(resp.text)
-    client.return_value.session.get.assert_called_with(CLUSTER_URL + "/metrics")
+    client.session.get.assert_called_with(CLUSTER_URL + "/metrics")
