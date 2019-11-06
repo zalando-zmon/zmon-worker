@@ -769,53 +769,81 @@ def test_persistentvolumeclaims(
 
 
 @pytest.mark.parametrize(
-    "kwargs,filter_kwargs,res",
+    "namespace,phase,name,kwargs,expected_query,objects,expected_objects",
     [
         (
+            None,
+            None,
+            "foo",
             {},
-            {},
-            [
-                resource_mock({"metadata": {"name": "pv-1"}, "spec": {}, "status": {}}),
-                resource_mock({"metadata": {"name": "pv-2"}, "spec": {}, "status": {}}),
-                resource_mock({"metadata": {"name": "pv-3"}, "spec": {}, "status": {}}),
-            ],
+            {"name": "foo", "phase": None},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
         ),
         (
-            {"application": "pv-1", "phase": "Bound"},
-            {"selector": {"application": "pv-1"}},
-            [
-                resource_mock(
-                    {
-                        "metadata": {"name": "pv-1"},
-                        "spec": {},
-                        "status": {"phase": "Bound"},
-                    }
-                )
-            ],
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo", "phase": None},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
         ),
         (
-            {"name": "pv-2"},
-            {"field_selector": {"metadata.name": "pv-2"}},
-            [resource_mock({"metadata": {"name": "pv-2"}, "spec": {}, "status": {}})],
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": None, "application": "foo"},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
+        ),
+        (
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": None, "application": "foo"},
+            [
+                resource_mock(name="pv-1", phase="Pending"),
+                resource_mock(name="pv-2", phase="Ready"),
+            ],
+            {"pv-1", "pv-2"},
+        ),
+        (
+            "foobar",
+            "Ready",
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": "Ready", "application": "foo"},
+            [
+                resource_mock(name="pv-1", phase="Pending"),
+                resource_mock(name="pv-2", phase="Ready"),
+                resource_mock(name="pv-3", phase="Ready"),
+            ],
+            {"pv-2", "pv-3"},
         ),
     ],
 )
-def test_persistentvolumes(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-
-    persistentvolume = MagicMock()
-    query = persistentvolume.objects.return_value.filter.return_value
-    query.all.return_value = res
-
-    monkeypatch.setattr("pykube.PersistentVolume", persistentvolume)
-
-    k = KubernetesWrapper()
-
-    persistentvolumes = k.persistentvolumes(**kwargs)
-
-    assert [r.obj for r in res] == persistentvolumes
-
-    persistentvolume.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_persistentvolumes(
+    monkeypatch,
+    namespace,
+    phase,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "PersistentVolume", namespace, objects)
+    persistentvolumes = mock.wrapper.persistentvolumes(
+        name=name, phase=phase, **kwargs
+    )
+    assert [
+        r.obj for r in objects if r.name in expected_objects
+    ] == persistentvolumes
+    mock.assert_objects_called(expected_namespace=None)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
