@@ -575,65 +575,90 @@ def test_replicasets(
 
 
 @pytest.mark.parametrize(
-    "kwargs,filter_kwargs,res",
+    "namespace,expected_namespace,replicas,ready,name,kwargs,expected_query,objects,expected_objects",
     [
         (
+            None,
+            pykube.all,
+            None,
+            None,
+            "foo",
             {},
-            {},
-            [
-                resource_mock(
-                    {"metadata": {"name": "dep-1"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "dep-2"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "dep-3"}, "spec": {}, "status": {}}
-                ),
-            ],
+            {"name": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
         ),
         (
-            {"application": "dep-1", "replicas": 2},
-            {"selector": {"application": "dep-1"}},
-            [
-                resource_mock(
-                    {
-                        "metadata": {"name": "dep-1"},
-                        "spec": {},
-                        "status": {"replicas": "2"},
-                    },
-                    replicas=2,
-                )
-            ],
+            "default",
+            "default",
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
         ),
         (
-            {"name": "dep-2"},
-            {"field_selector": {"metadata.name": "dep-2"}},
-            [resource_mock({"metadata": {"name": "dep-2"}, "spec": {}, "status": {}})],
+            None,
+            pykube.all,
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="dep-1", replicas=1, ready=True),
+                resource_mock(name="dep-2", replicas=1, ready=True),
+            ],
+            {"dep-1", "dep-2"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            2,
+            False,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="dep-1", replicas=1, ready=True),
+                resource_mock(name="dep-2", replicas=2, ready=False),
+                resource_mock(name="dep-3", replicas=2, ready=True),
+                resource_mock(name="dep-3", replicas=3, ready=False),
+            ],
+            {"dep-2"},
         ),
     ],
 )
-def test_deployments(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    deployment = MagicMock()
-    query = deployment.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        "zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources",
-        get_resources,
-    )
-    monkeypatch.setattr("pykube.Deployment", deployment)
-
-    k = KubernetesWrapper()
-
-    deployments = k.deployments(**kwargs)
-
-    assert [r.obj for r in res] == deployments
-
-    get_resources.assert_called_with(query)
-    deployment.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_deployments(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    replicas,
+    ready,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "Deployment", namespace, objects)
+    deployments = mock.wrapper.deployments(name=name, replicas=replicas, ready=ready, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == deployments
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}))
