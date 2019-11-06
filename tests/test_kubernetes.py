@@ -1,3 +1,5 @@
+import contextlib
+
 import pykube
 import pytest
 from mock import MagicMock
@@ -10,7 +12,7 @@ CLUSTER_URL = 'https://kube-cluster.example.org'
 def resource_mock(obj, **kwargs):
     resource = MagicMock()
     resource.obj = obj
-    resource.ready = True
+
     for k, v in kwargs.items():
         setattr(resource, k, v)
 
@@ -26,12 +28,8 @@ def get_resources_mock(res):
 
 def client_mock(monkeypatch):
     monkeypatch.setattr('pykube.KubeConfig', MagicMock())
-
-    client = MagicMock()
-    client.return_value.config.cluster = {'server': CLUSTER_URL}
-
-    monkeypatch.setattr('pykube.HTTPClient', client)
-
+    client = MagicMock(name='client')
+    monkeypatch.setattr('pykube.HTTPClient', lambda *args, **kwargs: client)
     return client
 
 
@@ -136,7 +134,7 @@ def test_pods(monkeypatch, kwargs, filter_kwargs, res):
 
 
 @pytest.mark.parametrize('kwargs', ({'ready': 1}, {'ready': 0}, {'phase': 'WRONG'}))
-def test_pods_error(monkeypatch, kwargs):
+def test_pods_error(kwargs):
     k = KubernetesWrapper()
 
     with pytest.raises(CheckError):
@@ -158,42 +156,47 @@ def test_namespaces(monkeypatch):
     assert [r.obj for r in res] == namespaces
 
 
+@contextlib.contextmanager
+def pykube_mock(monkeypatch, kind,
+                namespace, expected_namespace,
+                expected_args, resources):
+    query = MagicMock(name='query')
+
+    object_manager = MagicMock(name='object_manager')
+    object_manager.objects.return_value = query
+
+    get_resources = MagicMock('get_resources')
+    get_resources.return_value = resources
+
+    monkeypatch.setattr('pykube.{}'.format(kind), object_manager)
+    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.kubernetes._get_resources', get_resources)
+
+    client = client_mock(monkeypatch)
+    wrapper = KubernetesWrapper(namespace=namespace)
+
+    yield wrapper
+
+    if expected_namespace is not None:
+        object_manager.objects.assert_called_once_with(client, expected_namespace)
+    else:
+        object_manager.objects.assert_called_once_with(client)
+
+    get_resources.assert_called_once_with(query, **expected_args)
+
+
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    'namespace,name,kwargs,expected_query,objects',
     [
-        (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'node-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'node-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'node-3'}, 'spec': {}, 'status': {}}),
-            ]
-        ),
-        (
-            {'beta.kubernetes.io/os': 'linux'}, {'selector': {'beta.kubernetes.io/os': 'linux'}},
-            [resource_mock({'metadata': {'name': 'node-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
-        ),
-        (
-            {'name': 'node-2'}, {'field_selector': {'metadata.name': 'node-2'}},
-            [resource_mock({'metadata': {'name': 'node-2'}, 'spec': {}, 'status': {}})]
-        ),
+        (None, 'foo', {}, {'name': 'foo'}, [resource_mock(MagicMock(name='node-1'))]),
+        ('default', 'foo', {}, {'name': 'foo'}, [resource_mock(MagicMock(name='node-1'))]),
+        (None, None, {'application': 'foo'}, {'name': None, 'application': 'foo'}, [resource_mock(MagicMock(name='node-1'))]),
+        ('default', None, {'application': 'foo'}, {'name': None, 'application': 'foo'}, [resource_mock(MagicMock(name='node-1'))]),
     ]
 )
-def test_nodes(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-
-    node = MagicMock()
-    node.objects.return_value.filter.return_value = res
-
-    monkeypatch.setattr('pykube.Node', node)
-
-    k = KubernetesWrapper()
-
-    nodes = k.nodes(**kwargs)
-
-    assert [r.obj for r in res] == nodes
-
-    node.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_nodes(monkeypatch, namespace, name, kwargs, expected_query, objects):
+    with pykube_mock(monkeypatch, 'Node', namespace, None, expected_query, objects) as wrapper:
+        nodes = wrapper.nodes(name=name, **kwargs)
+        assert [r.obj for r in objects] == nodes
 
 
 @pytest.mark.parametrize(
