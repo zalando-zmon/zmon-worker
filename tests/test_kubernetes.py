@@ -1,3 +1,5 @@
+import uuid
+
 import pykube
 import pytest
 from mock import MagicMock
@@ -11,14 +13,16 @@ from zmon_worker_monitor.builtins.plugins.kubernetes import (
 CLUSTER_URL = "https://kube-cluster.example.org"
 
 
-def resource_mock(name, **kwargs):
+def resource_mock(name, phase=None, replicas=None, ready=None):
     resource = MagicMock(name="pykube-{}".format(name))
     resource.name = name
-    resource.obj = MagicMock(name=name)
-
-    for k, v in kwargs.items():
-        setattr(resource, k, v)
-
+    resource.obj = {"metadata": {"name": name, "uid": uuid.uuid4()}}
+    if phase is not None:
+        resource.obj["status"] = {"phase": phase}
+    if replicas is not None:
+        resource.replicas = replicas
+    if ready is not None:
+        resource.ready = ready
     return resource
 
 
@@ -681,66 +685,87 @@ def test_configmaps(
 
 
 @pytest.mark.parametrize(
-    "kwargs,filter_kwargs,res",
+    "namespace,expected_namespace,phase,name,kwargs,expected_query,objects,expected_objects",
     [
         (
+            None,
+            pykube.all,
+            None,
+            "foo",
             {},
-            {},
-            [
-                resource_mock(
-                    {"metadata": {"name": "pvc-1"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "pvc-2"}, "spec": {}, "status": {}}
-                ),
-                resource_mock(
-                    {"metadata": {"name": "pvc-3"}, "spec": {}, "status": {}}
-                ),
-            ],
+            {"name": "foo", "phase": None},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
         ),
         (
-            {"application": "pvc-1", "phase": "Bound"},
-            {"selector": {"application": "pvc-1"}},
-            [
-                resource_mock(
-                    {
-                        "metadata": {"name": "pvc-1"},
-                        "spec": {},
-                        "status": {"phase": "Bound"},
-                    }
-                )
-            ],
+            "default",
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo", "phase": None},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
         ),
         (
-            {"name": "pvc-2"},
-            {"field_selector": {"metadata.name": "pvc-2"}},
-            [resource_mock({"metadata": {"name": "pvc-2"}, "spec": {}, "status": {}})],
+            None,
+            pykube.all,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": None, "application": "foo"},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": None, "application": "foo"},
+            [
+                resource_mock(name="pvc-1", phase="Pending"),
+                resource_mock(name="pvc-2", phase="Ready"),
+            ],
+            {"pvc-1", "pvc-2"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            "Ready",
+            None,
+            {"application": "foo"},
+            {"name": None, "phase": "Ready", "application": "foo"},
+            [
+                resource_mock(name="pvc-1", phase="Pending"),
+                resource_mock(name="pvc-2", phase="Ready"),
+                resource_mock(name="pvc-3", phase="Ready"),
+            ],
+            {"pvc-2", "pvc-3"},
         ),
     ],
 )
-def test_persistentvolumeclaims(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    persistentvolumeclaim = MagicMock()
-    query = persistentvolumeclaim.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        "zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources",
-        get_resources,
+def test_persistentvolumeclaims(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    phase,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "PersistentVolumeClaim", namespace, objects)
+    persistentvolumeclaims = mock.wrapper.persistentvolumeclaims(
+        name=name, phase=phase, **kwargs
     )
-    monkeypatch.setattr("pykube.PersistentVolumeClaim", persistentvolumeclaim)
-
-    k = KubernetesWrapper()
-
-    persistentvolumeclaims = k.persistentvolumeclaims(**kwargs)
-
-    assert [r.obj for r in res] == persistentvolumeclaims
-
-    get_resources.assert_called_with(query)
-    persistentvolumeclaim.objects.return_value.filter.assert_called_with(
-        **filter_kwargs
-    )
+    assert [
+        r.obj for r in objects if r.name in expected_objects
+    ] == persistentvolumeclaims
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
