@@ -2,7 +2,7 @@ import pykube
 import pytest
 from mock import MagicMock
 
-from zmon_worker_monitor.builtins.plugins.kubernetes import KubernetesWrapper, CheckError
+from zmon_worker_monitor.builtins.plugins.kubernetes import KubernetesWrapper, CheckError, _get_resources
 
 CLUSTER_URL = 'https://kube-cluster.example.org'
 
@@ -35,29 +35,61 @@ def client_mock(monkeypatch):
     return client
 
 
+def test_get_resources_named():
+    resource = MagicMock(name='resource')
+
+    manager = MagicMock()
+    manager.namespace = 'default'
+    manager.get_by_name.return_value = resource
+
+    assert [resource] == _get_resources(manager, name='foo')
+    manager.get_by_name.assert_called_once_with('foo')
+
+
+def test_get_resources_named_no_resource():
+    manager = MagicMock()
+    manager.namespace = 'default'
+    manager.get_by_name.side_effect = pykube.exceptions.ObjectDoesNotExist()
+
+    assert [] == _get_resources(manager, name='foo')
+    manager.get_by_name.assert_called_once_with('foo')
+
+
 @pytest.mark.parametrize(
-    'kwargs,q,res',
-    (
-        ({}, [1, 2, 3], [1, 2, 3]),
-        ({'namespace': 'default'}, [1, 2, 3], [1, 2, 3]),
-        ({'namespace': None}, [1, 2, 3], [1, 2, 3]),
-    )
+    'namespace,phase,kwargs',
+    [
+        (pykube.all, None, {}),
+        ('default', 'Pending', {}),
+        ('default', None, {'application': 'foo'})
+    ]
 )
-def test_get_resources(monkeypatch, kwargs, q, res):
-    client_mock(monkeypatch)
+def test_get_resources_unsupported(namespace, phase, kwargs):
+    manager = MagicMock()
+    manager.namespace = namespace
+    manager.get_by_name.return_value = None
 
-    query = MagicMock()
-    query.filter.return_value = q
+    with pytest.raises(CheckError):
+        _get_resources(manager, name='foo', phase=phase, **kwargs)
 
-    k = KubernetesWrapper(**kwargs)
-    result = k._get_resources(query)
+    manager.get_by_name.assert_not_called()
 
-    assert res == result
 
-    namespace = kwargs.get('namespace', 'default')
-    if namespace is None:
-        namespace = pykube.all
-    query.filter.assert_called_with(namespace=namespace)
+@pytest.mark.parametrize(
+    'phase,kwargs,query',
+    [
+        (None, {}, {}),
+        ('Pending', {}, {'field_selector': {'status.phase': 'Pending'}}),
+        (None, {'application': 'foo'}, {'selector': {'application': 'foo'}}),
+        ('Pending', {'application': 'foo'}, {'field_selector': {'status.phase': 'Pending'},
+                                             'selector': {'application': 'foo'}}),
+    ]
+)
+def test_get_resources_filter(phase, kwargs, query):
+    manager = MagicMock()
+    manager.filter.return_value = [1, 2, 3]
+
+    assert [1, 2, 3] == _get_resources(manager, name=None, phase=phase, **kwargs)
+    manager.filter.assert_called_once_with(**query)
 
 
 @pytest.mark.parametrize(
