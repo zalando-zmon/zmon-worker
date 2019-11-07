@@ -42,7 +42,7 @@ class MockWrapper:
         )
 
         self._client = client_mock(monkeypatch)
-        self.wrapper = KubernetesWrapper(namespace=namespace)
+        self.wrapper = KubernetesWrapper(namespace=namespace, check_id='<test>')
 
     def assert_objects_called(self, expected_namespace=None):
         if expected_namespace is not None:
@@ -224,7 +224,7 @@ def test_pods(
 
 @pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}, {"phase": "WRONG"}))
 def test_pods_error(kwargs):
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
 
     with pytest.raises(CheckError):
         k.pods(**kwargs)
@@ -239,7 +239,7 @@ def test_namespaces(monkeypatch):
     ns.objects.return_value.all.return_value = res
     monkeypatch.setattr("pykube.Namespace", ns)
 
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
     namespaces = k.namespaces()
 
     assert [r.obj for r in res] == namespaces
@@ -692,7 +692,7 @@ def test_deployments(
 
 @pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}))
 def test_deployments_error(kwargs):
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
 
     with pytest.raises(CheckError):
         k.deployments(**kwargs)
@@ -1046,7 +1046,7 @@ def test_metrics(monkeypatch):
         parser,
     )
 
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
     metrics = k.metrics()
 
     expected = {

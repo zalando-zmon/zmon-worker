@@ -37,7 +37,7 @@ class KubernetesFactory(IFunctionFactoryPlugin):
         :param factory_ctx: (dict) names available for Function instantiation
         :return: an object that implements a check function
         """
-        return propartial(KubernetesWrapper)
+        return propartial(KubernetesWrapper, check_id=factory_ctx['check_id'], __protected=['check_id'])
 
 
 def _get_resources(object_manager, name=None, field_selector=None, **kwargs):
@@ -66,14 +66,15 @@ def _get_resources(object_manager, name=None, field_selector=None, **kwargs):
 
 
 class KubernetesWrapper(object):
-    def __init__(self, namespace='default'):
+    def __init__(self, check_id, namespace='default'):
+        self.__check_id = check_id
         self.__namespace = pykube.all if namespace is None else namespace
 
     @property
     def __client(self):
         config = pykube.KubeConfig.from_service_account()
         client = pykube.HTTPClient(config)
-        client.session.headers['User-Agent'] = get_user_agent()
+        client.session.headers['User-Agent'] = "{} (check {})".format(get_user_agent(), self.__check_id)
         client.session.trust_env = False
         return client
 
