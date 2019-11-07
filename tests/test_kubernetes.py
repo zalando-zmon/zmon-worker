@@ -1,120 +1,230 @@
+import uuid
+
+import pykube
 import pytest
+from mock import MagicMock
 
-from mock import MagicMock, call
+from zmon_worker_monitor.builtins.plugins.kubernetes import (
+    KubernetesWrapper,
+    CheckError,
+    _get_resources,
+)
 
-from zmon_worker_monitor.builtins.plugins.kubernetes import KubernetesWrapper, CheckError
-
-CLUSTER_URL = 'https://kube-cluster.example.org'
+CLUSTER_URL = "https://kube-cluster.example.org"
 
 
-def resource_mock(obj, **kwargs):
-    resource = MagicMock()
-    resource.obj = obj
-    resource.ready = True
-    for k, v in kwargs.items():
-        setattr(resource, k, v)
-
+def resource_mock(name, phase=None, replicas=None, ready=None):
+    resource = MagicMock(name="pykube-{}".format(name))
+    resource.name = name
+    resource.obj = {"metadata": {"name": name, "uid": uuid.uuid4()}}
+    if phase is not None:
+        resource.obj["status"] = {"phase": phase}
+    if replicas is not None:
+        resource.replicas = replicas
+    if ready is not None:
+        resource.ready = ready
     return resource
 
 
-def get_resources_mock(res):
-    get = MagicMock()
-    get.return_value = res
+class MockWrapper:
+    def __init__(self, monkeypatch, kind, namespace, resources):
+        self._query = MagicMock(name="query")
+        self._object_manager = MagicMock(name="object_manager")
+        self._object_manager.objects.return_value = self._query
 
-    return get
+        self._get_resources = MagicMock("get_resources")
+        self._get_resources.return_value = resources
+
+        monkeypatch.setattr("pykube.{}".format(kind), self._object_manager)
+        monkeypatch.setattr(
+            "zmon_worker_monitor.builtins.plugins.kubernetes._get_resources",
+            self._get_resources,
+        )
+
+        self._client = client_mock(monkeypatch)
+        self.wrapper = KubernetesWrapper(namespace=namespace, check_id='<test>')
+
+    def assert_objects_called(self, expected_namespace=None):
+        if expected_namespace is not None:
+            self._object_manager.objects.assert_called_once_with(
+                self._client, expected_namespace
+            )
+        else:
+            self._object_manager.objects.assert_called_once_with(self._client)
+
+    def assert_get_resources_called(self, expected_args):
+        self._get_resources.assert_called_once_with(self._query, **expected_args)
 
 
 def client_mock(monkeypatch):
-    monkeypatch.setattr('pykube.KubeConfig', MagicMock())
-
-    client = MagicMock()
-    client.return_value.config.cluster = {'server': CLUSTER_URL}
-
-    monkeypatch.setattr('pykube.HTTPClient', client)
-
+    monkeypatch.setattr("pykube.KubeConfig", MagicMock())
+    client = MagicMock(name="client")
+    client.config.cluster = {'server': CLUSTER_URL}
+    monkeypatch.setattr("pykube.HTTPClient", lambda *args, **kwargs: client)
     return client
 
 
+def test_get_resources_named():
+    resource = MagicMock(name="resource")
+
+    manager = MagicMock()
+    manager.namespace = "default"
+    manager.get_by_name.return_value = resource
+
+    assert [resource] == _get_resources(manager, name="foo")
+    manager.get_by_name.assert_called_once_with("foo")
+
+
+def test_get_resources_named_no_resource():
+    manager = MagicMock()
+    manager.namespace = "default"
+    manager.get_by_name.side_effect = pykube.exceptions.ObjectDoesNotExist()
+
+    assert [] == _get_resources(manager, name="foo")
+    manager.get_by_name.assert_called_once_with("foo")
+
+
 @pytest.mark.parametrize(
-    'kwargs,ns,q,res',
-    (
-        ({}, [], [1, 2, 3], [1, 2, 3]),
-        ({'namespace': 'default'}, [], [1, 2, 3], [1, 2, 3]),
-        (
-            {'namespace': None}, [{'metadata': {'name': 'n1'}}, {'metadata': {'name': 'n2'}}],
-            [1, 2, 3], [1, 2, 3, 1, 2, 3]
-        ),
-    )
+    "namespace,phase,kwargs",
+    [
+        (pykube.all, None, {}),
+        ("default", "Pending", {}),
+        ("default", None, {"application": "foo"}),
+    ],
 )
-def test_get_resources(monkeypatch, kwargs, ns, q, res):
-    client_mock(monkeypatch)
+def test_get_resources_unsupported(namespace, phase, kwargs):
+    manager = MagicMock()
+    manager.namespace = namespace
+    manager.get_by_name.return_value = None
 
-    query = MagicMock()
-    query.filter.return_value = q
+    with pytest.raises(CheckError):
+        _get_resources(manager, name="foo", phase=phase, **kwargs)
 
-    namespaces = MagicMock()
-    namespaces.return_value = ns
-
-    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper.namespaces', namespaces)
-
-    k = KubernetesWrapper(**kwargs)
-    result = k._get_resources(query)
-
-    assert res == result
-
-    if 'namespace' in kwargs and kwargs['namespace'] is None:
-        calls = [call(namespace=n['metadata']['name']) for n in ns]
-        query.filter.assert_has_calls(calls, any_order=True)
-    else:
-        query.filter.assert_called_with(namespace='default')
+    manager.get_by_name.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "field_selector,kwargs,query",
+    [
+        (None, {}, {}),
+        (
+            {"status.phase": "Pending"},
+            {},
+            {"field_selector": {"status.phase": "Pending"}},
+        ),
+        (None, {"application": "foo"}, {"selector": {"application": "foo"}}),
+        (
+            {"status.phase": "Pending"},
+            {"application": "foo"},
+            {
+                "field_selector": {"status.phase": "Pending"},
+                "selector": {"application": "foo"},
+            },
+        ),
+    ],
+)
+def test_get_resources_filter(field_selector, kwargs, query):
+    manager = MagicMock()
+    manager.filter.return_value = [1, 2, 3]
+
+    assert [1, 2, 3] == _get_resources(
+        manager, name=None, field_selector=field_selector, **kwargs
+    )
+    manager.filter.assert_called_once_with(**query)
+
+
+@pytest.mark.parametrize(
+    "namespace,expected_namespace,phase,ready,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            pykube.all,
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo", "field_selector": None},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
+        ),
+        (
+            "default",
+            "default",
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo", "field_selector": None},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "field_selector": None, "application": "foo"},
+            [resource_mock(name="pod-1", phase="Pending", ready=True)],
+            {"pod-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "field_selector": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'pod-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pod-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pod-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="pod-1", phase="Pending", ready=True),
+                resource_mock(name="pod-2", phase="Pending", ready=True),
+            ],
+            {"pod-1", "pod-2"},
         ),
         (
-            {'application': 'pod-1', 'phase': 'Running', 'ready': True},
-            {'selector': {'application': 'pod-1'}, 'field_selector': {'status.phase': 'Running'}},
-            [resource_mock({'metadata': {'name': 'pod-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
+            "foobar",
+            "foobar",
+            "Running",
+            False,
+            None,
+            {"application": "foo"},
+            {
+                "name": None,
+                "field_selector": {"status.phase": "Running"},
+                "application": "foo",
+            },
+            [
+                resource_mock(name="pod-2", phase="Running", ready=False),
+                resource_mock(name="pod-3", phase="Running", ready=True),
+            ],
+            {"pod-2"},
         ),
-        (
-            {'name': 'pod-2', 'ready': False}, {'field_selector': {'metadata.name': 'pod-2'}},
-            [resource_mock({'metadata': {'name': 'pod-2'}, 'spec': {}, 'status': {}}, ready=False)]
-        ),
-    ]
+    ],
 )
-def test_pods(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    pod = MagicMock()
-    query = pod.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Pod', pod)
-
-    k = KubernetesWrapper()
-
-    pods = k.pods(**kwargs)
-
-    assert [r.obj for r in res] == pods
-
-    get_resources.assert_called_with(query)
-    pod.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_pods(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    phase,
+    ready,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "Pod", namespace, objects)
+    pods = mock.wrapper.pods(name=name, phase=phase, ready=ready, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == pods
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
-@pytest.mark.parametrize('kwargs', ({'ready': 1}, {'ready': 0}, {'phase': 'WRONG'}))
-def test_pods_error(monkeypatch, kwargs):
-    k = KubernetesWrapper()
+@pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}, {"phase": "WRONG"}))
+def test_pods_error(kwargs):
+    k = KubernetesWrapper(check_id='<test>')
 
     with pytest.raises(CheckError):
         k.pods(**kwargs)
@@ -123,629 +233,828 @@ def test_pods_error(monkeypatch, kwargs):
 def test_namespaces(monkeypatch):
     client_mock(monkeypatch)
 
-    res = [resource_mock({'metadata': {}})]
+    res = [resource_mock({"metadata": {}})]
 
     ns = MagicMock()
     ns.objects.return_value.all.return_value = res
-    monkeypatch.setattr('pykube.Namespace', ns)
+    monkeypatch.setattr("pykube.Namespace", ns)
 
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
     namespaces = k.namespaces()
 
     assert [r.obj for r in res] == namespaces
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,name,kwargs,expected_query,objects",
     [
+        (None, "foo", {}, {"name": "foo"}, [resource_mock(name="node-1")]),
+        ("default", "foo", {}, {"name": "foo"}, [resource_mock(name="node-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'node-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'node-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'node-3'}, 'spec': {}, 'status': {}}),
-            ]
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="node-1")],
         ),
         (
-            {'beta.kubernetes.io/os': 'linux'}, {'selector': {'beta.kubernetes.io/os': 'linux'}},
-            [resource_mock({'metadata': {'name': 'node-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
+            "default",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="node-1"), resource_mock(name="node-2")],
         ),
-        (
-            {'name': 'node-2'}, {'field_selector': {'metadata.name': 'node-2'}},
-            [resource_mock({'metadata': {'name': 'node-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_nodes(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-
-    node = MagicMock()
-    node.objects.return_value.filter.return_value = res
-
-    monkeypatch.setattr('pykube.Node', node)
-
-    k = KubernetesWrapper()
-
-    nodes = k.nodes(**kwargs)
-
-    assert [r.obj for r in res] == nodes
-
-    node.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_nodes(monkeypatch, namespace, name, kwargs, expected_query, objects):
+    mock = MockWrapper(monkeypatch, "Node", namespace, objects)
+    nodes = mock.wrapper.nodes(name=name, **kwargs)
+    assert [r.obj for r in objects] == nodes
+    mock.assert_objects_called(expected_namespace=None)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="svc-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'svc-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'svc-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'svc-3'}, 'spec': {}, 'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="svc-1")],
         ),
         (
-            {'application': 'svc-1'}, {'selector': {'application': 'svc-1'}},
-            [resource_mock({'metadata': {'name': 'svc-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="svc-1")],
         ),
         (
-            {'name': 'svc-2'}, {'field_selector': {'metadata.name': 'svc-2'}},
-            [resource_mock({'metadata': {'name': 'svc-2'}, 'spec': {}, 'status': {}})]
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="svc-1"), resource_mock(name="svc-2")],
         ),
-    ]
+    ],
 )
-def test_services(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    service = MagicMock()
-    query = service.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Service', service)
-
-    k = KubernetesWrapper()
-
-    services = k.services(**kwargs)
-
-    assert [r.obj for r in res] == services
-
-    get_resources.assert_called_with(query)
-    service.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_services(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "Service", namespace, objects)
+    services = mock.wrapper.services(name=name, **kwargs)
+    assert [r.obj for r in objects] == services
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="ep-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'ep-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ep-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ep-3'}, 'spec': {}, 'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ep-1")],
         ),
         (
-            {'application': 'ep-1'}, {'selector': {'application': 'ep-1'}},
-            [resource_mock({'metadata': {'name': 'ep-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ep-1")],
         ),
         (
-            {'name': 'ep-2'}, {'field_selector': {'metadata.name': 'ep-2'}},
-            [resource_mock({'metadata': {'name': 'ep-2'}, 'spec': {}, 'status': {}})]
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ep-1"), resource_mock(name="ep-2")],
         ),
-    ]
+    ],
 )
-def test_endpoints(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    endpoint = MagicMock()
-    query = endpoint.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Endpoint', endpoint)
-
-    k = KubernetesWrapper()
-
-    endpoints = k.endpoints(**kwargs)
-
-    assert [r.obj for r in res] == endpoints
-
-    get_resources.assert_called_with(query)
-    endpoint.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_endpoints(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "Endpoint", namespace, objects)
+    endpoints = mock.wrapper.endpoints(name=name, **kwargs)
+    assert [r.obj for r in objects] == endpoints
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'ing-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ing-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ing-3'}, 'spec': {}, 'status': {}}),
-            ]
+            None,
+            pykube.all,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ingress-1")],
         ),
         (
-            {'application': 'ing-1'}, {'selector': {'application': 'ing-1'}},
-            [resource_mock({'metadata': {'name': 'ing-1'}, 'spec': {}, 'status': {'phase': 'Running'}})]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ingress-1")],
         ),
         (
-            {'name': 'ing-2'}, {'field_selector': {'metadata.name': 'ing-2'}},
-            [resource_mock({'metadata': {'name': 'ing-2'}, 'spec': {}, 'status': {}})]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ingress-1")],
         ),
-    ]
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ingress-1"), resource_mock(name="ingress-2")],
+        ),
+    ],
 )
-def test_ingresses(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    ingress = MagicMock()
-    query = ingress.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Ingress', ingress)
-
-    k = KubernetesWrapper()
-
-    ingresses = k.ingresses(**kwargs)
-
-    assert [r.obj for r in res] == ingresses
-
-    get_resources.assert_called_with(query)
-    ingress.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_ingresses(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "Ingress", namespace, objects)
+    ingresses = mock.wrapper.ingresses(name=name, **kwargs)
+    assert [r.obj for r in objects] == ingresses
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,replicas,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            pykube.all,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ss-1", replicas=1)],
+            {"ss-1"},
+        ),
+        (
+            "default",
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ss-1", replicas=1)],
+            {"ss-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ss-1", replicas=1)],
+            {"ss-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'ss-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ss-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ss-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="ss-1", replicas=1),
+                resource_mock(name="ss-2", replicas=1),
+            ],
+            {"ss-1", "ss-2"},
         ),
         (
-            {'application': 'ss-1', 'replicas': 2}, {'selector': {'application': 'ss-1'}},
-            [resource_mock({'metadata': {'name': 'ss-1'}, 'spec': {}, 'status': {'replicas': '2'}}, replicas=2)]
+            "foobar",
+            "foobar",
+            2,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="ss-1", replicas=1),
+                resource_mock(name="ss-2", replicas=2),
+                resource_mock(name="ss-3", replicas=2),
+            ],
+            {"ss-2", "ss-3"},
         ),
-        (
-            {'name': 'ss-2'}, {'field_selector': {'metadata.name': 'ss-2'}},
-            [resource_mock({'metadata': {'name': 'ss-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_statefulsets(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    statefulset = MagicMock()
-    query = statefulset.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.StatefulSet', statefulset)
-
-    k = KubernetesWrapper()
-
-    statefulsets = k.statefulsets(**kwargs)
-
-    assert [r.obj for r in res] == statefulsets
-
-    get_resources.assert_called_with(query)
-    statefulset.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_statefulsets(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    replicas,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "StatefulSet", namespace, objects)
+    statefulsets = mock.wrapper.statefulsets(name=name, replicas=replicas, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == statefulsets
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="ds-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'ds-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ds-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'ds-3'}, 'spec': {}, 'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="ds-1")],
         ),
         (
-            {'application': 'ds-1'}, {'selector': {'application': 'ds-1'}},
-            [resource_mock({'metadata': {'name': 'ds-1'}, 'spec': {}, 'status': {}}, replicas=2)]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ds-1")],
         ),
         (
-            {'name': 'ds-2'}, {'field_selector': {'metadata.name': 'ds-2'}},
-            [resource_mock({'metadata': {'name': 'ds-2'}, 'spec': {}, 'status': {}})]
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="ds-1"), resource_mock(name="ds-2")],
         ),
-    ]
+    ],
 )
-def test_daemonsets(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    statefulset = MagicMock()
-    query = statefulset.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.DaemonSet', statefulset)
-
-    k = KubernetesWrapper()
-
-    daemonsets = k.daemonsets(**kwargs)
-
-    assert [r.obj for r in res] == daemonsets
-
-    get_resources.assert_called_with(query)
-    statefulset.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_daemonsets(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "DaemonSet", namespace, objects)
+    daemonsets = mock.wrapper.daemonsets(name=name, **kwargs)
+    assert [r.obj for r in objects] == daemonsets
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,replicas,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            pykube.all,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="rs-1", replicas=1)],
+            {"rs-1"},
+        ),
+        (
+            "default",
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="rs-1", replicas=1)],
+            {"rs-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="rs-1", replicas=1)],
+            {"rs-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'rs-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'rs-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'rs-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="rs-1", replicas=1),
+                resource_mock(name="rs-2", replicas=1),
+            ],
+            {"rs-1", "rs-2"},
         ),
         (
-            {'application': 'rs-1', 'replicas': 2}, {'selector': {'application': 'rs-1'}},
-            [resource_mock({'metadata': {'name': 'rs-1'}, 'spec': {}, 'status': {'replicas': '2'}}, replicas=2)]
+            "foobar",
+            "foobar",
+            2,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="rs-1", replicas=1),
+                resource_mock(name="rs-2", replicas=2),
+                resource_mock(name="rs-3", replicas=2),
+            ],
+            {"rs-2", "rs-3"},
         ),
-        (
-            {'name': 'rs-2'}, {'field_selector': {'metadata.name': 'rs-2'}},
-            [resource_mock({'metadata': {'name': 'rs-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_replicasets(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    replicaset = MagicMock()
-    query = replicaset.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.ReplicaSet', replicaset)
-
-    k = KubernetesWrapper()
-
-    replicasets = k.replicasets(**kwargs)
-
-    assert [r.obj for r in res] == replicasets
-
-    get_resources.assert_called_with(query)
-    replicaset.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_replicasets(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    replicas,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "ReplicaSet", namespace, objects)
+    replicasets = mock.wrapper.replicasets(name=name, replicas=replicas, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == replicasets
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,replicas,ready,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            pykube.all,
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
+        ),
+        (
+            "default",
+            "default",
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="dep-1", replicas=1, ready=True)],
+            {"dep-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'dep-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'dep-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'dep-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="dep-1", replicas=1, ready=True),
+                resource_mock(name="dep-2", replicas=1, ready=True),
+            ],
+            {"dep-1", "dep-2"},
         ),
         (
-            {'application': 'dep-1', 'replicas': 2}, {'selector': {'application': 'dep-1'}},
-            [resource_mock({'metadata': {'name': 'dep-1'}, 'spec': {}, 'status': {'replicas': '2'}}, replicas=2)]
+            "foobar",
+            "foobar",
+            2,
+            False,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="dep-1", replicas=1, ready=True),
+                resource_mock(name="dep-2", replicas=2, ready=False),
+                resource_mock(name="dep-3", replicas=2, ready=True),
+                resource_mock(name="dep-4", replicas=3, ready=False),
+            ],
+            {"dep-2"},
         ),
-        (
-            {'name': 'dep-2'}, {'field_selector': {'metadata.name': 'dep-2'}},
-            [resource_mock({'metadata': {'name': 'dep-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_deployments(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
+def test_deployments(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    replicas,
+    ready,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "Deployment", namespace, objects)
+    deployments = mock.wrapper.deployments(
+        name=name, replicas=replicas, ready=ready, **kwargs
+    )
+    assert [r.obj for r in objects if r.name in expected_objects] == deployments
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
-    deployment = MagicMock()
-    query = deployment.objects.return_value.filter.return_value
 
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Deployment', deployment)
-
-    k = KubernetesWrapper()
-
-    deployments = k.deployments(**kwargs)
-
-    assert [r.obj for r in res] == deployments
-
-    get_resources.assert_called_with(query)
-    deployment.objects.return_value.filter.assert_called_with(**filter_kwargs)
-
-
-@pytest.mark.parametrize('kwargs', ({'ready': 1}, {'ready': 0}))
-def test_deployments_error(monkeypatch, kwargs):
-    k = KubernetesWrapper()
+@pytest.mark.parametrize("kwargs", ({"ready": 1}, {"ready": 0}))
+def test_deployments_error(kwargs):
+    k = KubernetesWrapper(check_id='<test>')
 
     with pytest.raises(CheckError):
         k.deployments(**kwargs)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="cfg-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'cm-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'cm-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'cm-3'}, 'spec': {}, 'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="cfg-1")],
         ),
         (
-            {'application': 'cm-1'}, {'selector': {'application': 'cm-1'}},
-            [resource_mock({'metadata': {'name': 'cm-1'}, 'spec': {}, 'status': {'replicas': '2'}})]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="cfg-1")],
         ),
         (
-            {'name': 'cm-2'}, {'field_selector': {'metadata.name': 'cm-2'}},
-            [resource_mock({'metadata': {'name': 'cm-2'}, 'spec': {}, 'status': {}})]
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="cfg-1"), resource_mock(name="cfg-2")],
         ),
-    ]
+    ],
 )
-def test_configmaps(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    configmap = MagicMock()
-    query = configmap.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.ConfigMap', configmap)
-
-    k = KubernetesWrapper()
-
-    configmaps = k.configmaps(**kwargs)
-
-    assert [r.obj for r in res] == configmaps
-
-    get_resources.assert_called_with(query)
-    configmap.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_configmaps(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "ConfigMap", namespace, objects)
+    configmaps = mock.wrapper.configmaps(name=name, **kwargs)
+    assert [r.obj for r in objects] == configmaps
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,phase,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            pykube.all,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
+        ),
+        (
+            "default",
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="pvc-1", phase="Pending")],
+            {"pvc-1"},
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'pvc-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pvc-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pvc-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="pvc-1", phase="Pending"),
+                resource_mock(name="pvc-2", phase="Ready"),
+            ],
+            {"pvc-1", "pvc-2"},
         ),
         (
-            {'application': 'pvc-1', 'phase': 'Bound'}, {'selector': {'application': 'pvc-1'}},
-            [resource_mock({'metadata': {'name': 'pvc-1'}, 'spec': {}, 'status': {'phase': 'Bound'}})]
+            "foobar",
+            "foobar",
+            "Ready",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="pvc-1", phase="Pending"),
+                resource_mock(name="pvc-2", phase="Ready"),
+                resource_mock(name="pvc-3", phase="Ready"),
+            ],
+            {"pvc-2", "pvc-3"},
         ),
-        (
-            {'name': 'pvc-2'}, {'field_selector': {'metadata.name': 'pvc-2'}},
-            [resource_mock({'metadata': {'name': 'pvc-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_persistentvolumeclaims(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    persistentvolumeclaim = MagicMock()
-    query = persistentvolumeclaim.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.PersistentVolumeClaim', persistentvolumeclaim)
-
-    k = KubernetesWrapper()
-
-    persistentvolumeclaims = k.persistentvolumeclaims(**kwargs)
-
-    assert [r.obj for r in res] == persistentvolumeclaims
-
-    get_resources.assert_called_with(query)
-    persistentvolumeclaim.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_persistentvolumeclaims(
+    monkeypatch,
+    namespace,
+    expected_namespace,
+    phase,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "PersistentVolumeClaim", namespace, objects)
+    persistentvolumeclaims = mock.wrapper.persistentvolumeclaims(
+        name=name, phase=phase, **kwargs
+    )
+    assert [
+        r.obj for r in objects if r.name in expected_objects
+    ] == persistentvolumeclaims
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,phase,name,kwargs,expected_query,objects,expected_objects",
     [
         (
-            {}, {},
+            None,
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
+        ),
+        (
+            "default",
+            None,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
+        ),
+        (
+            None,
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="pv-1", phase="Pending")],
+            {"pv-1"},
+        ),
+        (
+            "foobar",
+            None,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
             [
-                resource_mock({'metadata': {'name': 'pv-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pv-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'pv-3'}, 'spec': {}, 'status': {}}),
-            ]
+                resource_mock(name="pv-1", phase="Pending"),
+                resource_mock(name="pv-2", phase="Ready"),
+            ],
+            {"pv-1", "pv-2"},
         ),
         (
-            {'application': 'pv-1', 'phase': 'Bound'}, {'selector': {'application': 'pv-1'}},
-            [resource_mock({'metadata': {'name': 'pv-1'}, 'spec': {}, 'status': {'phase': 'Bound'}})]
+            "foobar",
+            "Ready",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [
+                resource_mock(name="pv-1", phase="Pending"),
+                resource_mock(name="pv-2", phase="Ready"),
+                resource_mock(name="pv-3", phase="Ready"),
+            ],
+            {"pv-2", "pv-3"},
         ),
-        (
-            {'name': 'pv-2'}, {'field_selector': {'metadata.name': 'pv-2'}},
-            [resource_mock({'metadata': {'name': 'pv-2'}, 'spec': {}, 'status': {}})]
-        ),
-    ]
+    ],
 )
-def test_persistentvolumes(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-
-    persistentvolume = MagicMock()
-    query = persistentvolume.objects.return_value.filter.return_value
-    query.all.return_value = res
-
-    monkeypatch.setattr('pykube.PersistentVolume', persistentvolume)
-
-    k = KubernetesWrapper()
-
-    persistentvolumes = k.persistentvolumes(**kwargs)
-
-    assert [r.obj for r in res] == persistentvolumes
-
-    persistentvolume.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_persistentvolumes(
+    monkeypatch,
+    namespace,
+    phase,
+    name,
+    kwargs,
+    expected_query,
+    objects,
+    expected_objects,
+):
+    mock = MockWrapper(monkeypatch, "PersistentVolume", namespace, objects)
+    persistentvolumes = mock.wrapper.persistentvolumes(name=name, phase=phase, **kwargs)
+    assert [r.obj for r in objects if r.name in expected_objects] == persistentvolumes
+    mock.assert_objects_called(expected_namespace=None)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="quota-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'compute-resources', 'namespace': 'default'},
-                               'spec': {},
-                               'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="quota-1")],
         ),
-    ]
+        (
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="quota-1")],
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="quota-1"), resource_mock(name="quota-2")],
+        ),
+    ],
 )
-def test_resourcequotas(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-
-    get_resources = get_resources_mock(res)
-
-    resourcequota = MagicMock()
-    query = resourcequota.objects.return_value.filter.return_value
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.ResourceQuota', resourcequota)
-
-    query.all.return_value = res
-
-    k = KubernetesWrapper()
-
-    res_quotas = k.resourcequotas(**kwargs)
-
-    assert [r.obj for r in res] == res_quotas
-
-    resourcequota.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_resourcequotas(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "ResourceQuota", namespace, objects)
+    resourcequotas = mock.wrapper.resourcequotas(name=name, **kwargs)
+    assert [r.obj for r in objects] == resourcequotas
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="job-1")]),
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'job-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'job-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'job-3'}, 'spec': {}, 'status': {}}),
-            ]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="job-1")],
         ),
         (
-            {'application': 'job-1', 'name': 'job-1'},
-            {'selector': {'application': 'job-1'}, 'field_selector': {'metadata.name': 'job-1'}},
-            [resource_mock({'metadata': {'name': 'job-1'}, 'spec': {}, 'status': {}})]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="job-1")],
         ),
         (
-            {'name': 'job-2'}, {'field_selector': {'metadata.name': 'job-2'}},
-            [resource_mock({'metadata': {'name': 'job-2'}, 'spec': {}, 'status': {}}, ready=False)]
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="job-1"), resource_mock(name="job-2")],
         ),
-    ]
+    ],
 )
-def test_jobs(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    job = MagicMock()
-    query = job.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.Job', job)
-
-    k = KubernetesWrapper()
-
-    pods = k.jobs(**kwargs)
-
-    assert [r.obj for r in res] == pods
-
-    get_resources.assert_called_with(query)
-    job.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_jobs(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "Job", namespace, objects)
+    jobs = mock.wrapper.jobs(name=name, **kwargs)
+    assert [r.obj for r in objects] == jobs
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 @pytest.mark.parametrize(
-    'kwargs,filter_kwargs,res',
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
     [
         (
-            {}, {},
-            [
-                resource_mock({'metadata': {'name': 'cronjob-1'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'cronjob-2'}, 'spec': {}, 'status': {}}),
-                resource_mock({'metadata': {'name': 'cronjob-3'}, 'spec': {}, 'status': {}}),
-            ]
+            None,
+            pykube.all,
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="cronjob-1")],
         ),
         (
-            {'application': 'cronjob-1', 'name': 'cronjob-1'},
-            {'selector': {'application': 'cronjob-1'}, 'field_selector': {'metadata.name': 'cronjob-1'}},
-            [resource_mock({'metadata': {'name': 'cronjob-1'}, 'spec': {}, 'status': {}})]
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="cronjob-1")],
         ),
         (
-            {'name': 'cronjob-2'}, {'field_selector': {'metadata.name': 'cronjob-2'}},
-            [resource_mock({'metadata': {'name': 'cronjob-2'}, 'spec': {}, 'status': {}}, ready=False)]
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="cronjob-1")],
         ),
-    ]
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="cronjob-1"), resource_mock(name="cronjob-2")],
+        ),
+    ],
 )
-def test_cronjobs(monkeypatch, kwargs, filter_kwargs, res):
-    client_mock(monkeypatch)
-    get_resources = get_resources_mock(res)
-
-    cronjob = MagicMock()
-    query = cronjob.objects.return_value.filter.return_value
-
-    monkeypatch.setattr(
-        'zmon_worker_monitor.builtins.plugins.kubernetes.KubernetesWrapper._get_resources', get_resources)
-    monkeypatch.setattr('pykube.CronJob', cronjob)
-
-    k = KubernetesWrapper()
-
-    pods = k.cronjobs(**kwargs)
-
-    assert [r.obj for r in res] == pods
-
-    get_resources.assert_called_with(query)
-    cronjob.objects.return_value.filter.assert_called_with(**filter_kwargs)
+def test_cronjobs(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "CronJob", namespace, objects)
+    cronjobs = mock.wrapper.cronjobs(name=name, **kwargs)
+    assert [r.obj for r in objects] == cronjobs
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
 
 
 def test_metrics(monkeypatch):
     client = client_mock(monkeypatch)
 
     resp = MagicMock()
-    resp.text = 'metrics'
+    resp.text = "metrics"
 
-    client.return_value.session.get.return_value = resp
+    client.session.get.return_value = resp
 
     parsed = MagicMock()
     parsed.samples = [
-        ('metric-1', {}, 20.17), ('metric-2', {'verb': 'GET'}, 20.16), ('metric-1', {'verb': 'POST'}, 20.18)
+        ("metric-1", {}, 20.17),
+        ("metric-2", {"verb": "GET"}, 20.16),
+        ("metric-1", {"verb": "POST"}, 20.18),
     ]
 
     parser = MagicMock()
     parser.return_value = [parsed]
 
-    monkeypatch.setattr('zmon_worker_monitor.builtins.plugins.kubernetes.text_string_to_metric_families', parser)
+    monkeypatch.setattr(
+        "zmon_worker_monitor.builtins.plugins.kubernetes.text_string_to_metric_families",
+        parser,
+    )
 
-    k = KubernetesWrapper()
+    k = KubernetesWrapper(check_id='<test>')
     metrics = k.metrics()
 
     expected = {
-        'metric-1': [({}, 20.17), ({'verb': 'POST'}, 20.18)],
-        'metric-2': [({'verb': 'GET'}, 20.16)],
+        "metric-1": [({}, 20.17), ({"verb": "POST"}, 20.18)],
+        "metric-2": [({"verb": "GET"}, 20.16)],
     }
 
     assert metrics == expected
 
     parser.assert_called_with(resp.text)
-    client.return_value.session.get.assert_called_with(CLUSTER_URL + '/metrics')
+    client.session.get.assert_called_with(CLUSTER_URL + "/metrics")
