@@ -15,6 +15,10 @@ SCALYR_URL_PREFIX_US = 'https://www.scalyr.com/api'
 SCALYR_URL_PREFIX_EU = 'https://eu.scalyr.com/api'
 
 
+def parse_timestamp(time_string):
+    return str(time_string) + ('m' if isinstance(time_string, (int, float)) else '')
+
+
 class ScalyrWrapperFactory(IFunctionFactoryPlugin):
     def __init__(self):
         super(ScalyrWrapperFactory, self).__init__()
@@ -64,11 +68,11 @@ class ScalyrWrapper(object):
             'queryType': 'log',
             'maxCount': max_count,
             'filter': query,
-            'startTime': str(minutes) + 'm',
+            'startTime': parse_timestamp(minutes),
             'priority': 'low'
         }
         if end is not None:
-            val['endTime'] = str(end) + 'm'
+            val['endTime'] = parse_timestamp(end)
 
         if columns:
             val['columns'] = ','.join(columns) if type(columns) is list else str(columns)
@@ -98,12 +102,12 @@ class ScalyrWrapper(object):
             'queryType': 'numeric',
             'filter': query,
             'function': function,
-            'startTime': str(minutes) + 'm',
+            'startTime': parse_timestamp(minutes),
             'priority': 'low',
             'buckets': 1
         }
         if end is not None:
-            val['endTime'] = str(end) + 'm'
+            val['endTime'] = parse_timestamp(end)
 
         r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
 
@@ -123,11 +127,11 @@ class ScalyrWrapper(object):
             'filter': filter,
             'field': field,
             'maxCount': max_count,
-            'startTime': str(minutes) + 'm',
+            'startTime': parse_timestamp(minutes),
             'priority': prio
         }
         if end is not None:
-            val['endTime'] = str(end) + 'm'
+            val['endTime'] = parse_timestamp(end)
 
         r = requests.post(self.__facet_url, json=val, headers={'Content-Type': 'application/json'})
 
@@ -181,11 +185,11 @@ class ScalyrWrapper(object):
         value = {
             'token': self.__read_key,
             'query': query,
-            'startTime': str(minutes) + 'm',
+            'startTime': parse_timestamp(minutes),
             'priority': 'low',
         }
         if end is not None:
-            value['endTime'] = str(end) + 'm'
+            value['endTime'] = parse_timestamp(end)
 
         response = requests.post(self.__power_query_url,
                                  json=value,

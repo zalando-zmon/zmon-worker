@@ -4,7 +4,7 @@ import time
 
 from mock import MagicMock
 
-from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, ConfigurationError
+from zmon_worker_monitor.builtins.plugins.scalyr import ScalyrWrapper, ConfigurationError, parse_timestamp
 from zmon_worker_monitor.zmon_worker.errors import CheckError
 
 SCALYR_READ_KEY = '123'
@@ -323,6 +323,16 @@ power_query_response = {
          'query': 'power-query',
          'startTime': '7m',
          'endTime': '3m',
+         'priority': 'low',
+     },
+     power_query_response,
+     None),
+    ({'query': 'power-query', 'minutes': '2017-10-11T10:45:00+0800', 'end': '2017-10-11T11:45:00+0800'},
+     {
+         'token': SCALYR_READ_KEY,
+         'query': 'power-query',
+         'startTime': '2017-10-11T10:45:00+0800',
+         'endTime': '2017-10-11T11:45:00+0800',
          'priority': 'low',
      },
      power_query_response,
@@ -662,3 +672,14 @@ def test_scalyr_timeseries_end(monkeypatch, begin_and_end):
 
     post.assert_called_with(
         scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
+
+
+@pytest.mark.parametrize('input_time,output_time', [
+    ('', ''),
+    (5, '5m'),
+    (0, '0m'),
+    ('5', '5'),
+    ('2017-10-11T10:45:00+0800', '2017-10-11T10:45:00+0800'),
+    (5.0, '5.0m')])
+def test_parse_timestamp(input_time, output_time):
+    assert parse_timestamp(input_time) == output_time
