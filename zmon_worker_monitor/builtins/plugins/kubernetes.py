@@ -66,7 +66,7 @@ def _get_resources(object_manager, name=None, field_selector=None, **kwargs):
 
 
 class KubernetesWrapper(object):
-    def __init__(self, check_id, namespace='default'):
+    def __init__(self, check_id='<unknown>', namespace='default'):
         self.__check_id = check_id
         self.__namespace = pykube.all if namespace is None else namespace
 
