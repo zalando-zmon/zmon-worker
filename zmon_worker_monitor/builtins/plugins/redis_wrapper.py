@@ -124,6 +124,9 @@ class RedisWrapper(object):
     def zrange(self, key, start, end, desc=False, withscores=False, score_cast_func=float):
         return self.__con.zrange(key, start, end, desc, withscores, score_cast_func)
 
+    def info(self, section):
+        return self.__con.info(section)
+
     def statistics(self):
         '''
         Return general Redis statistics such as operations/s
