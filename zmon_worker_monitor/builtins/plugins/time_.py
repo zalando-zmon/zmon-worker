@@ -5,6 +5,7 @@ from numbers import Number
 from datetime import datetime
 
 import pytz
+import tzlocal
 
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta, parse_datetime
 
@@ -40,6 +41,7 @@ class TimeWrapper(object):
             raise ValueError('Ambiguous time zone. Don''t use "utc" and "tz" parameter at the same time.')
 
         tz = pytz.timezone(tz_name) if tz_name else None
+        self.timezone = pytz.UTC if utc else tz if tz_name else tzlocal.get_localzone()
 
         if isinstance(spec, Number):
             self.time = datetime.utcfromtimestamp(spec) if utc else datetime.fromtimestamp(spec, tz)
@@ -76,10 +78,13 @@ class TimeWrapper(object):
         return self.time.strftime(fmt)
 
     def astimezone(self, tz_name):
-        """
+        '''
         >>> TimeWrapper('2014-01-01 01:01', tz_name='UTC').astimezone('Europe/Berlin')
-        ''
-        """
+        '2014-01-01 02:01:00+01:00'
+        '''
         tz = pytz.timezone(tz_name)
-        epoch_seconds = (self.time.astimezone(tz) - self.EPOCH).total_seconds()
-        return TimeWrapper(epoch_seconds, tz_name)
+
+        dt_with_tz = self.time if self.time.tzinfo else self.time.replace(tzinfo=self.timezone)
+
+        epoch_seconds = (dt_with_tz.astimezone(tz) - self.EPOCH).total_seconds()
+        return TimeWrapper(epoch_seconds, tz_name=tz_name)
