@@ -38,7 +38,7 @@ class TimeWrapper(object):
 
     def __init__(self, spec='now', utc=False, tz_name=None):
         if utc and tz_name:
-            raise ValueError('Ambiguous time zone. Don''t use "utc" and "tz" parameter at the same time.')
+            raise ValueError('Ambiguous time zone. Don''t use "utc" and "tz_name" parameter at the same time.')
 
         tz = pytz.timezone(tz_name) if tz_name else None
         self.timezone = pytz.UTC if utc else tz if tz_name else tzlocal.get_localzone()
