@@ -103,6 +103,9 @@ class RedisWrapper(object):
     def hgetall(self, key):
         return self.__con.hgetall(key)
 
+    def hlen(self, key):
+        return self.__con.hlen(key)
+
     def scan(self, cursor, match=None, count=None):
         return self.__con.scan(cursor, match=match, count=count)
 
