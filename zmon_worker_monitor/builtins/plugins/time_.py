@@ -79,7 +79,7 @@ class TimeWrapper(object):
 
     def astimezone(self, tz_name):
         '''
-        >>> TimeWrapper('2014-01-01 01:01', tz_name='UTC').astimezone('Europe/Berlin')
+        >>> TimeWrapper('2014-01-01 01:01', tz_name='UTC').astimezone('Europe/Berlin').isoformat()
         '2014-01-01 02:01:00+01:00'
         '''
         tz = pytz.timezone(tz_name)
