@@ -41,7 +41,12 @@ class TimeWrapper(object):
             raise ValueError('Ambiguous time zone. Do not use "utc" and "tz_name" parameter at the same time.')
 
         tz = pytz.timezone(tz_name) if tz_name else None
-        self.timezone = pytz.UTC if utc else tz if tz_name else tzlocal.get_localzone()
+        if utc:
+            self.timezone = pytz.UTC
+        elif tz_name:
+            self.timezone = tz
+        else:
+            self.timezone = tzlocal.get_localzone()
 
         if isinstance(spec, Number):
             self.time = datetime.utcfromtimestamp(spec) if utc else datetime.fromtimestamp(spec, tz)
