@@ -4,6 +4,9 @@
 from numbers import Number
 from datetime import datetime
 
+import pytz
+import tzlocal
+
 from zmon_worker_monitor.zmon_worker.common.time_ import parse_timedelta, parse_datetime
 
 from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactoryPlugin, propartial
@@ -30,12 +33,25 @@ class TimeFactory(IFunctionFactoryPlugin):
 
 
 class TimeWrapper(object):
-    def __init__(self, spec='now', utc=False):
-        now = (datetime.utcnow() if utc else datetime.now())
+
+    EPOCH = datetime.fromtimestamp(0, pytz.UTC)
+
+    def __init__(self, spec='now', utc=False, tz_name=None):
+        if utc and tz_name:
+            raise ValueError('Ambiguous time zone. Do not use "utc" and "tz_name" parameter at the same time.')
+
+        tz = pytz.timezone(tz_name) if tz_name else None
+        if utc:
+            self.timezone = pytz.UTC
+        elif tz_name:
+            self.timezone = tz
+        else:
+            self.timezone = tzlocal.get_localzone()
 
         if isinstance(spec, Number):
-            self.time = datetime.utcfromtimestamp(spec) if utc else datetime.fromtimestamp(spec)
+            self.time = datetime.utcfromtimestamp(spec) if utc else datetime.fromtimestamp(spec, tz)
         else:
+            now = datetime.utcnow() if utc else datetime.now(tz)
             delta = parse_timedelta(spec)
             if delta:
                 self.time = now + delta
@@ -65,3 +81,15 @@ class TimeWrapper(object):
         '''
 
         return self.time.strftime(fmt)
+
+    def astimezone(self, tz_name):
+        '''
+        >>> TimeWrapper('2014-01-01 01:01', tz_name='UTC').astimezone('Europe/Berlin').isoformat()
+        '2014-01-01 02:01:00+01:00'
+        '''
+        tz = pytz.timezone(tz_name)
+
+        dt_with_tz = self.time if self.time.tzinfo else self.time.replace(tzinfo=self.timezone)
+
+        epoch_seconds = (dt_with_tz.astimezone(tz) - self.EPOCH).total_seconds()
+        return TimeWrapper(epoch_seconds, tz_name=tz_name)
