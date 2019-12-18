@@ -9,6 +9,7 @@ flask-restful-swagger==0.19
 Flask-RESTful==0.3.5
 Flask==0.10.1
 functional==0.4
+google-cloud-bigquery==1.7.0
 ipaddress==1.0.22
 Jinja2==2.10
 jsonpath-rw==1.4.0
