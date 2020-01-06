@@ -516,7 +516,7 @@ class ProcessPlus(Process):
                 time.sleep(kill_wait)
                 if self.is_alive():
                     self.logger.warn('Sending SIGKILL to process with pid=%s', self.pid)
-                    os.killpg(int(self.pid), signal.SIGKILL)
+                    os.kill(int(self.pid), signal.SIGKILL)
                     time.sleep(0.1)
                 assert not self.is_alive(), 'Fatal: Process {} alive after SIGKILL'.format(self.name)
             else:
