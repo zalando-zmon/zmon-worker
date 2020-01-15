@@ -65,6 +65,9 @@ def check_ast_node_is_safe(node, source):
                     "{} should not try to access hidden attributes (for example '__class__')".format(source))
         elif isinstance(n, ast.Exec):
             raise InvalidEvalExpression('{} should not try to execute arbitrary code'.format(source))
+        elif isinstance(n, ast.FunctionDef) and n.name == '__exit__':
+            raise InvalidEvalExpression(
+                '{} should not try to define __exit__ method as it leaks hidden data'.format(source))
     return node
 
 
