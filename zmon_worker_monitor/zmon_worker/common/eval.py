@@ -56,6 +56,12 @@ def check_ast_node_is_safe(node, source):
     Traceback (most recent call last):
         ...
     InvalidEvalExpression: <horror> should not try to execute arbitrary code
+
+
+    >>> check_ast_node_is_safe(ast.parse('def __exit__(): return 1'), '<hidden>')
+    Traceback (most recent call last):
+        ...
+    InvalidEvalExpression: <hidden> should not try to define __exit__ method as it leaks hidden data
     '''
 
     for n in ast.walk(node):
