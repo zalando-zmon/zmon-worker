@@ -77,7 +77,7 @@ class TimeWrapper(object):
         '2014-01-01'
 
         >>> TimeWrapper('-1m').format('%Y-%m-%d')[:3]
-        '201'
+        '202'
         '''
 
         return self.time.strftime(fmt)
