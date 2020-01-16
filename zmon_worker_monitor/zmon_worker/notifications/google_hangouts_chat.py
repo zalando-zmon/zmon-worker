@@ -4,6 +4,8 @@ import traceback
 
 import requests
 
+from datetime import datetime
+
 from urllib2 import urlparse
 
 from opentracing_utils import trace, extract_span_from_kwargs
@@ -26,7 +28,10 @@ class NotifyGoogleHangoutsChat(BaseNotification):
         multiline = kwargs.get('multiline', True)
         webhook_link_split = webhook_link.split('?')
         alert_id = alert['alert_def']['id']
-        webhook_link = webhook_link_split[0] + '?threadKey={}&'.format(alert_id) + webhook_link_split[1]
+        threading = kwargs.get('threading', 'alert')
+        thread_key = cls.get_thread_key(threading, alert_id)
+
+        webhook_link = webhook_link_split[0] + thread_key + webhook_link_split[1]
 
         repeat = kwargs.get('repeat', 0)
         alert_def = alert['alert_def']
@@ -91,3 +96,19 @@ class NotifyGoogleHangoutsChat(BaseNotification):
             logger.exception('Google Hangouts Chat write failed!')
 
         return repeat
+
+    @staticmethod
+    def get_thread_key(threading, alert_id):
+        thread_key = '?threadKey={}&'
+        if threading == 'alert':
+            return thread_key.format(alert_id)
+        elif threading == 'date':
+            date = str(datetime.date(datetime.now()))
+            return thread_key.format(date)
+        elif threading == 'alert-date':
+            date = str(datetime.date(datetime.now()))
+            return thread_key.format(str(alert_id) + date)
+        elif threading == 'none':
+            return '?'
+        else:
+            return thread_key.format(alert_id)
