@@ -7,6 +7,8 @@ import pykube
 
 from collections import defaultdict
 
+from pykube.objects import NamespacedAPIObject
+
 from prometheus_client.parser import text_string_to_metric_families
 
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
@@ -18,6 +20,30 @@ from zmon_worker_monitor.adapters.ifunctionfactory_plugin import IFunctionFactor
 VALID_PHASE = ('Pending', 'Running', 'Failed', 'Succeeded', 'Unknown')
 
 logger = logging.getLogger('zmon-worker.kubernetes-function')
+
+
+class PlatformCredentialsSet(NamespacedAPIObject):
+    version = 'zalando.org/v1'
+    endpoint = 'platformcredentialssets'
+    kind = 'PlatformCredentialsSet'
+
+
+class AWSIAMRole(NamespacedAPIObject):
+    version = 'zalando.org/v1'
+    endpoint = 'awsiamroles'
+    kind = 'AWSIAMRole'
+
+
+class Stack(NamespacedAPIObject):
+    version = 'zalando.org/v1'
+    endpoint = 'stacks'
+    kind = 'Stack'
+
+
+class StackSet(NamespacedAPIObject):
+    version = 'zalando.org/v1'
+    endpoint = 'stacksets'
+    kind = 'StackSet'
 
 
 class KubernetesFactory(IFunctionFactoryPlugin):
@@ -65,6 +91,11 @@ def _get_resources(object_manager, name=None, field_selector=None, **kwargs):
     return list(object_manager.filter(**filter_kwargs))
 
 
+def _objects(objects):
+    """Returns just the raw Kubernetes objects from a collection of objects"""
+    return [o.obj for o in objects]
+
+
 class KubernetesWrapper(object):
     def __init__(self, namespace='default', check_id='<unknown>'):
         self.__check_id = check_id
@@ -85,7 +116,7 @@ class KubernetesWrapper(object):
         :return: List of namespaces.
         :rtype: list
         """
-        return [ns.obj for ns in pykube.Namespace.objects(self.__client).all()]
+        return _objects(pykube.Namespace.objects(self.__client).all())
 
     def pods(self, name=None, phase=None, ready=None, **kwargs):
         """
@@ -137,9 +168,7 @@ class KubernetesWrapper(object):
         :return: List of nodes. Typical pod has "metadata", "status" and "spec".
         :rtype: list
         """
-        nodes = _get_resources(pykube.Node.objects(self.__client), name=name, **kwargs)
-
-        return [n.obj for n in nodes]
+        return _objects(_get_resources(pykube.Node.objects(self.__client), name=name, **kwargs))
 
     def services(self, name=None, **kwargs):
         """
@@ -154,9 +183,7 @@ class KubernetesWrapper(object):
         :return: List of services. Typical service has "metadata", "status" and "spec".
         :rtype: list
         """
-        services = _get_resources(pykube.Service.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [service.obj for service in services]
+        return _objects(_get_resources(pykube.Service.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def endpoints(self, name=None, **kwargs):
         """
@@ -171,9 +198,7 @@ class KubernetesWrapper(object):
         :return: List of Endpoints. Typical Endpoint has "metadata", and "subsets".
         :rtype: list
         """
-        endpoints = _get_resources(pykube.Endpoint.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [endpoint.obj for endpoint in endpoints]
+        return _objects(_get_resources(pykube.Endpoint.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def ingresses(self, name=None, **kwargs):
         """
@@ -188,9 +213,7 @@ class KubernetesWrapper(object):
         :return: List of Ingresses. Typical Ingress has "metadata", "spec" and "status".
         :rtype: list
         """
-        ingresses = _get_resources(pykube.Ingress.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [ingress.obj for ingress in ingresses]
+        return _objects(_get_resources(pykube.Ingress.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def statefulsets(self, name=None, replicas=None, **kwargs):
         """
@@ -226,9 +249,7 @@ class KubernetesWrapper(object):
         :return: List of Daemonsets. Typical Daemonset has "metadata", "status" and "spec".
         :rtype: list
         """
-        daemonsets = _get_resources(pykube.DaemonSet.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [daemonset.obj for daemonset in daemonsets]
+        return _objects(_get_resources(pykube.DaemonSet.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def replicasets(self, name=None, replicas=None, **kwargs):
         """
@@ -292,9 +313,7 @@ class KubernetesWrapper(object):
         :return: List of ConfigMaps. Typical ConfigMap has "metadata", "status" and "spec".
         :rtype: list
         """
-        configmaps = _get_resources(pykube.ConfigMap.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [configmap.obj for configmap in configmaps]
+        return _objects(_get_resources(pykube.ConfigMap.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def persistentvolumeclaims(self, name=None, phase=None, **kwargs):
         """
@@ -350,9 +369,7 @@ class KubernetesWrapper(object):
         :return: List of Jobs. Typical Job has "metadata", "status" and "spec".
         :rtype: list
         """
-        jobs = _get_resources(pykube.Job.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [job.obj for job in jobs]
+        return _objects(_get_resources(pykube.Job.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def cronjobs(self, name=None, **kwargs):
         """
@@ -367,9 +384,68 @@ class KubernetesWrapper(object):
         :return: List of CronJobs. Typical CronJob has "metadata", "status" and "spec".
         :rtype: list
         """
-        cronjobs = _get_resources(pykube.CronJob.objects(self.__client, self.__namespace), name=name, **kwargs)
+        return _objects(_get_resources(pykube.CronJob.objects(self.__client, self.__namespace), name=name, **kwargs))
 
-        return [job.obj for job in cronjobs]
+    def platformcredentialssets(self, name=None, **kwargs):
+        """
+        Return list of PlatformCredentialsSets.
+
+        :param name: PlatformCredentialsSet name.
+        :type name: str
+
+        :param **kwargs: PlatformCredentialsSet labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of PlatformCredentialsSets. Typical PlatformCredentialsSet has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        return _objects(_get_resources(PlatformCredentialsSet.objects(self.__client, self.__namespace),
+                                       name=name, **kwargs))
+
+    def awsiamroles(self, name=None, **kwargs):
+        """
+        Return list of AWSIAMRoles.
+
+        :param name: AWSIAMRole name.
+        :type name: str
+
+        :param **kwargs: AWSIAMRole labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of AWSIAMRoles. Typical AWSIAMRole has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        return _objects(_get_resources(AWSIAMRole.objects(self.__client, self.__namespace), name=name, **kwargs))
+
+    def stacksets(self, name=None, **kwargs):
+        """
+        Return list of StackSets.
+
+        :param name: StackSet name.
+        :type name: str
+
+        :param **kwargs: StackSet labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of StackSets. Typical StackSet has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        return _objects(_get_resources(StackSet.objects(self.__client, self.__namespace), name=name, **kwargs))
+
+    def stacks(self, name=None, **kwargs):
+        """
+        Return list of Stacks.
+
+        :param name: Stack name.
+        :type name: str
+
+        :param **kwargs: Stack labelSelector filters.
+        :type **kwargs: dict
+
+        :return: List of Stacks. Typical Stack has "metadata", "status" and "spec".
+        :rtype: list
+        """
+        return _objects(_get_resources(Stack.objects(self.__client, self.__namespace), name=name, **kwargs))
 
     def metrics(self):
         """
@@ -404,6 +480,5 @@ class KubernetesWrapper(object):
         :return: List of resourceQuota. Typical resourceQuota has "metadata", "status" and "spec".
         :rtype: list
         """
-        qs = _get_resources(pykube.ResourceQuota.objects(self.__client, self.__namespace), name=name, **kwargs)
-
-        return [q.obj for q in qs]
+        return _objects(_get_resources(pykube.ResourceQuota.objects(self.__client, self.__namespace),
+                                       name=name, **kwargs))
