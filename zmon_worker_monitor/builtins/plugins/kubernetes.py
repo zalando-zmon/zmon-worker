@@ -19,6 +19,14 @@ VALID_PHASE = ('Pending', 'Running', 'Failed', 'Succeeded', 'Unknown')
 
 logger = logging.getLogger('zmon-worker.kubernetes-function')
 
+# TODO Monkey-patch pykube to be compatible with Kubernetes 1.16.
+# Drop if pykube is updated to a still maintained version.
+pykube.objects.Deployment.version = 'apps/v1'
+pykube.objects.StatefulSet.version = 'apps/v1'
+pykube.objects.ReplicaSet.version = 'apps/v1'
+pykube.objects.DaemonSet.version = 'apps/v1'
+pykube.objects.CronJob.version = 'batch/v1beta1'
+
 
 class KubernetesFactory(IFunctionFactoryPlugin):
     def __init__(self):
