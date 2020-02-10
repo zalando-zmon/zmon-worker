@@ -27,7 +27,7 @@ def resource_mock(name, phase=None, replicas=None, ready=None):
 
 
 class MockWrapper:
-    def __init__(self, monkeypatch, kind, namespace, resources):
+    def __init__(self, monkeypatch, kind, namespace, resources, owning_module="pykube"):
         self._query = MagicMock(name="query")
         self._object_manager = MagicMock(name="object_manager")
         self._object_manager.objects.return_value = self._query
@@ -35,7 +35,7 @@ class MockWrapper:
         self._get_resources = MagicMock("get_resources")
         self._get_resources.return_value = resources
 
-        monkeypatch.setattr("pykube.{}".format(kind), self._object_manager)
+        monkeypatch.setattr("{}.{}".format(owning_module, kind), self._object_manager)
         monkeypatch.setattr(
             "zmon_worker_monitor.builtins.plugins.kubernetes._get_resources",
             self._get_resources,
@@ -1019,6 +1019,170 @@ def test_cronjobs(
     mock = MockWrapper(monkeypatch, "CronJob", namespace, objects)
     cronjobs = mock.wrapper.cronjobs(name=name, **kwargs)
     assert [r.obj for r in objects] == cronjobs
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
+
+
+@pytest.mark.parametrize(
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
+    [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="pcs-1")]),
+        (
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="pcs-1")],
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="pcs-1")],
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="pcs-1"), resource_mock(name="pcs-2")],
+        ),
+    ],
+)
+def test_platformcredentialssets(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "PlatformCredentialsSet", namespace, objects,
+                       owning_module="zmon_worker_monitor.builtins.plugins.kubernetes")
+    configmaps = mock.wrapper.platformcredentialssets(name=name, **kwargs)
+    assert [r.obj for r in objects] == configmaps
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
+
+
+@pytest.mark.parametrize(
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
+    [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="iamrole-1")]),
+        (
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="iamrole-1")],
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="iamrole-1")],
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="iamrole-1"), resource_mock(name="iamrole-2")],
+        ),
+    ],
+)
+def test_awsiamroles(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "AWSIAMRole", namespace, objects,
+                       owning_module="zmon_worker_monitor.builtins.plugins.kubernetes")
+    configmaps = mock.wrapper.awsiamroles(name=name, **kwargs)
+    assert [r.obj for r in objects] == configmaps
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
+
+
+@pytest.mark.parametrize(
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
+    [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="stackset-1")]),
+        (
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="stackset-1")],
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="stackset-1")],
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="stackset-1"), resource_mock(name="stackset-2")],
+        ),
+    ],
+)
+def test_stacksets(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "StackSet", namespace, objects,
+                       owning_module="zmon_worker_monitor.builtins.plugins.kubernetes")
+    configmaps = mock.wrapper.stacksets(name=name, **kwargs)
+    assert [r.obj for r in objects] == configmaps
+    mock.assert_objects_called(expected_namespace=expected_namespace)
+    mock.assert_get_resources_called(expected_query)
+
+
+@pytest.mark.parametrize(
+    "namespace,expected_namespace,name,kwargs,expected_query,objects",
+    [
+        (None, pykube.all, "foo", {}, {"name": "foo"}, [resource_mock(name="stack-1")]),
+        (
+            "default",
+            "default",
+            "foo",
+            {},
+            {"name": "foo"},
+            [resource_mock(name="stack-1")],
+        ),
+        (
+            None,
+            pykube.all,
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="stack-1")],
+        ),
+        (
+            "foobar",
+            "foobar",
+            None,
+            {"application": "foo"},
+            {"name": None, "application": "foo"},
+            [resource_mock(name="stack-1"), resource_mock(name="stack-2")],
+        ),
+    ],
+)
+def test_stacks(
+    monkeypatch, namespace, expected_namespace, name, kwargs, expected_query, objects
+):
+    mock = MockWrapper(monkeypatch, "Stack", namespace, objects,
+                       owning_module="zmon_worker_monitor.builtins.plugins.kubernetes")
+    configmaps = mock.wrapper.stacks(name=name, **kwargs)
+    assert [r.obj for r in objects] == configmaps
     mock.assert_objects_called(expected_namespace=expected_namespace)
     mock.assert_get_resources_called(expected_query)
 
