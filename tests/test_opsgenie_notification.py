@@ -9,7 +9,8 @@ from mock import MagicMock
 
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
-from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie, NotificationError, get_user_agent
+from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie, NotificationError, \
+        get_user_agent, CAPTURES_TOO_LARGE_MSG
 
 URL_CREATE = 'https://api.opsgenie.com/v2/alerts'
 URL_CLOSE = 'https://api.opsgenie.com/v2/alerts/{}/close'
@@ -208,6 +209,61 @@ def test_opsgenie_notification_captures(monkeypatch, include_captures, is_alert,
 
     URL = URL_CREATE if is_alert else URL_CLOSE.format('ZMON-123')
 
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5,
+                            params=params)
+
+
+def test_opsgenie_notification_large_captures(monkeypatch):
+    post = MagicMock()
+
+    monkeypatch.setattr('requests.post', post)
+
+    alert = {
+        'alert_changed': True, 'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
+        'captures': {'foo': 'x' * 10000},
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1,
+        }
+    }
+
+    NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
+
+    kwargs = {}
+    kwargs['priority'] = 'P1'
+
+    r = NotifyOpsgenie.notify(
+        alert,
+        message=MESSAGE,
+        include_alert=False,
+        include_captures=True,
+        teams=['team-1', 'team-2'],
+        **kwargs
+    )
+
+    params = {}
+
+    details = {'alert_evaluation_ts': 1234, 'captures': CAPTURES_TOO_LARGE_MSG}
+
+    data = {
+        'alias': 'ZMON-123',
+        'message': MESSAGE,
+        'description': '',
+        'entity': 'e-1',
+        'priority': 'P1',
+        'tags': [123],
+        'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
+        'source': 'worker-1',
+        'note': '',
+        'details': details,
+    }
+    assert r == 0
+
+    URL = URL_CREATE
     post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5,
                             params=params)
 

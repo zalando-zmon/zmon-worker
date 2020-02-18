@@ -17,6 +17,12 @@ from zmon_worker_monitor.zmon_worker.errors import NotificationError
 from notification import BaseNotification
 
 PRIORITIES = ('P1', 'P2', 'P3', 'P4', 'P5')
+# according to https://docs.opsgenie.com/docs/alert-api the "details" may be
+# up to 8000 characters long, we reserve half of it for the tiny details like
+# alert details page link, entity id or alert message:
+MAX_CAPTURE_SIZE = 4000
+CAPTURES_TOO_LARGE_MSG = 'captures not included due to opsgenie API limitations - ' \
+                         + 'please check the alert detail page for the captures'
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +137,10 @@ class NotifyOpsgenie(BaseNotification):
             if include_alert:
                 data['details'].update(alert_details)
             if include_captures:
-                data['details'].update(alert.get('captures'))
+                if len(json.dumps(alert.get('captures'))) > MAX_CAPTURE_SIZE:
+                    data['details'].update({'captures': CAPTURES_TOO_LARGE_MSG})
+                else:
+                    data['details'].update(alert.get('captures'))
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
