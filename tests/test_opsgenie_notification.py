@@ -174,7 +174,7 @@ def test_opsgenie_notification_captures(monkeypatch, include_captures, is_alert,
     params = {}
 
     if include_captures:
-        details = {'alert_evaluation_ts': 1234, 'foo': 'bar'}
+        details = {'alert_evaluation_ts': 1234, 'captures.foo': 'bar'}
     else:
         details = {'alert_evaluation_ts': 1234}
 
