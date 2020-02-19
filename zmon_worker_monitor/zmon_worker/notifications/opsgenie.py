@@ -47,6 +47,13 @@ def truncate(msg, size):
     return msg
 
 
+def update_with_size_constraints(details, data, size, replace):
+    if len(json.dumps(data)) > size:
+        details.update(replace)
+    else:
+        details.update(data)
+
+
 class NotifyOpsgenie(BaseNotification):
     @classmethod
     @trace(operation_name='notification_opsgenie', pass_span=True, tags={'notification': 'opsgenie'})
@@ -152,10 +159,10 @@ class NotifyOpsgenie(BaseNotification):
             }
 
             if isinstance(custom_fields, dict):
-                if len(json.dumps(custom_fields)) >= MAX_CUSTOM_SIZE:
-                    data['details'].update({'custom_fields': CUSTOMS_TOO_LARGE_MSG})
-                else:
-                    data['details'].update(custom_fields)
+                update_with_size_constraints(details,
+                                             custom_fields,
+                                             MAX_CUSTOM_SIZE,
+                                             {'custom_fields': CUSTOMS_TOO_LARGE_MSG})
 
             if include_alert:
                 data['details'].update(alert_details)
@@ -163,10 +170,8 @@ class NotifyOpsgenie(BaseNotification):
                 # from: https://docs.opsgenie.com/docs/alert-api
                 # details: Map of key-value pairs to use as custom properties of the alert.
                 captures = flatten({'captures': alert.get('captures')})
-                if len(json.dumps(captures)) >= MAX_CAPTURE_SIZE:
-                    data['details'].update({'captures': CAPTURES_TOO_LARGE_MSG})
-                else:
-                    data['details'].update(captures)
+                update_with_size_constraints(details, captures, MAX_CAPTURE_SIZE, {'captures': CAPTURES_TOO_LARGE_MSG})
+
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
