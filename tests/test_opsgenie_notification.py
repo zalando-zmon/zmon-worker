@@ -10,7 +10,7 @@ from mock import MagicMock
 from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
 from zmon_worker_monitor.zmon_worker.notifications.opsgenie import NotifyOpsgenie, NotificationError, \
-        get_user_agent, CAPTURES_TOO_LARGE_MSG
+        get_user_agent, CAPTURES_TOO_LARGE_MSG, MAX_MESSAGE_SIZE, update_with_size_constraints
 
 URL_CREATE = 'https://api.opsgenie.com/v2/alerts'
 URL_CLOSE = 'https://api.opsgenie.com/v2/alerts/{}/close'
@@ -268,6 +268,61 @@ def test_opsgenie_notification_large_captures(monkeypatch):
                             params=params)
 
 
+def test_opsgenie_notification_large_message(monkeypatch):
+    post = MagicMock()
+
+    monkeypatch.setattr('requests.post', post)
+
+    alert = {
+        'alert_changed': True, 'changed': True, 'is_alert': True, 'entity': {'id': 'e-1'}, 'worker': 'worker-1',
+        'alert_evaluation_ts': 1234,
+        'captures': {'foo': 'x'},
+        'alert_def': {
+            'name': 'Alert',
+            'team': 'zmon',
+            'responsible_team': 'zmon',
+            'id': 123,
+            'priority': 1,
+        }
+    }
+
+    NotifyOpsgenie._config = {'notifications.opsgenie.apikey': API_KEY}
+
+    kwargs = {}
+    kwargs['priority'] = 'P1'
+
+    r = NotifyOpsgenie.notify(
+        alert,
+        message=MESSAGE + " " + "x" * 130,
+        include_alert=False,
+        include_captures=True,
+        teams=['team-1', 'team-2'],
+        **kwargs
+    )
+
+    params = {}
+
+    details = {'alert_evaluation_ts': 1234, 'captures.foo': 'x'}
+
+    data = {
+        'alias': 'ZMON-123',
+        'message': MESSAGE + " " + "x" * (MAX_MESSAGE_SIZE - len(MESSAGE) - 4) + "...",
+        'description': '',
+        'entity': 'e-1',
+        'priority': 'P1',
+        'tags': [123],
+        'teams': [{'name': 'team-1'}, {'name': 'team-2'}],
+        'source': 'worker-1',
+        'note': '',
+        'details': details,
+    }
+    assert r == 0
+
+    URL = URL_CREATE
+    post.assert_called_with(URL, data=json.dumps(data, cls=JsonDataEncoder, sort_keys=True), headers=HEADERS, timeout=5,
+                            params=params)
+
+
 def test_opsgenie_notification_per_entity(monkeypatch):
     post = MagicMock()
     monkeypatch.setattr('requests.post', post)
@@ -402,3 +457,15 @@ def test_opsgenie_notification_exception(monkeypatch):
     r = NotifyOpsgenie.notify(alert, message=MESSAGE, per_entity=True, teams='team-1')
 
     assert r == 0
+
+
+def test_opsgenie_update_with_size_constraints():
+    details = {'foo': 'bar'}
+    data = {'bar': 'baz'}
+    defaults = {'bar': 'bar'}
+
+    update_with_size_constraints(details, data, 100, defaults)
+    assert details == {'foo': 'bar', 'bar': 'baz'}
+
+    update_with_size_constraints(details, data, 1, defaults)
+    assert details == {'foo': 'bar', 'bar': 'bar'}
