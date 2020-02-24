@@ -95,29 +95,9 @@ class ScalyrWrapper(object):
         else:
             raise CheckError('No logs or error message was returned from scalyr')
 
-    def function(self, function, query, minutes=5, end=0):
-
-        val = {
-            'token': self.__read_key,
-            'queryType': 'numeric',
-            'filter': query,
-            'function': function,
-            'startTime': parse_timestamp(minutes),
-            'priority': 'low',
-            'buckets': 1
-        }
-        if end is not None:
-            val['endTime'] = parse_timestamp(end)
-
-        r = requests.post(self.__numeric_url, json=val, headers={'Content-Type': 'application/json'})
-
-        r.raise_for_status()
-
-        j = r.json()
-        if 'values' in j:
-            return j['values'][0]
-        else:
-            return j
+    def function(self, function, query, minutes=5, end=0, align=0):
+        return self.timeseries(filter=query, function=function, minutes=minutes,
+                               buckets=1, end=end, align=align)
 
     def facets(self, filter, field, max_count=5, minutes=30, prio='low', end=0):
 

@@ -181,18 +181,18 @@ def fx_logs(request):
 @pytest.fixture(params=[
     (
         {'query': 'query-sum', 'function': 'sum'},
-        {'values': [5, 4, 3, 2]},
+        {'status': 'success', 'results': [{'values': [5]}]},
         5
     ),
     (
         {'query': 'query-sum', 'function': 'sum', 'minutes': 10},
-        {'values': [100, 4, 3, 2]},
+        {'status': 'success', 'results': [{'values': [100]}]},
         100
     ),
     (
         {'query': 'query-sum', 'function': 'sum'},
-        {'sum': 5},
-        {'sum': 5},
+        {'status': 'fail', 'sum': 5},
+        {'status': 'fail', 'sum': 5},
     )
 ])
 def fx_function(request):
@@ -533,10 +533,19 @@ def test_scalyr_function(monkeypatch, fx_function):
 
     assert count == exp
 
-    query = get_query('numeric', kwargs['function'], read_key, **kwargs)
+    if 'minutes' not in kwargs:
+        kwargs['minutes'] = 5
+    query = get_query('timeseries', kwargs.get('function', 'count'), read_key, **kwargs)
+
+    query.pop('queryType')
+
+    final_q = {
+        'token': query.pop('token'),
+        'queries': [query]
+    }
 
     post.assert_called_with(
-        scalyr._ScalyrWrapper__numeric_url, json=query, headers={'Content-Type': 'application/json'})
+        scalyr._ScalyrWrapper__timeseries_url, json=final_q, headers={'Content-Type': 'application/json'})
 
 
 def test_scalyr_facets(monkeypatch, fx_facets):
