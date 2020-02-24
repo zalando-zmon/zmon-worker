@@ -13,12 +13,45 @@ from zmon_worker_monitor.zmon_worker.encoder import JsonDataEncoder
 
 from zmon_worker_monitor.zmon_worker.common.http import get_user_agent
 from zmon_worker_monitor.zmon_worker.errors import NotificationError
+from zmon_worker_monitor.zmon_worker.common.utils import flatten
 
 from notification import BaseNotification
 
 PRIORITIES = ('P1', 'P2', 'P3', 'P4', 'P5')
+# according to https://docs.opsgenie.com/docs/alert-api the "details" may be
+# up to 8000 characters long we use MAX_CAPTURE_SIZE of it,
+# MAX_CUSTOM_SIZE are for the contents of the custom_fields parameter,
+# the remaining data size is for the "alert_evaluation_ts" field and other
+# internal data we might add in the future.
+MAX_CAPTURE_SIZE = 6000
+CAPTURES_TOO_LARGE_MSG = 'captures not included due to opsgenie API limitations - ' \
+                         + 'please check the alert detail page for the captures'
+MAX_CUSTOM_SIZE = 900
+CUSTOMS_TOO_LARGE_MSG = 'custom_fields not included due to opsgenie API limitations - ' \
+                        + 'please update your notification call'
+
+# these are fixed values enforced by the API
+MAX_MESSAGE_SIZE = 130
+MAX_DESCRIPTION_SIZE = 15000
 
 logger = logging.getLogger(__name__)
+
+
+def truncate(msg, size):
+    '''
+    >>> truncate("1234567890", 7)
+    '1234...'
+    '''
+    if len(msg) > size:
+        return msg[:size-3] + "..."
+    return msg
+
+
+def update_with_size_constraints(details, data, size, replace):
+    if len(json.dumps(data)) > size:
+        details.update(replace)
+    else:
+        details.update(data)
 
 
 class NotifyOpsgenie(BaseNotification):
@@ -115,9 +148,9 @@ class NotifyOpsgenie(BaseNotification):
             data = {
                 'alias': alias,
                 'teams': teams,
-                'message': msg,
+                'message': truncate(msg, MAX_MESSAGE_SIZE),
                 'source': alert.get('worker', ''),
-                'description': description,
+                'description': truncate(description, MAX_DESCRIPTION_SIZE),
                 'entity': entity['id'],
                 'note': note,
                 'priority': priority,
@@ -126,12 +159,19 @@ class NotifyOpsgenie(BaseNotification):
             }
 
             if isinstance(custom_fields, dict):
-                data['details'].update(custom_fields)
+                update_with_size_constraints(details,
+                                             custom_fields,
+                                             MAX_CUSTOM_SIZE,
+                                             {'custom_fields': CUSTOMS_TOO_LARGE_MSG})
 
             if include_alert:
                 data['details'].update(alert_details)
             if include_captures:
-                data['details'].update(alert.get('captures'))
+                # from: https://docs.opsgenie.com/docs/alert-api
+                # details: Map of key-value pairs to use as custom properties of the alert.
+                captures = flatten({'captures': alert.get('captures')})
+                update_with_size_constraints(details, captures, MAX_CAPTURE_SIZE, {'captures': CAPTURES_TOO_LARGE_MSG})
+
         else:
             logger.info('Closing Opsgenie alert {}'.format(alias))
 
